@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 208
-**Date:** 2026-11-21  
+**Revision:** 209
+**Date:** 2026-11-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -899,3 +899,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 206 | 2026-11-22 | NeurOne Software Engineering | **§6.3 `SWR-SS-05`: a resume is refused on a link that is not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)).** |
 | 207 | 2026-11-23 | NeurOne Software Engineering | **§5.2.2: REQ-SW02-14 added: the EDF+ research-extract gate leaves nothing in SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2).** |
 | 208 | 2026-11-21 | NeurOne Software Engineering | **§6.3 new SWR-MG-33 and SWR-MG-34 (the core composes, signs, verifies and orders the superseded notice, built in `current_device.rs`); SWR-MG-33: a migration or restore asks the research consents again and is not finished until they are answered, then makes the device current for the person, subscribes it if needed and publishes a signed superseded notice, queued when offline; the current-device key is a carried item (the principal, 2026-11-20 and 2026-11-21, OI-PRIV-68). Not built.** |
+| 209 | 2026-11-23 | NeurOne Firmware Engineering | **§5.2.2 REQ-SW02-15: the floor's store is the eMMC's RPMB (the principal, 2026-11-23), and a blank or wrong-key RPMB refuses every image as an unreadable floor does; the store is not built (OI-PRIV-32 (NP-PRIV-ANALYSIS-004)).** |
