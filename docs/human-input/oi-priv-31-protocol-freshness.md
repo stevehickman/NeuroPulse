@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-31 (NP-PRIV-ANALYSIS-004), whether and how a signed protocol is made fresh
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (§5): option D. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#959](https://github.com/stevehickman/NeuroPulse/issues/959)
 **From:** NeurOne Software Engineering (`OI-PRIV-31` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Finding M4)
 **To:** the principal (design and wire format). Safety, for option D's risk acceptance.
@@ -105,7 +105,7 @@ favours B), or a Mode 3 design in which the hub accepts uploads with no phone pr
 
 | Field | Answer |
 |---|---|
-| Option | |
-| Rationale | |
-| Would reopen | |
-| Name, role, date | |
+| Option | **D: no freshness control, at run or at upload.** Repeat runs need none (§1a), and uploads get none either |
+| Rationale | The wearer is responsible for the loaded protocol being the one they want, and can reload a protocol at any time. Repeat runs without any other device or app are a parity feature (§1a) |
+| Would reopen | Not stated. The residual risk (an older captured protocol uploaded over the stored one by someone with a bonded link or USB-C access) is for Safety to enter in the risk file |
+| Name, role, date | The principal, 2026-11-23 (in the PR #993 session) |
