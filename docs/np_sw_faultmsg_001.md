@@ -210,13 +210,19 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 
 ### 9.2 The per-user model
 
-- **Active user.** An opaque 32-bit tag. On both apps it is the first four bytes of the profile's
-  random UUID, read little-endian (`ActiveUserTag`). 0 means *unspecified* and `0xFFFFFFFF` means
-  *any*; both are reserved and never produced. **That derivation is being replaced** (`OI-PRIV-29`,
-  NP-PRIV-ANALYSIS-004): a UUID prefix is the same on every helmet, joins to the profile id in exported
-  files and is UHDR-class (`data-architecture-detail.md` §5.1). The replacement is `REQ-FAULTMSG-01`
-  below; its core is built (`common/npps-core/src/active_user_tag.rs`) and not wired into the apps,
-  pending the Safety brief `docs/human-input/oi-priv-29-active-user-tag-safety.md`.
+- **Active user.** An opaque 32-bit tag, worked out per helmet (`REQ-FAULTMSG-01`, `OI-PRIV-29`
+  (NP-PRIV-ANALYSIS-004)). It is HMAC-SHA-256 of the helmet's serial under the profile's own secret,
+  computed by the shared Rust core (`common/npps-core/src/active_user_tag.rs`) and named by the shared
+  GATT manager once the helmet's serial has been read (`ActiveUserTag`, `NeurOneGattManager`). 0 means
+  *unspecified* and `0xFFFFFFFF` means *any*; both are reserved and never produced. A profile made before
+  this change (`ProfileTagState.legacy`) may be known to a helmet by its old tag, the first four
+  bytes of the profile's random UUID, read little-endian. That tag is the same on every helmet, joins to
+  the profile id in exported files and is UHDR-class (`data-architecture-detail.md` §5.1). Such a
+  profile keeps its old tag on a helmet until that helmet reports, from a valid report, that nobody on
+  it has an outstanding cutoff; then the move is recorded and the per-helmet tag named for good. The
+  migration rule was accepted by the principal on 2026-11-23 (Q2 of
+  `docs/human-input/oi-priv-29-active-user-tag-safety.md`); whether any central naming any tag defeats
+  hazard 25-c's control (Q1) is still open.
   The hub forwards the tag in a 10-byte SPI frame
   (`np_safety_user_cmd_t`, `NP_SAFETY_CMD_ACTIVE_USER`) only while no session is running. The
   safety MCU accepts it only when nothing is granted and no NV write is owed.
@@ -225,12 +231,17 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 > 32-byte secret held with the individual profile, over a domain string and the helmet's serial, so it
 > differs per (profile, helmet) and cannot be computed from the profile id; (b) never takes the reserved
 > values 0 or `0xFFFFFFFF`; (c) moves a (profile, helmet) pair from its previous tag to the new one only on a reading that nobody on
-> the helmet has an outstanding cutoff (`NP_SAFETY_NV_FLAG_OUTSTANDING` clear), so a change of derivation never
+> the helmet has an outstanding cutoff (`NP_SAFETY_NV_FLAG_OUTSTANDING` clear) from a valid report, records the move
+> before naming the new tag, and never names the previous tag to that helmet again, so a change of derivation never
 > releases a hold. The helmet does not report which tag is current, so a per-user reading cannot be tied to
-> the previous tag. *Fails if not met:* (a) one
+> the previous tag; (d) the `CVNS_FAULT_STATUS` frame says whether its flags come from a safety-MCU report the hub
+> validated (byte 3 bit 7, `CvfsWire.FLAG_REPORT_VALID`), so "no valid report" never reads as "nothing outstanding";
+> (e) a profile's tag state (its secret, whether it predates the per-helmet tag, and the helmets it has moved on) is
+> assigned by the profile store, kept across every edit and read, and travels with the profile. *Fails if not met:* (a) one
 > person is linkable across helmets and to exported files by a UHDR-class value (CLAUDE.md §5.1); (b) the
-> safety MCU refuses the frame and the person is never named (`np_safety_main.c`); (c) a person's cardiac
-> cutoff is released without the re-enable sequence, the hazard control of `REQ-CVNS-09`. *Traces to:*
+> safety MCU refuses the frame and the person is never named (`np_safety_main.c`); (c) and (d) a person's cardiac
+> cutoff is released without the re-enable sequence, the hazard control of `REQ-CVNS-09`; (e) a person gets a new tag
+> on a helmet that holds their cutoff under the old one, with the same effect. *Traces to:*
 > CLAUDE.md §5.1; RFC 2104 §3 (key length); `REQ-CVNS-09`; this section's blocking rule.
 
 - **Blocking rule.** `blocked(u)` holds if any of these is true:
@@ -252,7 +263,7 @@ device is an opaque tag derived from a random profile UUID, with no name (§9.2)
 |---|---|---|
 | Hub → safety MCU | `np_safety_user_cmd_t`, 10 B | Command 0x04 + tag + checksum |
 | Safety MCU → hub | `np_safety_nv_report_t`, 4 B at MISO offset 16 of every reply | Magic 0x6C. Flags: bit 0 = the active user is blocked, bit 1 = a cutoff is outstanding for someone. Checksum |
-| Hub → app | GATT 0x0014 CVNS_FAULT_STATUS, READ/NOTIFY, 4 + 8n B | Version, hub re-enable state, n, the flags byte above, then up to four records (session counter, fault kind, pad-side mask). Records are the active user's own |
+| Hub → app | GATT 0x0014 CVNS_FAULT_STATUS, READ/NOTIFY, 4 + 8n B | Version (2), hub re-enable state, n, the flags byte above with bit 7 set when it comes from a report the hub validated (`REQ-FAULTMSG-01` (d); version 1, without the bit, was never deployed and is refused), then up to four records (session counter, fault kind, pad-side mask). Records are the active user's own |
 | App → hub | GATT 0x0015, WRITE 1 B | 0x01: the wearer confirms resuming (`REQ-CVNS-09`) |
 | App → hub | GATT 0x0016, WRITE 4 B | Active-user tag, little-endian |
 

@@ -15,11 +15,20 @@
 //! a held cutoff held across the change of derivation (`REQ-FAULTMSG-01` (c)).
 //!
 //! WHAT THIS DOES NOT DO. It holds no secret and draws no entropy: the host supplies the 32-byte profile
-//! secret from its own CSPRNG, as everywhere in this crate. It is not wired into either app yet: the wiring
-//! waits on the Safety brief `docs/human-input/oi-priv-29-active-user-tag-safety.md`, whose answer may change
-//! what the tag has to carry.
+//! secret from its own CSPRNG, as everywhere in this crate.
+//!
+//! HOW A HOST REACHES IT. Through `migration_secret_json` (`secret_io`), so the profile secret crosses as bytes
+//! beside the request and never as text (`SWR-MG-32`):
+//!
+//! | operation | arguments | result |
+//! |-----------|-----------|--------|
+//! | `activeUserTag` | `profileSecret` (`{"$secret": n}`, 32 bytes), `helmetSerial` (hex) | `{tag}` |
+//! | `activeUserTagLegacy` | `profileId` (a UUID's 36-character text) | `{tag}` |
+//! | `activeUserTagStep` | `migrated` (bool), `nothingOutstanding` (bool, or null when no valid report is in hand) | `{step: "legacy"|"derived"}` |
 
+use crate::migration::unhex;
 use hmac::{Hmac, Mac};
+use serde_json::{json, Value};
 use sha2::Sha256;
 
 /// Bytes in a profile tag secret. RFC 2104 §3: a key shorter than the hash output (32 bytes for SHA-256)
@@ -93,3 +102,43 @@ pub fn migration_step(migrated: bool, device_outstanding: Option<bool>) -> Step 
 }
 
 // Tests: common/npps-core/tests/active_user_tag.rs (req-trace scans tests/, not src/).
+
+/// A UUID's text (`8-4-4-4-12` hex digits) as its 16 bytes, for [`legacy`].
+fn uuid_bytes(text: &str) -> Result<[u8; 16], String> {
+    let hex: String = text.chars().filter(|c| *c != '-').collect();
+    if text.len() != 36 || hex.len() != 32 || [8, 13, 18, 23].iter().any(|&i| text.as_bytes()[i] != b'-') {
+        return Err("profileId is not a UUID".into());
+    }
+    let bytes = unhex(&hex, "profileId")?;
+    let mut out = [0u8; 16];
+    out.copy_from_slice(&bytes);
+    Ok(out)
+}
+
+/// The operations of the table above, for `migration::dispatch`; `None` for any other name.
+pub(crate) fn op(name: &str, req: &Value) -> Option<Result<Value, String>> {
+    Some(match name {
+        "activeUserTag" => (|| {
+            let secret = crate::secret_io::secret(req, "profileSecret", &[])?;
+            let key: &[u8; PROFILE_SECRET_LEN] =
+                secret.as_slice().try_into().map_err(|_| format!("profileSecret is {PROFILE_SECRET_LEN} bytes"))?;
+            let serial = unhex(req["helmetSerial"].as_str().ok_or("helmetSerial is required")?, "helmetSerial")?;
+            Ok(json!({ "tag": derive(key, &serial)? }))
+        })(),
+        "activeUserTagLegacy" => (|| {
+            let id = req["profileId"].as_str().ok_or("profileId is required")?;
+            Ok(json!({ "tag": legacy(&uuid_bytes(id)?) }))
+        })(),
+        "activeUserTagStep" => (|| {
+            let migrated = req["migrated"].as_bool().ok_or("migrated is required")?;
+            let nothing = match &req["nothingOutstanding"] {
+                Value::Null => None,
+                Value::Bool(b) => Some(*b),
+                _ => return Err("nothingOutstanding is a bool or null".into()),
+            };
+            let step = migration_step(migrated, nothing.map(|n| !n));
+            Ok(json!({ "step": if step == Step::NameDerived { "derived" } else { "legacy" } }))
+        })(),
+        _ => return None,
+    })
+}

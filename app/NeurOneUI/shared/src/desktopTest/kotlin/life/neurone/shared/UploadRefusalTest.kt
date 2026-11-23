@@ -86,10 +86,10 @@ class UploadRefusalTest {
     )
 
     /** An unread cardiac cutoff from an offline session: [version, state, 1 record, 0] + [counter 7, kind 1 (heart-rate change), no sides]. */
-    private val unreadCutoff = byteArrayOf(0x01, 0x00, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00)
+    private val unreadCutoff = byteArrayOf(0x02, 0x00, 0x01, 0x80.toByte(), 0x07, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00)
 
     /** Another person on this device has an outstanding cutoff: no records, the outstanding flag set and not this user's. */
-    private val anotherPersonsCutoff = byteArrayOf(0x01, 0x00, 0x00, 0x02)
+    private val anotherPersonsCutoff = byteArrayOf(0x02, 0x00, 0x00, 0x82.toByte())
 
     private fun connectedManager(central: RecordingCentral, scope: TestScope): Pair<NeurOneGattManager, ProtocolUploader> {
         val manager = NeurOneGattManager(central, scope)

@@ -630,7 +630,7 @@ static void test_fault_status_read_and_notify_agree(void)
     check(np_gatt_on_read(NP_GATT_CVNS_FAULT_STATUS_ID, 0U, rd, sizeof rd, &len) == NP_ATT_OK &&
           len == g_ntf_len && memcmp(rd, g_ntf, len) == 0,
           "fault status: a READ returns the frame last notified");
-    check(rd[0] == NP_CVFS_WIRE_VERSION && rd[1] == 2U && rd[2] == 1U && rd[3] == 0x01U &&
+    check(rd[0] == NP_CVFS_WIRE_VERSION && rd[1] == 2U && rd[2] == 1U && rd[3] == (0x01U | NP_CVFS_FLAG_REPORT_VALID) &&
           rd[4] == 43U && rd[8] == (uint8_t)NP_CVNS_FAULT_IMPEDANCE && rd[9] == NP_CVFS_SIDE_RIGHT,
           "fault status: the frame is the one the apps parse");
 
