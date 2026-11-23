@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 206
-**Date:** 2026-11-22  
+**Revision:** 207
+**Date:** 2026-11-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -895,3 +895,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 204 | 2026-11-21 | NeurOne Software Engineering | **§5.2.2: `REQ-SW02-12` states that a research extract carries only the §E.5 research header, and what the gate refuses (OI-PRIV-26 (NP-PRIV-ANALYSIS-004)).** |
 | 205 | 2026-11-21 | NeurOne Firmware Engineering | **§5.2.2: `REQ-SW02-13` added: a factory reset purges the data partitions with eMMC SANITIZE started through EXT_CSD, after the last erase and before the new salt and token, and a SANITIZE that fails keeps the reset in progress (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004` H7).** |
 | 206 | 2026-11-22 | NeurOne Software Engineering | **§6.3 `SWR-SS-05`: a resume is refused on a link that is not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)).** |
+| 207 | 2026-11-23 | NeurOne Software Engineering | **§5.2.2: REQ-SW02-14 added: the EDF+ research-extract gate leaves nothing in SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2).** |
