@@ -4,16 +4,16 @@
  * Document: NP-FW-EMMC-002 Rev 1 §C
  *
  * Two-layer architecture (§C.2), hardened per the 2026-07-08 privacy review:
- *   Layer 1 UKMD — 32-byte TRNG master key, used directly as the UHDR
- *                  XTS key material (32 bytes is not XTS-AES-256: OI-PRIV-35,
- *                  below).  Stored in Config only as GCM ciphertext.
+ *   Layer 1 UKMD — 64-byte TRNG master key, the UHDR XTS-AES-256 key
+ *                  K1 || K2 (NP-FW-EMMC-001 EMMC-UHDR-04).  Stored in Config
+ *                  only as GCM ciphertext.
  *   Layer 2 WKMD — 32-byte wrapper key derived from BOTH the credential
  *                  (Argon2id) AND a device-fused, non-extractable hardware key
  *                  (CAAM/OTPMK HUK, HAL OI-UHDRK-09).  Encrypts the UKMD.
  *                  Lives in SRAM only for the duration of a wrap/unwrap and is
  *                  zeroed immediately after.
  *
- * A credential (biometric/PIN) change re-derives WKMD and re-wraps the 32-byte
+ * A credential (biometric/PIN) change re-derives WKMD and re-wraps the 64-byte
  * UKMD; the ≤6.9 GiB UHDR partition ciphertext is never re-encrypted.
  *
  * Hardware binding (privacy review Finding 1): mixing the device-fused key into
@@ -30,18 +30,20 @@
 /* ── Key / crypto material lengths (§C.2, §C.3) ──────────────────────────── */
 
 /*
- * Layer 1 master key length.  The UKMD is handed to the UHDR mount
- * (np_uhdr_hal_mount_uhdr) as its XTS key material.
+ * Layer 1 master key length: 64 bytes, the XTS-AES-256 key K1 || K2.
  *
- * OPEN (OI-PRIV-35, NP-PRIV-ANALYSIS-004 Finding M9): 32 bytes is NOT an
- * AES-256-XTS key.  XTS-AES-256 takes 64 bytes (Key1 || Key2, IEEE Std 1619;
- * NIST SP 800-38E), so 32 bytes used directly is XTS-AES-128 or the
- * degenerate Key1 = Key2 case.  Whether to widen the UKMD to 64 bytes or to
- * derive two independent XTS keys from it is the cryptography reviewer's call
- * (OI-EMMC2-02; brief docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md).
- * Nothing on target consumes the key yet: np_uhdr_hal_mount_uhdr traps.
+ * XTS-AES-256 takes two independent 256-bit keys, K1 for the data and K2 for
+ * the tweak (IEEE Std 1619; NIST SP 800-38E), and NP-FW-EMMC-001 §6.2
+ * EMMC-UHDR-04 (MANDATORY) fixes the UHDR key material at 512 bits.  This was
+ * 32 bytes until 2026-11-23 (OI-PRIV-35, NP-PRIV-ANALYSIS-004 Finding M9): the
+ * two-layer delta (NP-FW-EMMC-002 §C.2) had reduced it with no recorded
+ * decision.  K1 = ukmd[0..31], K2 = ukmd[32..63], and the two halves are never
+ * equal (REQ-EMMC2-06).  All 64 bytes come from the TRNG.
  */
-#define NP_UHDR_UKMD_LEN            32U
+#define NP_UHDR_UKMD_LEN            64U
+
+/* One XTS half (K1 or K2).                                                     */
+#define NP_UHDR_XTS_HALF_LEN        (NP_UHDR_UKMD_LEN / 2U)
 
 /* Layer 2 wrapper key derived from the credential via Argon2id.                */
 #define NP_UHDR_WKMD_LEN            32U
@@ -63,6 +65,11 @@
  * silently pinning weaker KDF settings.  32 (salt) + 4×4 (version/m/t/p) = 48.
  */
 #define NP_UHDR_AAD_LEN            (NP_UHDR_SALT_LEN + 16U)
+
+/* Largest AAD any wrap in this module authenticates: the profile record's
+ * wrap 1 binds profile id (16) + salt (32) + the four KDF words (16) = 64
+ * (NP-FW-EMMC-002 §C.8).  The §C.3 UKMD wrap uses NP_UHDR_AAD_LEN (48). */
+#define NP_UHDR_AAD_MAX_LEN        64U
 
 /* ── Argon2id parameters (§C.3 — identical to NP-FW-EMMC-001 Rev 1 §6) ────── */
 
