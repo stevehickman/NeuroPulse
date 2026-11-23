@@ -130,8 +130,13 @@ extern "C" {
  * UHDR and cannot purge it (SANITIZE has no LBA scope), so the purge is its
  * own step after the last erase.  It traps like the rest of the reset HAL
  * until the application has an eMMC transport (OI-RESET-01).
+ *
+ * 120 → 123 on 2026-11-21 (NP-FW-EMMC-002 §C.7, OI-PRIV-35 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_attempts_read(), np_uhdr_hal_attempts_write()
+ * and np_uhdr_hal_uptime_ms(), the persisted failed-unlock count and the
+ * monotonic uptime the UHDR unlock back-off (REQ-EMMC2-01) is measured in.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   120
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   123
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
