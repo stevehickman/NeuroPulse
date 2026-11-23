@@ -27,6 +27,9 @@
  *   T13 attempt limit (§C.7, REQ-EMMC2-01; OI-PRIV-35 Finding M10): charge
  *       before test, clear on success, back-off refuses without KDF or charge,
  *       doubles and caps, survives a reboot, fails closed on storage faults.
+ *   T14 64-byte XTS key (REQ-EMMC2-02; OI-PRIV-35 Finding M9): the whole
+ *       K1 || K2 is wrapped, authenticated, recovered and mounted, and a key
+ *       with K1 == K2 is never minted or mounted.
  *
  * Return convention: 0 = PASS, non-zero = failure count.
  */
@@ -49,6 +52,7 @@ extern void                    np_uhdr_host_set_uptime_ms(uint64_t ms);
 extern void                    np_uhdr_host_attempts_write_fail(bool fail);
 extern void                    np_uhdr_host_attempts_invalidate(void);
 extern void                    np_uhdr_host_reboot(void);
+extern void                    np_uhdr_host_trng_equal_halves(bool on);
 
 static int g_fail_count = 0;
 
@@ -552,6 +556,81 @@ static void test_unreadable_count_refuses(void)
     ASSERT(np_uhdr_key_unlock_wait_ms(NULL) == NP_UHDR_ERR_INVALID, "NULL wait rejected");
 }
 
+/* ── 64-byte XTS key (REQ-EMMC2-02; OI-PRIV-35, NP-PRIV-ANALYSIS-004 M9) ──── */
+
+/* @verifies REQ-EMMC2-02#a */
+static void test_ukmd_is_full_xts_key(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT(NP_UHDR_UKMD_LEN == 64U, "the UKMD is 64 bytes (K1 || K2)");
+    ASSERT(sizeof(np_uhdr_host_config()->ukmd_ciphertext) == NP_UHDR_UKMD_LEN,
+           "the record carries all 64 bytes");
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "provision");
+
+    const uint8_t *k1 = ctx.ukmd;
+    const uint8_t *k2 = ctx.ukmd + NP_UHDR_XTS_HALF_LEN;
+    ASSERT(!buf_is_zero(k1, NP_UHDR_XTS_HALF_LEN) && !buf_is_zero(k2, NP_UHDR_XTS_HALF_LEN),
+           "both halves are minted");
+    ASSERT(memcmp(k1, k2, NP_UHDR_XTS_HALF_LEN) != 0, "K1 differs from K2");
+    const np_ukmd_record_t *rec = np_uhdr_host_config();
+    ASSERT(memcmp(rec->ukmd_ciphertext + NP_UHDR_XTS_HALF_LEN, k2, NP_UHDR_XTS_HALF_LEN) != 0,
+           "K2 is wrapped, not stored in the clear");
+    ASSERT(memcmp(np_uhdr_host_last_mounted_key(), ctx.ukmd, NP_UHDR_UKMD_LEN) == 0,
+           "the mount is given all 64 bytes");
+
+    uint8_t snapshot[NP_UHDR_UKMD_LEN];
+    memcpy(snapshot, ctx.ukmd, NP_UHDR_UKMD_LEN);
+    np_uhdr_key_background(&ctx);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "unlock");
+    ASSERT(memcmp(ctx.ukmd, snapshot, NP_UHDR_UKMD_LEN) == 0, "unlock recovers all 64 bytes");
+    ASSERT(memcmp(np_uhdr_host_last_mounted_key(), snapshot, NP_UHDR_UKMD_LEN) == 0,
+           "unlock mounts all 64 bytes");
+    np_uhdr_key_background(&ctx);
+
+    /* A flipped byte in the K2 half of the ciphertext fails authentication. */
+    np_uhdr_host_config_mut()->ukmd_ciphertext[NP_UHDR_XTS_HALF_LEN + 7U] ^= 0x01U;
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_AUTH,
+           "the K2 half is authenticated");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "nothing left after AUTH");
+}
+
+/* @verifies REQ-EMMC2-02#b */
+static void test_equal_halves_never_minted(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    np_uhdr_host_trng_equal_halves(true);
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_TRNG,
+           "a TRNG draw with K1 == K2 is refused");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "nothing kept");
+    ASSERT(np_uhdr_host_mount_count() == 0U, "nothing mounted");
+    np_uhdr_host_trng_equal_halves(false);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CONFIG,
+           "no record was written");
+}
+
+/* @verifies REQ-EMMC2-02#b */
+static void test_equal_halves_never_mounted(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "provision");
+    /* Plant a record that wraps a key with K1 == K2: corrupt the live key and
+     * re-wrap it, which only memory corruption could do on a device. */
+    memcpy(ctx.ukmd + NP_UHDR_XTS_HALF_LEN, ctx.ukmd, NP_UHDR_XTS_HALF_LEN);
+    ASSERT(np_uhdr_key_change_credential(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "re-wrap");
+    np_uhdr_key_background(&ctx);
+    const uint32_t mounts = np_uhdr_host_mount_count();
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CRYPTO,
+           "an authentic key with K1 == K2 is not mounted");
+    ASSERT(np_uhdr_host_mount_count() == mounts, "no mount happened");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "the key is scrubbed");
+}
+
 int main(void)
 {
     test_record_size();
@@ -573,6 +652,9 @@ int main(void)
     test_backoff_doubles_and_caps();
     test_backoff_survives_reboot();
     test_unreadable_count_refuses();
+    test_ukmd_is_full_xts_key();
+    test_equal_halves_never_minted();
+    test_equal_halves_never_mounted();
 
     if (g_fail_count == 0) {
         printf("PASS: all np_uhdr_key tests\n");
