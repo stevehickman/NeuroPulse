@@ -306,6 +306,21 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     if (id == NP_GATT_SESSION_PAUSE_ID && data[0] == NP_SESSION_RESUME_VALUE && !s_link_encrypted) {
         return NP_ATT_INSUFFICIENT_ENCRYPTION;
     }
+    /* REQ-FWHUB-81 (f), OI-PRIV-72: on a link that is not encrypted, a well-formed stop, pause or panic is acted on as
+     * always but answered OK whatever came of it.  Its refusal codes say whether a session is running (0x80) and whether
+     * the protocol is ramping, which it does only with tDCS or cervical VNS in it (0x82): facts about the wearer, given to
+     * anyone in range who never paired (CLAUDE.md §5.1 rule 2).  A malformed one is refused as before; that answer depends
+     * only on the bytes sent.  On an encrypted link the app gets the exact answer. */
+    if (!s_link_encrypted && (id == NP_GATT_SESSION_STOP_ID || id == NP_GATT_SESSION_PAUSE_ID)) {
+        const bool well_formed = (id == NP_GATT_SESSION_STOP_ID)
+            ? (data[0] == NP_SESSION_STOP_VALUE)
+            : (data[0] == NP_SESSION_PAUSE_VALUE || data[0] == NP_SESSION_PANIC_VALUE);
+        if (!well_formed) {
+            return NP_ATT_APP_REFUSED;
+        }
+        (void)c->write(data, len);
+        return NP_ATT_OK;
+    }
     const np_hub_status_t rc = c->write(data, len);
     if (rc == NP_HUB_OK) {
         return NP_ATT_OK;
