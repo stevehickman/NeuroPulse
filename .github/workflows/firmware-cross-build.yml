@@ -26,6 +26,7 @@ name: Firmware Cross-Compile (ARM)
 #   firmware/edf             → np_edf_tests      (EDF+ privacy header)
 #   firmware/factory_reset   → np_factory_reset_tests (device reset)
 #   firmware/uhdr_key        → np_uhdr_key_tests (two-layer UHDR key, §C)
+#                              np_uhdr_profile_tests (per-person keys, §C.8)
 #   firmware/shdr            → np_accel_shdr_tests (SHDR accelerometer: the §G
 #                              standing rule and the §H characterisation window)
 #   firmware/ota             → np_ota_tests      (OTA state CRC + rollback)
@@ -245,7 +246,8 @@ env:
   # 64 → 65: np_bootloader_rollback_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-15).
   # 65 → 66: np_bootloader_sanitize_tests (OI-PRIV-27 (NP-PRIV-ANALYSIS-004), REQ-SW02-13).
   # 66 → 67: np_status_led_tests (NP-FW-HUB-001 §5.5a, OI-PRIV-37 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-85, REQ-FWHUB-86).
-  NP_CLASS_B_TEST_COUNT: '67'
+  # 67 → 68: np_uhdr_profile_tests (OI-PRIV-34 (NP-PRIV-ANALYSIS-004), NP-FW-EMMC-002 §C.8, REQ-EMMC2-02..05).
+  NP_CLASS_B_TEST_COUNT: '68'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.

@@ -26,6 +26,7 @@
  */
 
 #include "np_uhdr_key.h"
+#include "np_uhdr_key_internal.h"
 
 #include <string.h>
 
@@ -207,6 +208,59 @@ np_uhdr_status_t np_uhdr_key_unlock_wait_ms(uint64_t *wait_ms)
     return NP_UHDR_OK;
 }
 
+/* ── Internal helpers shared with np_uhdr_profile.c (np_uhdr_key_internal.h) ─ */
+
+void np_uhdr_secure_zero(void *dst, size_t len)
+{
+    if (dst != NULL && len > 0U) {
+        memset_explicit(dst, 0, len);
+    }
+}
+
+np_uhdr_status_t np_uhdr_attempt_gate(uint32_t *failed, uint64_t *now)
+{
+    if (failed == NULL || now == NULL) {
+        return NP_UHDR_ERR_INVALID;
+    }
+    uint32_t f = 0U;
+    if (np_uhdr_hal_attempts_read(&f) != NP_UHDR_OK) {
+        return NP_UHDR_ERR_CONFIG;          /* never read as zero (§C.7 e) */
+    }
+    const uint64_t t = np_uhdr_hal_uptime_ms();
+    if (remaining_wait_ms(f, t) > 0U) {
+        return NP_UHDR_ERR_LOCKOUT;         /* no KDF, no charge (§C.7 c)  */
+    }
+    *failed = f;
+    *now = t;
+    return NP_UHDR_OK;
+}
+
+np_uhdr_status_t np_uhdr_attempt_charge(uint32_t failed, uint64_t now)
+{
+    const uint32_t charged = (failed == UINT32_MAX) ? UINT32_MAX : (failed + 1U);
+    if (np_uhdr_hal_attempts_write(charged) != NP_UHDR_OK) {
+        return NP_UHDR_ERR_CONFIG;          /* refused untested (§C.7 a)   */
+    }
+    g_backoff_ref_ms = now;
+    return NP_UHDR_OK;
+}
+
+void np_uhdr_attempt_clear(void)
+{
+    /* A clear that cannot be persisted only makes the next attempt wait
+     * longer (fail-safe); the next success clears it again. */
+    (void)np_uhdr_hal_attempts_write(0U);
+}
+
+np_uhdr_status_t np_uhdr_derive_wkmd(const uint8_t *credential, size_t cred_len,
+                                     const uint8_t *salt, uint32_t version,
+                                     uint32_t m_cost, uint32_t t_cost,
+                                     uint32_t parallelism, uint8_t *wkmd_out)
+{
+    return derive_wkmd(credential, cred_len, salt, version, m_cost, t_cost,
+                       parallelism, wkmd_out);
+}
+
 /* ── Lifecycle ───────────────────────────────────────────────────────────────*/
 
 np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
@@ -292,18 +346,15 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
 
     ctx->unlocked = false;
 
-    /* §C.7: read the persisted failed-attempt count.  Unreadable → refuse
-     * (a deleted count must not reset the back-off). */
+    /* §C.7: read the persisted failed-attempt count and refuse while the
+     * back-off runs.  Unreadable → refuse (a deleted count must not reset the
+     * back-off); back-off not elapsed → no KDF, no charge. */
     uint32_t failed = 0U;
-    if (np_uhdr_hal_attempts_read(&failed) != NP_UHDR_OK) {
+    uint64_t now = 0U;
+    st = np_uhdr_attempt_gate(&failed, &now);
+    if (st != NP_UHDR_OK) {
         memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
-        return NP_UHDR_ERR_CONFIG;
-    }
-    const uint64_t now = np_uhdr_hal_uptime_ms();
-    if (remaining_wait_ms(failed, now) > 0U) {
-        /* Back-off not elapsed: no KDF, no charge. */
-        memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
-        return NP_UHDR_ERR_LOCKOUT;
+        return st;
     }
 
     st = np_uhdr_hal_config_read_ukmd(&rec);
@@ -327,13 +378,11 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
     /* §C.7: charge this attempt BEFORE the credential is tested, so a power
      * cut mid-attempt cannot skip the charge.  If the charge cannot be
      * persisted the credential is not tested at all (fail closed). */
-    const uint32_t charged = (failed == UINT32_MAX) ? UINT32_MAX : (failed + 1U);
-    if (np_uhdr_hal_attempts_write(charged) != NP_UHDR_OK) {
+    if (np_uhdr_attempt_charge(failed, now) != NP_UHDR_OK) {
         memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
         memset(&rec, 0, sizeof(rec));
         return NP_UHDR_ERR_CONFIG;
     }
-    g_backoff_ref_ms = now;
 
     /* Re-derive the wrapper key using the record's stored version + salt +
      * parameters (all validated above) and the device-fused key. */
@@ -364,7 +413,7 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
      * count.  If the clear cannot be persisted the unlock still stands; the
      * stale count can only make the next attempt wait longer (fail-safe
      * direction), and the next success clears it again. */
-    (void)np_uhdr_hal_attempts_write(0U);
+    np_uhdr_attempt_clear();
 
     /* REQ-EMMC2-02 (b): never mount a degenerate XTS key, whatever the record
      * says.  Only a record minted with K1 == K2 reaches this, and provisioning
@@ -600,7 +649,7 @@ static void host_gcm_tag(const uint8_t *key, const uint8_t *nonce,
                          uint8_t tag[NP_UHDR_GCM_TAG_LEN])
 {
     uint8_t buf[NP_UHDR_WKMD_LEN + NP_UHDR_GCM_NONCE_LEN +
-                NP_UHDR_AAD_LEN + NP_UHDR_UKMD_LEN];
+                NP_UHDR_AAD_MAX_LEN + NP_UHDR_UKMD_LEN];
     uint8_t digest[NP_SHA256_SIZE];
     size_t off = 0;
     memcpy(buf + off, key, NP_UHDR_WKMD_LEN);        off += NP_UHDR_WKMD_LEN;
@@ -625,7 +674,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_encrypt(const uint8_t *key,
     if (key == NULL || nonce == NULL || pt == NULL || ct == NULL || tag == NULL) {
         return NP_UHDR_ERR_INVALID;
     }
-    if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_LEN) {
+    if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_MAX_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
     if (pt_len == 0U || pt_len > NP_UHDR_UKMD_LEN) {
@@ -652,7 +701,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
     if (key == NULL || nonce == NULL || ct == NULL || tag == NULL || pt == NULL) {
         return NP_UHDR_ERR_INVALID;
     }
-    if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_LEN) {
+    if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_MAX_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
     if (ct_len == 0U || ct_len > NP_UHDR_UKMD_LEN) {
