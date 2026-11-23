@@ -23,6 +23,13 @@
 - XTS-AES-256 takes Key1 ‖ Key2, 64 bytes (IEEE Std 1619; NIST SP 800-38E). 32 bytes used directly is therefore XTS-AES-128, or a 256-bit key with Key1 = Key2, a construction FIPS 140 validation guidance rejects.
 - **Nothing consumes the key on target yet.** `np_uhdr_hal_mount_uhdr` traps in `firmware/platform/src/np_platform_stub.c`, so no partition has ever been encrypted under either reading. The fix costs nothing in migration if it is made before the seam is implemented.
 
+### 2.1a Where the 32 bytes came from, and what the rest of the design says (added 2026-11-23)
+
+- **The parent specification requires 64 bytes.** `NP-FW-EMMC-001` §6.2, **EMMC-UHDR-04 (MANDATORY)**: "AES-256-XTS key material is 512 bits (two independent 256-bit keys: K1 for AES-XTS encryption, K2 for tweak encryption)"; EMMC-UHDR-07 fixes the derived key at "64 bytes (512 bits)", K1 = bytes 0–31 and K2 = bytes 32–63. The SHDR key follows the same rule (EMMC-SHDR-04, `K1_shdr ‖ K2_shdr`, 64 bytes).
+- **The two-layer delta reduced it without saying so.** `NP-FW-EMMC-002` §C.2 replaced the single Argon2id-derived key with a random UKMD and wrote "32-byte random value … used directly as the AES-256-XTS key". Nothing in §C records a decision to depart from EMMC-UHDR-04, and §C.3's record (`ukmd_ciphertext[32]`) and §C.5 ("the 32-byte wrapper") follow the 32. The delta says it takes precedence where the two conflict, so the 32 is formally in force, but it reads as an error made while redrawing the key scheme, not a choice.
+- **The phone already follows the parent.** The app's own UHDR key, `derive_uhdr_key` in `common/npps-core/src/bundle_key.rs` (`REQ-SW03-08`), produces `UHDR_OUTPUT_LEN` = 64 bytes, documented as "AES-256-XTS K1 and K2", citing `NP-FW-EMMC-001` §6. It is a different key (the phone's UHDR at rest, not the helmet's UKMD), but it shows the project's convention: an XTS key is 64 bytes. The helmet firmware is the one place that departs from it.
+- **A related clause for the same reviewer.** EMMC-UHDR-06 says AES-256-XTS is built "using the hardware AES-128 primitive … (AES-256 with two-key 128-bit halves)" because the DCP does AES-128 only. AES-256 cannot be assembled from AES-128 blocks, so that sentence describes either XTS-AES-128 or something undefined. It is the same question as Q1 seen from the hardware side, and whichever answer Q1 gets, the cipher engine has to provide real AES-256 (the CAAM, if it has it, or the vetted software library the clause allows).
+
 ### 2.2 What each Q1 option touches
 
 | | A. Widen the UKMD to 64 bytes | B. Derive Key1 and Key2 from the 32-byte UKMD | C. Keep 32 bytes, declare XTS-AES-128 |
@@ -34,7 +41,7 @@
 | Strength | 512-bit key material | Bounded by the 256-bit UKMD, which is the AES-256 key strength anyway | 128-bit AES. CLAUDE.md §4.1 and §5.1 say AES-256, so this lowers a stated protection and is the principal's decision, not the reviewer's |
 | Spec edits | §C.2, §C.3, §C.5 ("the 32-byte wrapper") | §C.2, plus a sentence at §C.4 step 5 | §C.2, and CLAUDE.md §5.1 |
 
-**Recommendation: B**, with a check that Key1 ≠ Key2 before the mount. It changes no stored format, uses a primitive the firmware already vendors or the CAAM provides, and keeps AES-256. A is also sound and is the choice if the reviewer prefers no derivation step on the data path. C is not recommended.
+**Recommendation: A** (revised 2026-11-23; this brief first recommended B). Widening the UKMD to 64 random bytes restores a mandatory clause of the parent specification (EMMC-UHDR-04, §2.1a), matches the phone's UHDR key and the SHDR key, and needs no derivation step on the data path. Its cost is the record change above, which is cheapest now: no record has been minted on a device. Add a check that K1 ≠ K2 before the mount either way. **B remains sound**: it gives the same 256-bit security strength (XTS-AES-256 is rated at 256 bits, and a KDF over a 256-bit random UKMD loses nothing below that), and it is the choice if the record must not change. Whichever is chosen, `NP-FW-EMMC-002` §C.2 should say in words that it follows EMMC-UHDR-04, so the two documents stop disagreeing. C is not recommended.
 
 ### 2.3 The Argon2id memory is larger than all the device's RAM
 
@@ -75,7 +82,7 @@ Nothing in §C.7 erases or permanently locks. An erase after N failures would de
 
 ## 5. What happens with each answer
 
-- Q1 → the mount seam's contract (`np_uhdr_hal_mount_uhdr`) and §C.2 are rewritten before the seam is implemented; for A, also the record and the host GCM stub.
+- Q1 → the mount seam's contract (`np_uhdr_hal_mount_uhdr`) and §C.2 are rewritten before the seam is implemented, with §C.2 reconciled to `NP-FW-EMMC-001` EMMC-UHDR-04; for A, also the record (`OI-UHDRK-08`) and the host GCM stub. EMMC-UHDR-06's "AES-256 from AES-128 halves" is corrected in the same pass.
 - Q2 → `NP_UHDR_ARGON2ID_*` and the floors change in one commit, with the measured time per attempt; §C.3 and §C.4 are corrected.
 - Q3 → UC-203 moves to "Justified or retired" with the reasoning, or the figures change.
 - Q4, Q5 → new items if the answer adds work.
