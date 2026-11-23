@@ -327,6 +327,8 @@ that; it is in the reviewer's scope (brief §3).
 > in `docs/human-input/oi-priv-34-several-users-one-helmet.md` §8 and §10. This subsection is the design those rulings
 > fix. **Nothing in it is built.** §C.1 to §C.7 describe the code as it is, and remain true of it until this design
 > replaces them. No requirement row is written yet: each is written with the code that meets it (`CLAUDE.md` §21).
+> **Rev {NP-FW-EMMC-002 to} (2026-11-23).** The first increment, the per-person key store, is built (§C.8.6).
+> §C.1 to §C.7 still describe the code that writes UHDR today.
 
 #### C.8.1 What the rulings require
 
@@ -394,11 +396,47 @@ that; it is in the reviewer's scope (brief §3).
 | The single `ukmd.rec` record (§C.3) is replaced by one record per profile | This section, when built |
 | The XTS key length (32 bytes for AES-256-XTS) | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004), for the helmet store key |
 | The KDF and its cost | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
-| The failed-unlock limit (§C.7, `REQ-EMMC2-01`), which counts per helmet today: whether it counts per profile record | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), with the build |
+| The failed-unlock limit (§C.7, `REQ-EMMC2-01`): profile unlock and rebind are charged to the same helmet-wide count (`REQ-EMMC2-05`). Whether it should count per profile record instead is open: per profile, one person's wrong guesses would not lock out the others, but an attacker would get the free attempts once per profile | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) |
 | The wrap and file-sealing constructions, and the sealed-to-profile write for Mode 3 | `OI-EMMC2-02`, the cryptography review, whose scope now includes this section |
-| The size buckets and the maximum number of profiles per helmet | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), chosen with the build |
+| The size buckets | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), with the file export |
+| The maximum number of profiles per helmet: `NP_UHDR_PROFILE_MAX` = 8, **PROVISIONAL** (UC-204) | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) |
 | Who may request an export (the warranty owner's pairing role) | `OI-SIMFW-71` Q8 |
 | The partition layout clauses of `NP-FW-EMMC-001` | An ECR, since that document is a `.docx` (`OI-CONV-04`) |
+
+#### C.8.6 Built: the per-person key store (increment 1)
+
+> **Rev {NP-FW-EMMC-002 to} (2026-11-23).** The first increment of this design is built and host-tested:
+> `firmware/uhdr_key/src/np_uhdr_profile.c` (`np_uhdr_profile.h`), tests in `np_uhdr_profile_tests`. It is
+> the key store only. **Not built:** sealing files under a profile key, the file export and import and its
+> size buckets, the helmet store key and the change to the UHDR mount, and the Mode 3 write (§C.8.3). Until
+> those land, UHDR files are still written under the §C.3 key, and nothing calls this module.
+
+**What it does.** One Config record per profile (`np_uhdr_profile_record_t`, 212 bytes, at most
+`NP_UHDR_PROFILE_MAX` slots), holding the profile id, wrap 1 and wrap 2 of §C.8.2. `create` generates the
+profile key, the id and the recovery code from the TRNG, writes both wraps and hands the code out once.
+`unlock` opens wrap 1. `rebind` opens wrap 2 with the recovery code and writes a fresh wrap 1 under this
+helmet's fused key and a new credential, which serves an imported profile and a forgotten credential alike.
+`export` returns the record with every wrap-1 byte zeroed and the state DORMANT, and needs no credential.
+`import` writes such a record into an empty slot only. `delete` destroys the record. Wrap 1's AAD binds the
+profile id, the salt and the KDF parameters; wrap 2's binds the profile id, the recovery salt and the
+record format.
+
+**Seams.** Four, trap-defined on target until the Config store and the CAAM KDF are wired:
+`np_uhdr_hal_profile_read`, `_profile_write`, `_profile_erase` (`OI-UHDRK-10` to `-12`) and
+`np_uhdr_hal_recovery_kdf` (`OI-UHDRK-13`). The recovery KDF's construction is the reviewer's
+(`OI-EMMC2-02`); the code carries 128 bits from the TRNG, so it needs no stretching. The SW-02 seam count
+goes 123 → 127. The twin does not link this module, so the four seams are `absent` there.
+
+**Kept out of SHDR.** The SHDR schema gate (`ci/test_shdr_schema.py`, KEYMAT-01) now also refuses columns
+named for the profile id, the profile key, the recovery code or its salt, and the two wraps. The profile
+id travels in every export, so it names one person across helmets: UHDR-class (`CLAUDE.md` §5.1).
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-02` | Each person on a helmet has their own profile key: (a) a profile is created only in an empty slot, with its own random key, id and recovery code, and an occupied slot is never overwritten; (b) a profile's key opens only with that profile's credential, and changing the credential keeps the key and wrap 2; (c) the recovery code is handed out once and appears nowhere in the stored record, and a create that fails hands out no code; (d) deleting a profile destroys its record, after which neither its credential nor its recovery code opens anything. *Fails without it:* on a shared helmet one person reads another's UHDR, or a person's key is overwritten and their record lost. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q1, Q3b); `CLAUDE.md` §5.1 (UHDR is the person's; an erase is not a weakening) |
+| `REQ-EMMC2-03` | A profile's unlock wrap is bound to its helmet: (a) a record copied to another helmet does not open with the right credential; (b) an export carries no byte of wrap 1, its salt or its parameters, and exporting leaves the helmet's own record live; (c) wrap 1 authenticates the profile id, the salt and the KDF parameters, and parameters below the floor are refused before any KDF runs. *Fails without it:* an eMMC image or a clinic's export can be attacked offline with the credential's small key space, or a rolled-back record weakens the KDF. | `NP-FW-EMMC-002` §C.2 (privacy review Findings 1 and 2); `CLAUDE.md` §5.1 (protection only goes up) |
+| `REQ-EMMC2-04` | A profile can be backed up and moved without access to it: (a) an export needs no credential, and an imported profile does not open with any credential; (b) an export imports only into an empty slot, only as DORMANT, and an export carrying any wrap-1 byte, a LIVE state or a malformed header is refused; (c) the recovery code opens a profile's key and binds it to this helmet under a new credential, so the person's files stay readable; (d) a wrong recovery code, or a wrap 2 moved onto another profile's record, opens nothing and leaves the record dormant. *Fails without it:* a clinic cannot replace a helmet, a person cannot move to their own helmet, or whoever holds an export reads it. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q2, the added warranty-owner requirement, Q3b); `CLAUDE.md` §6.0 (`REQ-SHDR-10`) |
+| `REQ-EMMC2-05` | Profile unlock and rebind are rate-limited as the §C.7 unlock is: (a) each attempt that reaches a KDF is charged to the same persisted count before the secret is tested, a success clears it, the back-off refuses both without running a KDF or charging, and an attempt whose charge cannot be persisted is refused untested; (b) an unlock of a dormant profile is refused without running the KDF and without being charged. *Fails without it:* the per-person path becomes a way round the guessing limit `REQ-EMMC2-01` sets. | `REQ-EMMC2-01`; `CLAUDE.md` §5.1 (protection only goes up) |
 
 ---
 
