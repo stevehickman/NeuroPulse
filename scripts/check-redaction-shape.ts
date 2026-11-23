@@ -121,9 +121,10 @@ const PREDICATES: Record<string, Sensitivity> = {
     why:
       "electrode impedance is a tissue property. CLAUDE.md §5.1 routes raw VNS and EEG " +
       "impedance to UHDR and only the derived trend to SHDR, so a redaction conditioned " +
-      "on this bit would leak a contact/tissue state the boundary keeps out. Whether the " +
-      "bit itself may be reported is owed a ruling (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), " +
-      "docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
+      "on this bit would leak a contact/tissue state the boundary keeps out. The principal " +
+      "ruled 2026-11-23 (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)) that the in-session impedance " +
+      "check is UHDR: it runs through the wearer and cannot tell a device fault from " +
+      "placement, so nothing derived from it is SHDR. A device-only test is OI-FWHUB-36",
   },
   NP_SAFETY_STATUS_THERMAL: { kind: "device", why: "NTC over-temperature — device condition" },
   NP_SAFETY_STATUS_CHARGE: { kind: "device", why: "charge-density ceiling reached — a dose limit, not a measurement of the wearer" },
@@ -269,12 +270,6 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     note: "PBM drive-fault flag → np_log_shdr_fault",
   },
   {
-    file: "firmware/hub_control/modules/np_mod_cvns.c",
-    fn: "cvns_impedance_crossval_fail",
-    role: "writer",
-    note: "the ruled IMP_CROSSVAL divergence flag, no kΩ (OI-CVNS-HUB-11)",
-  },
-  {
     file: "firmware/hub_control/src/np_session_runner.c",
     fn: "np_runner_run",
     role: "writer",
@@ -296,8 +291,8 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     note: "unrestored socket after a hold → np_log_shdr_fault(PBM, code), no slot (F11 shape)",
   },
   // ── cervical VNS: since the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004, 2026-11-23) the fault
-  //    callback, the re-enable lifecycle and the session summary write nothing to SHDR (REQ-FWHUB-91, REQ-CVNS-15);
-  //    only cvns_impedance_crossval_fail above, a device diagnostic, still does ──
+  //    callback, the re-enable lifecycle and the session summary write nothing to SHDR (REQ-FWHUB-91, REQ-CVNS-15).
+  //    The one cervical VNS writer left, cvns_impedance_crossval_fail, is a known violation owned by OI-PRIV-40 ──
   // ── PBM and accelerometer ──
   {
     file: "firmware/pbm/src/np_pbm_detect.c",
@@ -339,8 +334,8 @@ const KNOWN_VIOLATIONS: {
     owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
     why:
       "copies the whole latch status byte, IMPEDANCE included. No SHDR write uses the report " +
-      "today; the IMPEDANCE ruling is owed before one does " +
-      "(docs/human-input/oi-priv-40-impedance-bit-in-fault-latch-status.md)",
+      "today. Ruled UHDR 2026-11-23: the report is reshaped so an impedance-only transition " +
+      "is indistinguishable from none, by bit, slot or count",
   },
   {
     rule: "undeclared-writer",
@@ -376,6 +371,16 @@ const KNOWN_VIOLATIONS: {
     fn: "log_shdr",
     owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
     why: "zone authentication entry carries the session count",
+  },
+  // The principal's ruling of 2026-11-23 (OI-PRIV-40): the in-session impedance
+  // check is UHDR, so nothing derived from it stays in SHDR. These writers were
+  // declared under the earlier SHDR rulings and now await the firmware change.
+  {
+    rule: "undeclared-writer",
+    file: "firmware/hub_control/modules/np_mod_cvns.c",
+    fn: "cvns_impedance_crossval_fail",
+    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
+    why: "IMP_CROSSVAL is derived from the in-session impedance check, ruled UHDR 2026-11-23",
   },
   // Found by this gate (OI-PRIV-40): the PBM session SHDR summaries carry
   // duration_s and abort_reason, which §5.1 lists as UHDR ("session timestamps

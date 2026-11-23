@@ -609,9 +609,9 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
      * cause-free flag, which every fault reason sets alike (REQ-FWHUB-89 (c),
      * REQ-FWHUB-91; the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004),
      * 2026-11-23: a safety interlock that trips on a reading of the wearer →
-     * UHDR).  The impedance cross-validation path still writes its own device
-     * diagnostic (NP_CVNS_SHDR_EV_IMP_CROSSVAL): two sensors disagreeing is the
-     * device's condition. */
+     * UHDR).  The impedance cross-validation path still writes its own flag
+     * (NP_CVNS_SHDR_EV_IMP_CROSSVAL); that write is also ruled UHDR and is
+     * removed under OI-PRIV-40 (NP-PRIV-ANALYSIS-004). */
     np_runner_note_early_stop();
 }
 
