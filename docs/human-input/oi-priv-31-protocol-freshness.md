@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-31 (NP-PRIV-ANALYSIS-004), whether and how a signed protocol is made fresh
 
-**Status:** ANSWERED 2026-11-23 by the principal (§5): option A. Not built. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (§5): option A, built with `OI-SIMFW-62`. Not built. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#959](https://github.com/stevehickman/NeuroPulse/issues/959)
 **From:** NeurOne Software Engineering (`OI-PRIV-31` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Finding M4)
 **To:** the principal (design and wire format). Safety, for option D's risk acceptance.
@@ -107,5 +107,6 @@ favours B), or a Mode 3 design in which the hub accepts uploads with no phone pr
 |---|---|
 | Option | **A: a one-time hub challenge at upload.** A copy of a signed protocol uploaded again is refused. Repeat runs of the stored protocol are not checked (§1a) |
 | Rationale | A helmet should not take an out-of-date protocol. The wearer still decides what is loaded and can reload any protocol at any time: the app signs it fresh for that upload, so only a re-sent copy fails |
+| Sequencing | Wait for §23's payload encryption (`OI-SIMFW-62`) and design the challenge with it, as one wire version (§4). Not started on its own |
 | Would reopen | Not stated. §4's reopeners stand: offline signing for later upload, or uploads with no phone present |
 | Name, role, date | The principal, 2026-11-23 (in the PR #993 session). The principal first answered D (no control) the same day; after the replay case in §1a was explained, chose A |
