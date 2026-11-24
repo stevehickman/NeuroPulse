@@ -130,8 +130,19 @@ extern "C" {
  * UHDR and cannot purge it (SANITIZE has no LBA scope), so the purge is its
  * own step after the last erase.  It traps like the rest of the reset HAL
  * until the application has an eMMC transport (OI-RESET-01).
+ *
+ * 120 → 123 on 2026-11-21 (NP-FW-EMMC-002 §C.7, OI-PRIV-35 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_attempts_read(), np_uhdr_hal_attempts_write()
+ * and np_uhdr_hal_uptime_ms(), the persisted failed-unlock count and the
+ * monotonic uptime the UHDR unlock back-off (REQ-EMMC2-01) is measured in.
+ *
+ * 123 → 127 on 2026-11-23 (NP-FW-EMMC-002 §C.8, OI-PRIV-34 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_profile_read(), _profile_write(),
+ * _profile_erase() and np_uhdr_hal_recovery_kdf(), declared in
+ * np_uhdr_profile.h: the per-person key records in Config and the KDF that
+ * turns a person's recovery code into the key of their portable wrap.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   120
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   127
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *

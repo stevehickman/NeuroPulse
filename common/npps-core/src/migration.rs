@@ -668,6 +668,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
                 .or_else(|| crate::ohttp::op(other, req))
                 .or_else(|| crate::sigv4::op(other, req))
                 .or_else(|| crate::primitives::op(other, req))
+                .or_else(|| crate::current_device::op(other, req))
                 .unwrap_or_else(|| Err(format!("unknown migration operation '{other}'")))
         }
     })

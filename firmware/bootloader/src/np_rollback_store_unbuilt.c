@@ -1,11 +1,11 @@
 /*
  * NeurOne Bootloader — rollback-floor store, device build, NOT BUILT (OI-PRIV-32, NP-PRIV-ANALYSIS-004)
  *
- * No store has been chosen (OCOTP fuses, an eMMC RPMB counter, …): that is a
- * hardware choice, briefed in
- * docs/human-input/oi-priv-32-firmware-rollback-floor-and-dfu.md.
+ * The store is the eMMC's RPMB (the principal, 2026-11-23,
+ * docs/human-input/oi-priv-32-firmware-rollback-floor-and-dfu.md §8), and
+ * neither the RPMB driver nor the key provisioning is built.
  *
- * Until it is made the read fails, so np_rollback_admit() refuses every image:
+ * Until they are, the read fails, so np_rollback_admit() refuses every image:
  * the device installs no OTA update and accepts no DFU image. That is the
  * fail-closed reading of np_rollback_store.h's contract, the same as the
  * production power governor refusing every load until OI-FWHUB-09. It is not

@@ -1434,6 +1434,73 @@ static void test_a_resume_needs_an_encrypted_link_whatever_holds_the_session(voi
     np_gatt_set_link_encrypted(true);
 }
 
+/* @verifies REQ-FWHUB-81#f */
+static void test_an_unencrypted_stop_pause_or_panic_says_nothing_of_the_session(void)
+{
+    const uint8_t stop = NP_SESSION_STOP_VALUE, pause = NP_SESSION_PAUSE_VALUE, panic = NP_SESSION_PANIC_VALUE;
+    const uint8_t resume = NP_SESSION_RESUME_VALUE, junk = 0x04U, two[2] = { 0x01U, 0x01U };
+    reset_world();
+    np_session_stop_init(stop_state_fn, stop_abort_fn);
+    np_session_pause_init(pause_fn, resume_fn);
+    np_session_panic_init(panic_fn);
+    g_aborts = g_pause_calls = g_resume_calls = g_panic_calls = 0;
+    np_gatt_set_link_encrypted(false);
+
+    /* Stop: a session running and none running get the same answer; only the running one is stopped. */
+    g_stop_state = NP_SESSION_IDLE;
+    const np_att_status_t idle = np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U);
+    g_stop_state = NP_SESSION_RUNNING;
+    const np_att_status_t running = np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U);
+    check(idle == NP_ATT_OK && running == NP_ATT_OK && g_aborts == 1,
+          "uniform: unencrypted, a stop answers OK with or without a session, and still stops the running one");
+
+    /* Pause and panic: whatever the runner says (no session, ramping, done), the answer is OK and the runner was asked. */
+    static const np_hub_status_t RC[] = { NP_HUB_OK, NP_HUB_ERR_NO_SESSION, NP_HUB_ERR_RAMPING };
+    bool all_ok = true;
+    for (size_t i = 0U; i < sizeof(RC) / sizeof(RC[0]); i++) {
+        g_pause_rc = g_panic_rc = RC[i];
+        if (np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) != NP_ATT_OK) { all_ok = false; }
+        if (np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) != NP_ATT_OK) { all_ok = false; }
+    }
+    check(all_ok && g_pause_calls == 3 && g_panic_calls == 3,
+          "uniform: unencrypted, a pause or a panic answers OK whether the runner took it, had no session or was ramping");
+
+    np_session_stop_init(NULL, NULL);
+    np_session_pause_init(NULL, NULL);
+    np_session_panic_init(NULL);
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) == NP_ATT_OK &&
+          np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &panic, 1U) == NP_ATT_OK,
+          "uniform: so does a hub with no runner bound");
+    np_session_stop_init(stop_state_fn, stop_abort_fn);
+    np_session_pause_init(pause_fn, resume_fn);
+    np_session_panic_init(panic_fn);
+
+    /* A malformed write is refused, the same in every state, and reaches nothing. */
+    bool malformed_same = true;
+    const int calls = g_pause_calls + g_panic_calls + g_resume_calls, aborts = g_aborts;
+    static const np_session_state_t ST[] = { NP_SESSION_IDLE, NP_SESSION_RUNNING };
+    for (size_t i = 0U; i < 2U; i++) {
+        g_stop_state = ST[i];
+        if (np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &junk, 1U) != NP_ATT_APP_REFUSED ||
+            np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &junk, 1U) != NP_ATT_APP_REFUSED ||
+            np_gatt_on_write(NP_GATT_SESSION_STOP_ID, two, 2U) != NP_ATT_INVALID_VALUE_LENGTH) {
+            malformed_same = false;
+        }
+    }
+    check(malformed_same && g_pause_calls + g_panic_calls + g_resume_calls == calls && g_aborts == aborts,
+          "uniform: a malformed stop or pause is refused the same way in every state and reaches no handler");
+    check(np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &resume, 1U) == NP_ATT_INSUFFICIENT_ENCRYPTION,
+          "uniform: a resume is still refused for want of encryption (REQ-FWHUB-81 (e))");
+
+    /* Encrypted, the app gets the exact answer. */
+    np_gatt_set_link_encrypted(true);
+    g_stop_state = NP_SESSION_IDLE;
+    g_pause_rc = NP_HUB_ERR_RAMPING;
+    check(np_gatt_on_write(NP_GATT_SESSION_STOP_ID, &stop, 1U) == NP_ATT_APP_REFUSED &&
+          np_gatt_on_write(NP_GATT_SESSION_PAUSE_ID, &pause, 1U) == NP_ATT_APP_RAMPING,
+          "uniform: on an encrypted link a stop with no session is refused (0x80) and a pause while ramping says so (0x82)");
+}
+
 int main(void)
 {
     test_the_link_starts_unencrypted_and_a_disconnect_returns_it_there();   /* first: nothing has reported a link yet */
@@ -1473,6 +1540,7 @@ int main(void)
     test_every_characteristic_that_carries_data_refuses_an_unencrypted_link();
     test_encrypted_reads_work_and_the_protocol_upload_takes_a_stream();
     test_the_stop_and_panic_writes_do_not_wait_on_a_key();
+    test_an_unencrypted_stop_pause_or_panic_says_nothing_of_the_session();
     test_a_resume_needs_an_encrypted_link_whatever_holds_the_session();
 
     if (g_failures != 0) {

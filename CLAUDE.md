@@ -1,6 +1,6 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 86 (current)  
+**Revision:** 88 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Each section states the rule and names
@@ -315,8 +315,10 @@ study, never a descriptor field:** a record whose group is smaller than k is dro
 principal, 2026-11-19). Only the anonymized extract is transmitted; no linkage table exists.
 **Withdrawal permanently blocks future extracts for every data period, including sessions predating
 withdrawal**; already-published extracts cannot be individually removed (irreversibility notice given
-at consent time). Study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR
-and never shared with researchers. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
+at consent time). The audit trail (study ID, descriptor hash, enrolment day,
+transmission day, byte count, withdrawal day) is **UHDR**, held on the device under the person's key; SHDR
+carries nothing that names a study or says a wearer takes part in research (the principal, 2026-11-20,
+`OI-PRIV-07`). It is never shared with researchers. **No device identifier reaches the research store** (the principal, 2026-11-20, `OI-PRIV-67`); a person's extracts come only from the device that is current for them (§6.3). **A study states up front, in its signed descriptor, whether it needs tracking over time; the default is none** (the principal, 2026-11-20, `OI-PRIV-70`). Without it, an extract carries no identifier and a study makes no second request for it. With it, the device sends an identifier unique to that person and that study (never the same across studies), the person is told in plain words that their releases can be linked and consents to that study knowingly, k-anonymity applies to the linked series, and the declaration is fixed for the study. The identifier links one person's releases within one study only. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
 
 ---
 
@@ -383,7 +385,7 @@ Binding invariants (rationale in `consent-engine.md` §6.2.2–§6.2.5):
 ### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
 Research agenda voting · pre-identified subject pool · crowdfunding pledges (intent, not charges).
-NeurOne builds the invitation list from device ID and contact preferences only (**no UHDR**). **The
+**NeurOne builds no invitation list and filters nothing: it publishes each research request to every subscribed device** (the principal, 2026-11-21, `OI-PRIV-68`). A device subscribes only while it is the *current* device for at least one of its users, one subscription per device, and the subscription says nothing about consent, any user or any study. The device works out which of its users it is current for and compares each one's consents with the request, on the device only. A person is current on the last device they registered; moving to another device publishes a signed notice that retires the old one. Delivery is a platform push, so the push service learns that the app receives these broadcasts (accepted). The subscription record names no user, study or consent and is kept apart from the research store, SHDR and the warranty database. Detail: `docs/reference/data-architecture-detail.md` §5.3 step 1a. **The
 device does not trust the server:** it verifies the signed study descriptor, and
 `ConsentEngine.admit()` re-checks k≥10, the ≥1-week floor, L1 and the user's L2/L3 state before
 showing anything. What a study cannot see is **computed as the complement** of what it asked for.
@@ -525,6 +527,7 @@ What "cryptographic" covers and the library-selection rules: `docs/reference/eng
 **Every upload to, and every download from, the headset or the control hub is encrypted, on every transport, and no unencrypted path exists for protocols, session data, logs, configuration, calibration, firmware or user data.** The two reasons are the principal's: data privacy (§5) and hardening the system against malware injection. Encryption is separate from the session-protocol signature (§4.2) and never replaces it: a path is both signed and encrypted.
 
 - **A path is conformant only when it is shown to be encrypted.** Which paths are covered, at which layer (the BLE link, or the payload end to end), and which are not yet, is in the owning file and in the open item that raised the rule (`OI-SIMFW-62`). **USB-C CDC has no link-layer encryption, so "encrypted" is not assumed to cover it** until its payload is. Until a path is covered it is a known gap, listed, not a conformant path.
+- **One recorded exception: recovery USB DFU** (the principal, 2026-11-23, `OI-PRIV-32` (NP-PRIV-ANALYSIS-004)). It carries a signed firmware image into the bootloader in plaintext, on four conditions: it stays download only; every image passes the signature and the rollback floor before any bank write; it carries nothing but a signed firmware image; and it is revisited when the `OI-SIMFW-71` secure channel exists or firmware secrecy becomes a requirement. Detail: `docs/np_fw_hub_001.md` §2.5. No other path is excepted.
 - **Protection only goes up.** An encrypted path is never made weaker, replaced by a clear one, or given an unencrypted fallback, in a release, a test mode or a bench mode. A change that would lower any protection a transfer has is the principal's decision and is not made as a detail.
 - **The keys are held by the two ends and never by NeurOne.** Transport encryption must not give NeurOne access to UHDR (§5.1); the key rules of §5 are unchanged. Cryptographic code follows §22 (Rust, once, in `common/npps-core`).
 
