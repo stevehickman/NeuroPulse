@@ -1539,7 +1539,7 @@ figure comes from.
 
 | Task | Priority | Logger calls |
 |---|---|---|
-| `task_safety_heartbeat` | 4 | `np_log_shdr_fault()` through `log_cvns_event()` |
+| `task_safety_heartbeat` | 4 | none since `OI-PRIV-22` (NP-PRIV-ANALYSIS-004) removed `log_cvns_event()` (`REQ-FWHUB-91`); the queue below stays, because `np_log_shdr_fault()` may still be called from any context |
 | `task_hub_control` (runner) | 3 | session start and end, `np_log_command()`, `np_log_telemetry()`, `np_log_shdr_fault()` (and module drivers' faults), `np_log_flush()` |
 | `task_telemetry` | 2 | `np_log_flush()` every 30 s |
 | `task_module_detect` | 1 | `np_log_shdr_zone_auth()` through accessory `init()`, and through `np_mod_intranasal_detect()` for an authentication failure |
