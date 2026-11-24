@@ -131,7 +131,8 @@ const PREDICATES: Record<string, Sensitivity> = {
   NP_SAFETY_STATUS_CARDIAC: {
     kind: "sensitive",
     why:
-      "an HR change >15 BPM within 5 s of stimulation, i.e. a cardiac event in the wearer. " +
+      "a cardiac cutoff: an HR change >15 BPM within 5 s of stimulation, R-peak staleness, or " +
+      "disagreement with the hub's HR estimate, so in the first case a cardiac event in the wearer. " +
       "This is the #272 predicate. Since 2026-11-23 the hub publishes nothing of it to SHDR: " +
       "a safety interlock that trips on a reading of the wearer is UHDR, and the 0xC1 cutoff " +
       "event is retired (the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004)). " +
