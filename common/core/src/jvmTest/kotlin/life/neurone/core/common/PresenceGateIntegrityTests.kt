@@ -63,11 +63,11 @@ class PresenceGateIntegrityTests {
         val host = InMemoryKeyValueStore()
         val device = InMemorySecretKeyStore()
         ungatedInstall(host, device)
-        assertEquals(PassphraseResult.OK, runBlocking { PassphraseGatedSecretKeyStore(host).setPassphrase(passphrase) })
+        assertEquals(PassphraseResult.OK, runBlocking { PassphraseGatedSecretKeyStore(host, { device }).setPassphrase(passphrase) })
 
         // Two cold starts over the same host store, each with a new key store, lock and storage, as a desktop restart builds them.
         repeat(2) { run ->
-            val gated = PassphraseGatedSecretKeyStore(host)
+            val gated = PassphraseGatedSecretKeyStore(host, { device })
             assertTrue(gated.isEnabled, "run $run: the gate is still on")
             val lock = PresenceLock(gated, { 0L })
             val store = ProtectedStorage.openGated(host, device, gated, lock, { everyKey() }, { deviceTier() }).store
@@ -78,7 +78,8 @@ class PresenceGateIntegrityTests {
             store.putString(history, "ten sessions")
             val record = host.getString(PassphraseGatedSecretKeyStore.WRAP_KEY)
             assertNotNull(record)
-            assertFalse(record.startsWith(EncryptedKeyValueStore.PREFIX), "run $run: the wrap record is never sealed, least of all under the key it wraps")
+            assertFalse(record.startsWith(EncryptedKeyValueStore.PREFIX), "run $run: the tiered stores never seal the wrap record, least of all under the key it wraps")
+            assertTrue(record.startsWith(PassphraseGatedSecretKeyStore.RECORD_PREFIX), "run $run: it keeps only its own device-key seal (REQ-PRES-10)")
             lock.lock()
         }
     }

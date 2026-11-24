@@ -89,7 +89,7 @@ class ProtectedStorage private constructor(
             return try { sealed.any { probe.getString(it) == null } } finally { probe.forgetKey() }
         }
 
-        /** The gate's own records (`REQ-PRES-11` (a)): never sealed, whatever list a caller passes. Empty only when the core cannot be asked. */
+        /** The gate's own records (`REQ-PRES-11` (a)): never sealed by the tiers, whatever list a caller passes. Empty only when the core cannot be asked. */
         private fun hostPlain(): Set<String> = runCatching { EncryptedKeyValueStore.hostPlainKeys() }.getOrDefault(emptySet())
 
         /** Whether a clear has destroyed the data key and not yet finished (`SWR-MG-08`): the sealed values it left are under no key. */

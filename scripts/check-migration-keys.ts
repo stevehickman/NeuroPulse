@@ -19,7 +19,7 @@
  *       only, a literal in common/npps-core/src/migration_flow.rs counts as a source. The core's literals are not read
  *       for K1, because two of its keys (the cleared marker and the clear's progress) are in no list on purpose.
  *   K4  A list is missing, or an entry is not a plain key.
- *   K6  A host-plain key (never sealed, REQ-PRES-11) is not a perInstall key, or is also in the device tier.
+ *   K6  A host-plain key (never sealed by the stores, REQ-PRES-11) is not a perInstall key, or is also in the device tier.
  *
  * Reach, stated narrowly: this finds a key written as a literal. A key assembled at run time ("np." + name) is not seen.
  * It does not check that a carried key's value round-trips, which the core's flow tests do.

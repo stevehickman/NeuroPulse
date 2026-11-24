@@ -84,14 +84,15 @@ pub(crate) fn all_keys() -> Vec<String> {
 ///
 /// **The one exception is `hostPlain`** (`OI-PRIV-62`, `REQ-PRES-11`): the presence gate's own records (whether the gate is on, and
 /// the passphrase wrap of the gated data key). The host reads them before anyone is present, so they cannot be sealed under the
-/// gated key, and sealing them under it destroyed the gate on its first use (the wrap sealed under the key it wraps). They say only
-/// that the person chose the gate; the wrap is itself sealed, under the passphrase. They stay `perInstall` so a clear forgets them.
+/// gated key, and sealing them under it destroyed the gate on its first use (the wrap sealed under the key it wraps). The flag says only
+/// that the person chose the gate; the wrap seals itself, under the passphrase and the device key (`REQ-PRES-10`). They stay `perInstall` so a clear forgets them.
 pub(crate) fn sealed_at_rest() -> Vec<String> {
     let plain = host_plain();
     all_keys().into_iter().filter(|k| !plain.contains(k)).collect()
 }
 
-/// `REQ-PRES-11`: the per-install keys a host keeps as it stores them, never sealed (the presence gate's own records).
+/// `REQ-PRES-11`: the per-install keys the tiered stores never seal and that are in neither tier (the presence gate's own records;
+/// the passphrase record seals itself under the device key, `REQ-PRES-10`).
 pub(crate) fn host_plain() -> Vec<String> {
     let mut v: Vec<String> = key_map()["hostPlain"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
     v.sort();
@@ -1400,7 +1401,7 @@ mod tests {
         assert_eq!(plain, ["np.presence.enabled", "np.presence.passphrase-wrap"], "the gate's two records and nothing else");
         for k in &plain {
             assert!(per_install.contains(k), "{k} is per-install, so a clear still forgets it");
-            assert!(!sealed.contains(k), "{k} is never sealed: the host reads it before anyone is present");
+            assert!(!sealed.contains(k), "{k} is never sealed by the stores: the host reads it before anyone is present");
             assert!(!tier.contains(k), "{k} is in no tier");
         }
         assert_eq!(m["clearProgressKey"], json!("np.migration.clear-progress"));

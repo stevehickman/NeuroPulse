@@ -59,7 +59,7 @@ class PresenceGateTest {
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
 
-    private fun services(gated: GatedKey?, host: InMemoryKeyValueStore = InMemoryKeyValueStore(), device: SecretKeyStore = InMemorySecretKeyStore()) = AppServices(
+    private fun services(gated: GatedKey?, host: InMemoryKeyValueStore = InMemoryKeyValueStore(), device: InMemorySecretKeyStore = InMemorySecretKeyStore()) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = host
             override val bleCentral = UnavailableBleCentral()
@@ -183,8 +183,9 @@ class PresenceGateTest {
     /** A passphrase host whose gate was set up on an earlier run, so this run starts locked. */
     private fun passphraseApp(): AppServices {
         val host = InMemoryKeyValueStore()
-        runBlocking { PassphraseGatedSecretKeyStore(host).setPassphrase(longPassphrase) }
-        return services(PassphraseGatedSecretKeyStore(host), host)
+        val device = InMemorySecretKeyStore()
+        runBlocking { PassphraseGatedSecretKeyStore(host, { device }).setPassphrase(longPassphrase) }
+        return services(PassphraseGatedSecretKeyStore(host, { device }), host, device)
     }
 
     // @verifies REQ-PRES-06
@@ -213,7 +214,8 @@ class PresenceGateTest {
     @Test
     fun aPassphraseIsNotAcceptedUntilABackupExistsAndAShortOneIsRefused() {
         val host = InMemoryKeyValueStore()
-        val app = services(PassphraseGatedSecretKeyStore(host), host)
+        val device = InMemorySecretKeyStore()
+        val app = services(PassphraseGatedSecretKeyStore(host, { device }), host, device)
         assertEquals(AppServices.PresenceChange.BACKUP_REQUIRED, runBlocking { app.turnOnPresenceGate(longPassphrase) })
         assertFalse(host.getString(PassphraseGatedSecretKeyStore.WRAP_KEY) != null)
 
