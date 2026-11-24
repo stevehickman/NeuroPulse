@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-CVNS-001
-**Revision:** 5
-**Date:** 2026-11-11
+**Revision:** 6
+**Date:** 2026-11-24
 **Status:** DRAFT — **requirements-grade. The electrode assembly is undimensioned and its area is a PROVISIONAL firmware constant; §8 names each absence rather than supplying a value.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -121,7 +121,7 @@ re-running that argument.
 | Hub slot | 10, `NP_MOD_CVNS` = `0x0A`, detected on the accessory port (T2) | `np_hub_config.h`; `NP-FW-HUB-001` §8.8 |
 | Safety enable | `NP_SAFETY_EN_CVNS` = bit 10, requested **only** after impedance → cardiac baseline → MCU grant | `NP-FW-HUB-001` §8.8 |
 | Declared electrode area | `NP_CVNS_ELECTRODE_AREA_MCM2` = **2000** (2 cm²), **PROVISIONAL — NOT MEASURED** | `np_hub_config.h`; `OI-CHARGE-07` |
-| Impedance cross-validation | Hub measurement vs safety-MCU measurement; divergence beyond `NP_CVNS_IMPEDANCE_CROSSVAL_KOHM` emits `NP_CVNS_SHDR_EV_IMP_CROSSVAL` — **a flag, no kΩ values** | `NP-FW-HUB-001` §8.8 |
+| Impedance cross-validation | Hub measurement vs safety-MCU measurement; divergence beyond `NP_CVNS_IMPEDANCE_CROSSVAL_KOHM` faults the session before delivery and SHDR records it only as a safety-MCU refusal (Rev 6: the flag `0xC7` it wrote is retired, because the in-session impedance check is UHDR, the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004); `REQ-FWHUB-92`) | `NP-FW-HUB-001` §8.8 |
 | R-peak path | Main processor PPG → Pan-Tompkins → 5 ms pulse on the MCU's R-peak input | `NP-FW-CVNS-001` §5.2, §6.2 |
 
 ### 4.2 The cable — four conductors, no pin-out
@@ -348,3 +348,4 @@ after the dash is what this document changes.
 | 3 | 2026-10-01 | NeurOne Firmware Engineering | **`REQ-CVNS-09` follows CLAUDE.md Rev 61 §4.2: detection and cutoff are stated separately** (`NP-FW-CVNS-001` Rev 10, OI-CVNS-12 closed by principal decision). The row gains its detection bound (≤ 18 s from onset, final rate ≥ 40 BPM), and its 100 ms is measured from detection. Before, the row gave no detection bound, and read literally, its 100 ms could not be met by an 8-interval mean. **No hardware requirement changed.** |
 | 4 | 2026-11-08 | NeurOne Firmware Engineering | **`REQ-CVNS-14` added: the owner may make the cardiac interlock more sensitive and never less.** `REQ-CVNS-09` as presented to FDA is the level-0 behaviour and is not changed. |
 | 5 | 2026-11-11 | NeurOne Firmware Engineering | **§3 REQ-CVNS-04: the session part (60-120 s) is retired in place by the principal's decision of 2026-11-11, because it had no documented health or safety source, only a gammaCore equivalence figure. The length of a cervical block is the one the signed protocol authors. The frequency, current and pulse-width parts are unchanged.** |
+| 6 | 2026-11-24 | NeurOne Firmware Engineering | **§4.1 (impedance cross-validation row): a divergence faults the session and SHDR records it only as a safety-MCU refusal; the former flag 0xC7 is retired (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-92).** |

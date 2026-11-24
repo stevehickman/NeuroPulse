@@ -89,6 +89,7 @@
 #   firmware/factory_reset/   → np_factory_reset_tests
 #   firmware/uhdr_key/        → np_uhdr_key_tests  (NP-FW-EMMC-002 §C)
 #                             → np_uhdr_profile_tests (NP-FW-EMMC-002 §C.8)
+#                             → np_uhdr_seal_tests (NP-FW-EMMC-002 §C.8.7)
 #   firmware/shdr/            → np_accel_shdr_tests (NP-FW-EMMC-002 §G/§H)
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
@@ -287,6 +288,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_uhdr_profile_tests
         COMMAND np_uhdr_profile_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_uhdr_seal_tests
+        COMMAND np_uhdr_seal_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_accel_shdr_tests
@@ -645,6 +650,13 @@ if(NP_BUILD_TESTS)
     # Moves the Class B count 65 -> 66 and the repo total 76 -> 77.
     add_test(NAME np_bootloader_sanitize_tests
         COMMAND np_bootloader_sanitize_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16.  The rollback floor on the
+    # eMMC's RPMB: frame protocol and store against a fake RPMB device.
+    # Moves the Class B count 68 -> 69 and the repo total 79 -> 80.
+    add_test(NAME np_bootloader_rpmb_tests
+        COMMAND np_bootloader_rpmb_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates

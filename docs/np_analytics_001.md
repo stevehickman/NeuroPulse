@@ -477,7 +477,7 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 **Review.**
 
-- The **Privacy Lead** reviews the log **at least quarterly**, and whenever an alert fires. The quarterly minimum is the principal's choice, with no external source (`UC-205`). What raises an alert is listed below.
+- The **Privacy Lead** reviews the log **at least quarterly**, and whenever an alert fires. The quarterly minimum is the principal's choice, with no external source (`UC-206`). What raises an alert is listed below.
 - **The Privacy Lead's review records are a separate record from the log.** They say what was reviewed, when, and what was found, and they hold no analytics data. They are kept for **no more than 3 years**, the usual maximum for internal-control records in the same CNIL recommendation. Where they are kept is not yet decided.
 
 **Alerts** (decided by the principal 2026-11-24). Each trigger below is something that should never happen, so every occurrence raises an alert and none needs a threshold:

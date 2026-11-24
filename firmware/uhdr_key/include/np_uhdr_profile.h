@@ -26,10 +26,13 @@
  * imported profile not yet re-bound on this helmet).  A dormant profile opens
  * only with its recovery code (np_uhdr_profile_rebind).
  *
- * Every attempt that reaches a KDF (unlock and rebind) goes through the same
- * persisted, helmet-wide attempt limit as np_uhdr_key_unlock (§C.7,
- * REQ-EMMC2-01).  Whether the limit should count per profile is open
- * (§C.8.5).
+ * Every attempt that reaches a KDF (unlock and rebind) is limited PER PROFILE
+ * (the principal, 2026-11-24): the failed-attempt count lives in that
+ * profile's own record and is charged before the secret is tested, and the
+ * back-off is the §C.7 schedule measured from that profile's last charged
+ * attempt (REQ-EMMC2-05).  One person's wrong guesses never lock out another.
+ * An attacker gets the free attempts once per profile, but does not know how
+ * many profiles hold data.
  *
  * The profile key lives only in a caller-owned np_uhdr_profile_ctx_t while the
  * profile is open, and is zeroed by np_uhdr_profile_close() and on every
@@ -55,13 +58,14 @@
 #define NP_UHDR_RECOVERY_KEY_LEN       32U  /* RK, wraps PK                     */
 
 /*
- * Most profiles one helmet holds.  PROVISIONAL (UC-204): a choice, not a
- * derivation.  It matches the safety MCU's eight pending cardiac users
- * (NP-SW-FAULTMSG-001 §9.4), which is a coincidence of two choices, not a
- * reason.  Raising it costs one Config record (NP_UHDR_PROFILE_RECORD_SIZE)
- * per profile and nothing else in this module.
+ * Most profiles one helmet holds: 24 (the principal, 2026-11-24).  Profiles
+ * are loaded from the app as needed, so the most a helmet holds at once is a
+ * clinic day's patients, and a clinic runs at most 24 sessions a day.  That
+ * figure is an assumption, not a measurement (UC-204).  Cost of changing it:
+ * one Config record (NP_UHDR_PROFILE_RECORD_SIZE) per profile in the 16 MiB
+ * Config partition, plus 8 bytes of RAM per slot for the back-off reference.
  */
-#define NP_UHDR_PROFILE_MAX            8U
+#define NP_UHDR_PROFILE_MAX            24U
 
 #define NP_UHDR_PROFILE_MAGIC          0x5250504EU  /* "NPPR", little-endian */
 #define NP_UHDR_PROFILE_FORMAT         1U
@@ -74,7 +78,7 @@ typedef enum {
 /*
  * One profile's Config record (Config partition, one named file per slot).
  * Packed and byte-exact so the on-flash image is stable across toolchains:
- *   4+4+1+3 + 16 + 32+16 + 12+32+16 + 16 + 12+32+16 = 212 bytes.
+ *   4+4+1+3+4 + 16 + 32+16 + 12+32+16 + 16 + 12+32+16 = 216 bytes.
  * Fleet-export prohibition: as np_ukmd_record_t, nothing here may reach SHDR,
  * the fleet database or a diagnostic export.  The only export is
  * np_uhdr_profile_export(), which removes wrap 1 and its salt.
@@ -84,6 +88,9 @@ typedef struct __attribute__((packed)) {
     uint32_t format;                                 /* NP_UHDR_PROFILE_FORMAT */
     uint8_t  state;                                  /* np_uhdr_profile_state_t */
     uint8_t  reserved0[3];                           /* zero                   */
+    uint32_t failed_attempts;                        /* §C.8 per-profile limit;
+                                                        not authenticated, zero
+                                                        in every export        */
     uint8_t  profile_id[NP_UHDR_PROFILE_ID_LEN];
     /* wrap 1 (unlock): device-bound */
     uint8_t  kdf_salt[NP_UHDR_SALT_LEN];
@@ -101,7 +108,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  w2_tag[NP_UHDR_GCM_TAG_LEN];
 } np_uhdr_profile_record_t;
 
-#define NP_UHDR_PROFILE_RECORD_SIZE    212U
+#define NP_UHDR_PROFILE_RECORD_SIZE    216U
 
 /* An export is a record in the DORMANT state with every wrap-1 field zero. */
 typedef np_uhdr_profile_record_t np_uhdr_profile_export_t;
@@ -128,9 +135,9 @@ np_uhdr_status_t np_uhdr_profile_create(uint8_t slot,
                                         uint8_t recovery_code_out[NP_UHDR_RECOVERY_CODE_LEN]);
 
 /*
- * Open a LIVE profile with its unlock credential.  Charged to the attempt
- * limit (§C.7).  A DORMANT profile is refused with NP_UHDR_ERR_STATE without
- * running the KDF or being charged.
+ * Open a LIVE profile with its unlock credential.  Charged to that profile's
+ * own attempt count.  A DORMANT profile is refused with NP_UHDR_ERR_STATE
+ * without running the KDF or being charged.
  */
 np_uhdr_status_t np_uhdr_profile_unlock(uint8_t slot,
                                         const uint8_t *credential, size_t cred_len,
@@ -141,7 +148,7 @@ np_uhdr_status_t np_uhdr_profile_unlock(uint8_t slot,
  * unlock credential: opens PK with wrap 2, writes a fresh wrap 1, and leaves
  * the record LIVE and the profile open.  Used after an import (a replacement
  * helmet, or a person's own helmet) and for a forgotten credential.  Charged
- * to the attempt limit (§C.7).
+ * to that profile's own attempt count.
  */
 np_uhdr_status_t np_uhdr_profile_rebind(uint8_t slot,
                                         const uint8_t recovery_code[NP_UHDR_RECOVERY_CODE_LEN],
@@ -162,8 +169,10 @@ void np_uhdr_profile_close(np_uhdr_profile_ctx_t *ctx);
 /*
  * Export a slot for backup or transfer (§C.8.4).  Needs no credential: the
  * export carries wrap 2 only, so whoever holds it can read nothing without
- * the person's recovery code.  Wrap 1 and its salt and parameters are zeroed
- * and the state is DORMANT.
+ * the person's recovery code.  Wrap 1 and its salt and parameters, and the
+ * failed-attempt count, are zeroed and the state is DORMANT.  Re-importing an
+ * export cannot reset a credential's count to help a guesser: a dormant
+ * profile does not take the credential at all, only the recovery code.
  */
 np_uhdr_status_t np_uhdr_profile_export(uint8_t slot, np_uhdr_profile_export_t *out);
 

@@ -191,13 +191,26 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
         return NP_HUB_ERR_BAD_SIGNATURE;
     }
 
-    /* Device serial replay guard */
+    /* Device serial replay guard (REQ-FWHUB-90, NP-FW-HUB-001 §4.2).  Fails closed: a helmet that cannot read its own
+     * serial, or reads back all zero (unprovisioned, or a blank Config value), cannot show the descriptor was signed
+     * for it, so it refuses.  Until OI-PRIV-31 (NP-PRIV-ANALYSIS-004) both were skipped, so such a helmet accepted a
+     * descriptor signed for any other.  All zero is also what a compiler writes when it has no serial, so accepting a
+     * zero stored serial would accept every serial-less descriptor.  The refusal is WRONG_DEVICE: "not shown to be
+     * this device", the one cause the apps already name for this guard. */
     uint8_t stored_serial[NP_GATT_DEVICE_SERIAL_LEN];
     if (np_proto_hal_get_device_serial(stored_serial,
-                                        NP_GATT_DEVICE_SERIAL_LEN) == NP_HUB_OK) {
-        if (memcmp(hdr->device_serial, stored_serial, NP_GATT_DEVICE_SERIAL_LEN) != 0) {
-            return NP_HUB_ERR_WRONG_DEVICE;
-        }
+                                        NP_GATT_DEVICE_SERIAL_LEN) != NP_HUB_OK) {
+        return NP_HUB_ERR_WRONG_DEVICE;
+    }
+    uint8_t any_set = 0U;
+    for (size_t k = 0U; k < NP_GATT_DEVICE_SERIAL_LEN; k++) {
+        any_set |= stored_serial[k];
+    }
+    if (any_set == 0U) {
+        return NP_HUB_ERR_WRONG_DEVICE;
+    }
+    if (memcmp(hdr->device_serial, stored_serial, NP_GATT_DEVICE_SERIAL_LEN) != 0) {
+        return NP_HUB_ERR_WRONG_DEVICE;
     }
 
     /* Validate command body length */
