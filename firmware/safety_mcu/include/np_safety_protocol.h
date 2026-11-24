@@ -112,22 +112,43 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;        /* sum of bytes [0..5], wrapping uint16 */
 } np_safety_tx_frame_t;       /* "transmitted" from the perspective of safety MCU */
 
-/* ── Fault-latch SHDR-reportable projection (SW01-M08) ──────────────────────
+/* ── Fault-latch SHDR-reportable projection (SW01-M08, REQ-SW01-06) ────────
  * The complete set of latch fields any hub-facing read may surface, as ONE
  * fixed-shape record.  Every member is populated for every fault type; no
  * member's value is conditioned on WHICH fault is latched.  The shape is fixed
  * at compile time, so a field cannot be present for one fault kind and absent
  * for another — which is what made the retired per-field accessors leak.
- * `tick_ms` is deliberately NOT a member: fault event timing is UHDR.
+ *
+ * The record is the latch PROJECTED onto the device-class status bits: the
+ * in-session impedance result is UHDR (the principal, 2026-11-23, OI-PRIV-40
+ * (NP-PRIV-ANALYSIS-004)) and the cardiac bit is not device-class, so an
+ * impedance-only (or cardiac-only) transition reports exactly as none does.
+ * `slot` and `tick_ms` are deliberately NOT members: no slot can be attributed
+ * to a device-class transition alone, and fault event timing is UHDR.
  * Rationale and evidence: np_fault_latch.c, block comment above
  * np_fault_latch_build_report().                                            */
+
+/* The device-class status bits: the ones scripts/check-redaction-shape.ts
+ * classes "device".  np_fault_latch_commit() counts transitions of these only;
+ * the report's mask is asserted equal to this set in np_fault_latch.c.       */
+#define NP_FAULT_LATCH_DEVICE_BITS                                            \
+    ((uint8_t)(NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_WATCHDOG |            \
+               NP_SAFETY_STATUS_CUTOFF | NP_SAFETY_STATUS_THERMAL |            \
+               NP_SAFETY_STATUS_CHARGE | NP_SAFETY_STATUS_SIG_PENDING))
+
 typedef struct {
-    uint8_t  status;   /* latched NP_SAFETY_STATUS_* bitmask (OK if no valid latch) */
-    uint8_t  slot;     /* latched fault slot (0xFF = none / no valid latch)         */
-    uint32_t count;    /* distinct fault transitions since power-on (0 if no latch); 32-bit, never saturates */
+    uint8_t  status;   /* latched status & NP_FAULT_LATCH_DEVICE_BITS (OK if no valid latch) */
+    uint32_t count;    /* transitions of the device-class bits since power-on (0 if no latch); 32-bit, never saturates */
 } np_fault_latch_report_t;
 
 void np_fault_latch_build_report(np_fault_latch_report_t *out);
+
+#if defined(NPTEST_HOST)
+/* Host models only (simulator warm reset, host tests); not in the device image. */
+void     np_fault_latch_host_save(uint8_t out[NP_FAULT_LATCH_BYTES]);
+void     np_fault_latch_host_restore(const uint8_t in[NP_FAULT_LATCH_BYTES]);
+uint32_t np_fault_latch_host_raw_count(void);
+#endif
 
 /* ── Safety MCU state (shared across modules) ───────────────────────────── */
 typedef struct {

@@ -92,9 +92,9 @@ typedef struct {
     uint8_t  last_reply_status;
     uint8_t  last_reply_fault_slot;
     uint32_t nv_programs;           /* double-word programs that landed in this process: how full the log's live page is */
-    uint8_t  latch_status;          /* the MCU's fault latch as its own np_fault_latch_build_report() gives it (np_fault_latch.c) */
+    uint8_t  latch_status;          /* the MCU's raw fault latch (np_fault_latch.c): a test's view of the part, not the SHDR report */
     uint8_t  latch_slot;
-    uint16_t latch_count;
+    uint32_t latch_count;           /* the raw transition count, 32-bit like the firmware's (OI-UINT16-01) */
 } np_sim_safety_info_t;
 void        np_sim_safety_info(np_sim_safety_info_t *out);
 const char *np_sim_safety_line_name(uint8_t line);

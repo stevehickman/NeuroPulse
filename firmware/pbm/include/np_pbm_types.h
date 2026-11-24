@@ -308,8 +308,9 @@ typedef struct {
 
 typedef struct {
     uint8_t  active_socket_count;    /* populated entries in `sockets`            */
-    uint32_t duration_s;
-    uint8_t  abort_reason;
+    /* duration_s and abort_reason were here; removed 2026-11-23 (OI-PRIV-40,
+     * NP-PRIV-ANALYSIS-004): session duration is UHDR (CLAUDE.md §5.1,
+     * "session timestamps and duration").  They stay in np_pbm_session_record_t. */
     uint8_t  fault_reason;           /* np_pbm_fault_t                        */
     /*
      * cal_source moved into np_pbm_socket_shdr_t below when OI-HUB-C06's
@@ -451,8 +452,8 @@ typedef struct {
     uint8_t  tec_throttle_events;       /* count of TEC temp threshold crossings    */
     uint8_t  laser_fault_flag;          /* 1 = 1170nm module reported a fault       */
     uint8_t  sloreta_session_flag;      /* 1 = sLORETA target was read at start      */
-    uint8_t  abort_reason;              /* np_pbm_fault_t; 0 = normal           */
-    uint32_t duration_s;
+    /* abort_reason and duration_s removed 2026-11-23 (OI-PRIV-40,
+     * NP-PRIV-ANALYSIS-004): UHDR, kept in np_t2_combined_uhdr_record_t. */
 } np_t2_combined_shdr_summary_t;
 
 /* ── T2 combined stage (mirrors np_t2_stage_t; aliased for clarity) ──────────── */
