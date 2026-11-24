@@ -37,10 +37,10 @@ class BackgroundBackupTest {
     /** The host's keystore, the same across relaunches in one test: the automatic backup keeps its key sealed under it (`OI-PRIV-65` (2)). */
     private val keystore = life.neurone.core.common.InMemorySecretKeyStore()
 
-    private fun services(kv: KeyValueStore, placeOn: Boolean = true) = AppServices(
+    private fun services(kv: KeyValueStore, placeOn: Boolean = true, withKeystore: Boolean = true) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
-            override val secretKeyStore = keystore
+            override val secretKeyStore = if (withKeystore) keystore else null
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
@@ -97,7 +97,7 @@ class BackgroundBackupTest {
         // A sealed value on disk and no keystore to open it: the run is locked.
         val sealedKey = EncryptedKeyValueStore.uhdrKeys().first()
         val kv = InMemoryKeyValueStore().apply { putString(sealedKey, EncryptedKeyValueStore.PREFIX + "ciphertext") }
-        val app = services(kv)
+        val app = services(kv, withKeystore = false)
         assertEquals(life.neurone.core.common.StorageProtection.LOCKED, app.storageProtection)
         recorder.calls.clear()
         assertNull(app.runBackgroundBackup())

@@ -168,8 +168,10 @@ class ScheduledBackupTest {
 
         val f = fixture()
         assertTrue(f.backup.turnOn(BundleKeyMethod.RECOVERY_CODE, newSecret()))
-        dataKey.destroy()  // the clear, or a keystore that lost its key
-        assertEquals(ScheduledBackup.Outcome.Failed("secret_unreadable"), f.backup.runIfDue())
+        // A later run whose keystore no longer has that data key (it was destroyed and a new one made): the kept key does not open.
+        val later = ScheduledBackup({ MigrationPlace("test", f.store, route) }, f.kv, nowSeconds = { f.now },
+            sealer = EncryptedKeyValueStore(f.kv, InMemorySecretKeyStore(), emptySet()))
+        assertEquals(ScheduledBackup.Outcome.Failed("secret_unreadable"), later.runIfDue())
         assertTrue(f.store.list("").isEmpty())
     }
 
