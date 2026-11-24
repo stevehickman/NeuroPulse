@@ -207,17 +207,15 @@ typedef struct {
     uint8_t           reserved[7];
 } np_hd_session_record_t;
 
-/* ── SHDR session summary (no user biology) ──────────────────────────────────── */
-/* Written to SHDR partition.  Contains device performance metrics only.        */
-typedef struct {
-    uint8_t  montage_type;               /* np_hd_montage_type_t               */
-    uint8_t  center_electrode;           /* electrode index — position, not user */
-    uint32_t stim_duration_s;
-    uint16_t anode_current_ua;
-    float    mean_impedance_kohm;        /* electrode contact quality metric    */
-    uint8_t  impedance_check_pass;       /* 1 if all electrodes passed          */
-    uint8_t  abort_reason;               /* 0 = normal                          */
-} np_hd_shdr_summary_t;
+/* ── No SHDR session summary (retired 2026-11-24, OI-PRIV-75) ───────────────────
+ * np_hd_shdr_summary_t held montage type, anode electrode, duration, anode
+ * current, mean impedance in kΩ, the impedance check's pass flag and the abort
+ * reason.  Every one is UHDR: NP-FW-HD-001 §8.2's own UHDR table lists them,
+ * and the in-session impedance check's result is UHDR by the principal's
+ * ruling of 2026-11-23 (data-architecture-detail.md §5.1).  None is device
+ * condition, so the struct is removed rather than reshaped.  Nothing read it.
+ * Do not add an SHDR record here without a §5.1 row that puts its fields in
+ * SHDR; when in doubt it is UHDR.                                             */
 
 /* ── Display callback (app receives live session updates) ────────────────────── */
 typedef struct {
