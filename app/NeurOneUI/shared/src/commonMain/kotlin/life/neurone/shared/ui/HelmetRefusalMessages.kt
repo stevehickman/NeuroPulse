@@ -16,6 +16,7 @@ fun helmetRefusalMessages(): Map<HelmetRefusalCause, String> = mapOf(
         HelmetRefusalCause.NOT_READY to stringResource(Res.string.protocol_menu_helmet_not_ready),
         HelmetRefusalCause.SIGNATURE to stringResource(Res.string.protocol_menu_refused_signature),
         HelmetRefusalCause.WRONG_DEVICE to stringResource(Res.string.protocol_menu_refused_wrong_device),
+        HelmetRefusalCause.SERIAL_UNKNOWN to stringResource(Res.string.protocol_menu_refused_serial_unknown),
         HelmetRefusalCause.FORMAT_VERSION to stringResource(Res.string.protocol_menu_refused_format_version),
         HelmetRefusalCause.DAMAGED to stringResource(Res.string.protocol_menu_refused_damaged),
         HelmetRefusalCause.MALFORMED to stringResource(Res.string.protocol_menu_refused_malformed),

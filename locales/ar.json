@@ -906,6 +906,7 @@
   "PROTOCOL_MENU_REFUSED_NO_LAYOUT": "The helmet's software does not recognise this version of the helmet, so it will not run any session. Update the helmet's software, then send the protocol again. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_OUTSIDE_LIMIT": "A value in this protocol is outside a limit the helmet holds, so the helmet did not accept it and the protocol was not started. Change the protocol so that every value is within its limit, then send it again.",
   "PROTOCOL_MENU_REFUSED_PHOTIC_ZONE": "The helmet will not run visual flashing between 3 and 30 Hz, because it cannot yet watch for a seizure response. Change the goggles' frequency in this protocol, then send it again. Nothing will run.",
+  "PROTOCOL_MENU_REFUSED_SERIAL_UNKNOWN": "This helmet could not confirm which helmet it is, so it did not accept the protocol. Restart the helmet and send the protocol again. If it happens again, the helmet needs service. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_SESSION_ACTIVE": "The helmet is busy. If a session is running, end it, then send the protocol again. This protocol was not loaded.",
   "PROTOCOL_MENU_REFUSED_SIGNATURE": "The helmet could not verify this protocol's signature, so it did not accept it. Send it again. Nothing will run.",
   "PROTOCOL_MENU_REFUSED_TOO_MANY_COMMANDS": "This protocol has more steps than the helmet can hold. Shorten it or split it into two protocols, then send it again. Nothing will run.",

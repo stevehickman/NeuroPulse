@@ -130,6 +130,12 @@ typedef enum {
      * reason is a fault and still returns NP_HUB_ERR_SAFETY_FAULT.  It is a session-end status only: it never reaches the
      * upload-check frame or any log record (the record carries abort_reason, unchanged). */
     NP_HUB_ERR_STOPPED              = -43,
+    /* REQ-FWHUB-90 (b), (c); OI-PRIV-31 (NP-PRIV-ANALYSIS-004) (the principal, 2026-11-24: the refusal has a status of its own).
+     * The helmet cannot read its own device serial, or reads it as all zero (never provisioned, or a blank Config value), so
+     * the device-serial replay guard cannot show a descriptor was signed for this helmet and refuses it.  Not WRONG_DEVICE
+     * (-7): the protocol is not known to be for another helmet; this helmet does not know which helmet it is.  Nothing the
+     * person sends changes it.  Reason 44 in the upload-check frame. */
+    NP_HUB_ERR_SERIAL_UNKNOWN       = -44,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
