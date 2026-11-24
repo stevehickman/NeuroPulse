@@ -9,7 +9,7 @@
 ## 1. The questions
 
 1. **Q1, the XTS key.** The UHDR partition key (the UKMD) is 32 bytes and goes straight to the XTS mount. XTS-AES-256 takes 64. Which construction do we use?
-2. **Q2, the Argon2id parameters.** `m = 65536` KiB (64 MiB) cannot run on this device. What are `m`, `t` and `p`, and (principal) is replacing a figure that never ran a weakening under CLAUDE.md §5.1?
+2. **Q2, the Argon2id parameters.** `m = 65536` KiB (64 MiB) cannot run on this device. What are `m`, `t` and `p`, and (principal) is replacing a figure that never ran a weakening under CLAUDE.md §5.1? **Settled 2026-11-24 (§2.5): option C, the 64 MiB stage on the phone and a 256 KiB stage on the hub; no figure is lowered. The hub figures stay provisional until the time per attempt is measured on the target.**
 3. **Q3, the back-off schedule.** An unlock attempt limit is now built with provisional figures (5 free attempts, then 30 s doubling to 24 h). Confirm or replace them.
 4. **Q4, the counter's own protection.** The failed-attempt count lives in the Config partition. Should it be anchored in something an eMMC rewrite cannot reset?
 5. **Q5 (principal), wipe or permanent lock.** Should any number of failures ever erase the UHDR partition or lock it for good? Nothing does today.
@@ -55,6 +55,16 @@
 
 **Recommendation: B**, unless A is wanted for other reasons, with the principal recording explicitly that replacing a parameter no device has run is a correction and not a weakening, and that the floor binds from the first provisioned record. Whichever is chosen, the time per attempt is measured on the target and written beside the figures (CLAUDE.md §18).
 
+### 2.5 Q2 settled, 2026-11-24: option C (the `OI-PRIV-35` working session)
+
+The recommendation above was B. It changed to C on reading `NP-FW-EMMC-002` §C.8, decided on 2026-11-23 after this brief was written: the per-person unlock credential is already derived on the phone, because the hub cannot hold 64 MiB. C is therefore the design the decided work already needs, and unlike B it lowers no written figure.
+
+- **Phone stage:** Argon2id, `m = 65536` KiB, `t = 4`, `p = 1`, the record's salt, 32 bytes out, for every credential (`REQ-EMMC2-07`). These are the figures `NP-FW-EMMC-001` Rev 1 §6 set and the phone's own UHDR and bundle keys already use (`common/npps-core/src/bundle_key.rs`). Not built.
+- **Hub stage:** Argon2id, `m = 256` KiB, `t = 4`, `p = 1`, over the phone's output, then the fused-key bind. These are the record's figures and its floors (`np_uhdr_key_config.h`).
+- **Why 256 KiB:** measured on the image, not assumed. On `main` at 468484e (2026-11-24) the established 512 KiB DTCM had about 450,000 B free and the OCRAM2 staging region 187,300 B (CI "Report image sizes"). 256 KiB fits DTCM, not staging. The buffer is allocated when the target seam is built, and that changes the CI DTCM residency figure, which is recorded with it (`NP-SW-CI-001` §4.12.4).
+- **Is it a weakening (the principal's part of Q2)?** Not on any path that has run, and not in what an attacker pays per guess. Offline with the fused key, a guess costs the 64 MiB stage and the hub stage, more than the written design. Online on the helmet, a guess still costs the 64 MiB stage on the attacker's own hardware, and the helmet's share is shorter than a 64 MiB stage would have been. After five failures the §C.7 back-off sets the online rate. **The principal should still confirm** this reading, because the helmet's own time per attempt is lower than a 64 MiB hub KDF would have been, had one been buildable.
+- **Still open:** the time per attempt on the target, measured and written beside the figures before any device is provisioned (UC-206; `t` may rise, never fall); the phone stage's implementation, and how its parameters reach the phone with the salt (the §23 channel, `OI-SIMFW-71`); the reviewer's confirmation under `OI-EMMC2-02`.
+
 ## 3. The unlock limit that is now built (Q3 and Q4)
 
 `NP-FW-EMMC-002` §C.7, `REQ-EMMC2-01`, `firmware/uhdr_key/src/np_uhdr_key.c`, six host tests:
@@ -76,7 +86,7 @@ Nothing in §C.7 erases or permanently locks. An erase after N failures would de
 ## 5. What happens with each answer
 
 - Q1 → the mount seam's contract (`np_uhdr_hal_mount_uhdr`) and §C.2 are rewritten before the seam is implemented; for A, also the record and the host GCM stub.
-- Q2 → `NP_UHDR_ARGON2ID_*` and the floors change in one commit, with the measured time per attempt; §C.3 and §C.4 are corrected.
+- Q2 → `NP_UHDR_ARGON2ID_*` and the floors change in one commit, with the measured time per attempt; §C.3 and §C.4 are corrected. **Done 2026-11-24 except the measurement (§2.5).**
 - Q3 → UC-203 moves to "Justified or retired" with the reasoning, or the figures change.
 - Q4, Q5 → new items if the answer adds work.
 
