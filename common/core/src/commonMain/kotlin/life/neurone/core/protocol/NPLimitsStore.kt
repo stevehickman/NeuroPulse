@@ -27,17 +27,42 @@ import life.neurone.core.common.UUID
 // docs/reference/data-architecture-detail.md §5.1). `id` is random and names the individual tier. `name` is how the person
 // choosing a profile recognises it. `notes` is a short label that tells two profiles apart; it is not a record about the
 // person, nothing reads it but the profile list, and it holds at most ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code
-// units. There is no date of birth: no limit or protocol rule ever read one (OI-PRIV-11). `stealth` is the person's choice to
-// keep the helmet's status indicators dark while they are the active profile (SWR-IND-01, OI-PRIV-37); it is UHDR-class, kept
-// here with the profile and in the person's own backup and migration, and never written to SHDR or analytics. A profile
-// without it (every one made before it existed) reads as false, and false is not written.
+// units. There is no date of birth: no limit or protocol rule ever read one (OI-PRIV-11). `activeUserTag` is what the
+// device is told the person is called (REQ-FAULTMSG-01); the store assigns it, a screen never sets it. `stealth` is the person's
+// choice to keep the helmet's status indicators dark while they are the active profile (SWR-IND-01, OI-PRIV-37); it is
+// UHDR-class, kept here with the profile and in the person's own backup and migration, and never written to SHDR or analytics.
+// A profile without it (every one made before it existed) reads as false, and false is not written.
 @Serializable
 data class NPIndividualProfile(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val notes: String = "",
+    val activeUserTag: ProfileTagState? = null,
     val stealth: Boolean = false,
 )
+
+/**
+ * How a profile is named to a helmet (`REQ-FAULTMSG-01`, `OI-PRIV-29` (NP-PRIV-ANALYSIS-004)). UHDR-class: it travels with the
+ * profile, in the profiles value, so the same person on a new phone is the same person to every helmet, and a helmet that
+ * holds a cardiac cutoff for them still holds it.
+ *
+ * - [secret]: 32 random bytes as 64 lowercase hex digits, the key of the per-(profile, helmet) tag. Never shown, never sent.
+ * - [legacy]: the profile existed before the per-helmet tag, so a helmet may know it by its old tag (the profile id's first
+ *   four bytes) and may hold a cutoff under it. A profile made since has none and is never named by the old tag.
+ * - [migrated]: the per-helmet tags this profile has moved to. A helmet whose tag is here is never told the old tag again,
+ *   because a cutoff may now be held under the new one.
+ */
+@Serializable
+data class ProfileTagState(
+    val secret: String,
+    val legacy: Boolean,
+    val migrated: List<Long> = emptyList(),
+) {
+    /** A state as read back: a secret that is not 32 bytes of hex, or a tag outside the wire's range, is not one. */
+    val isWellFormed: Boolean
+        get() = secret.length == 64 && secret.all { it in '0'..'9' || it in 'a'..'f' } &&
+            migrated.all { it in 1L..0xFFFF_FFFEL }
+}
 
 /**
  * Field-by-field resolution of the three tiers into one effective NPLimitsSet: individual ?? helmet ?? global.
@@ -198,12 +223,14 @@ class NPLimitsStore(
     private fun writable(): Boolean = lock == null || lock.isUnlocked
 
     /** Run a write; under a lock whose key went away mid-write, the whole values already written stand and the rest are not written. */
-    private fun write(block: () -> Unit) {
-        if (!writable()) return
+    private fun write(block: () -> Unit): Boolean {
+        if (!writable()) return false
         try {
             block()
+            return true
         } catch (e: SecretKeyUnavailableException) {
             if (lock == null) throw e
+            return false
         }
     }
 
@@ -264,10 +291,13 @@ class NPLimitsStore(
     fun saveProfile(profile: NPIndividualProfile): Boolean {
         if (profile.notes.length > ProfileLimits.PROFILE_NOTES_MAX_CHARS) return false
         if (deferred { saveProfile(profile) }) return true
-        profiles = if (profiles.any { it.id == profile.id }) {
-            profiles.map { if (it.id == profile.id) profile else it }
+        // The tag state is the store's: an edit keeps the profile's, and a new profile gets one that was never legacy
+        // (it has no old tag anywhere), whatever the caller passed.
+        val existing = profiles.firstOrNull { it.id == profile.id }
+        profiles = if (existing != null) {
+            profiles.map { if (it.id == profile.id) profile.copy(activeUserTag = existing.activeUserTag) else it }
         } else {
-            profiles + profile
+            profiles + profile.copy(activeUserTag = newTagState(legacy = false))
         }
         persistProfiles()
         onProfilesChanged?.invoke()
@@ -298,6 +328,26 @@ class NPLimitsStore(
 
     val activeProfile: NPIndividualProfile?
         get() = profiles.firstOrNull { it.id == activeProfileId }
+
+    /**
+     * Record that [profileId] has moved to [tag] on one helmet (`REQ-FAULTMSG-01` (c)). Persisted before the caller names the
+     * tag, so a restart never brings the old tag back for that helmet. False if the profile is gone or the store is locked;
+     * the caller then keeps naming the old tag.
+     */
+    fun recordTagMigration(profileId: String, tag: Long): Boolean {
+        if (!loaded) return false
+        val profile = profiles.firstOrNull { it.id == profileId } ?: return false
+        val state = profile.activeUserTag ?: return false
+        if (tag in state.migrated) return true
+        val before = profiles
+        profiles = profiles.map { if (it.id == profileId) it.copy(activeUserTag = state.copy(migrated = state.migrated + tag)) else it }
+        if (persistProfiles()) return true
+        profiles = before   // not written: the old tag stays, for this helmet, until it is
+        return false
+    }
+
+    private fun newTagState(legacy: Boolean): ProfileTagState =
+        ProfileTagState(secret = randomBytes(32).joinToString("") { ((it.toInt() and 0xFF) + 0x100).toString(16).substring(1) }, legacy = legacy)
 
     // MARK: NPPS import / export
 
@@ -333,6 +383,9 @@ class NPLimitsStore(
         profiles = stored
             ?.let { runCatching { json.decodeFromString(profilesSerializer, it) }.getOrNull() }
             ?.map { it.copy(notes = it.notes.take(ProfileLimits.PROFILE_NOTES_MAX_CHARS)) }
+            // A profile stored before the per-helmet tag (REQ-FAULTMSG-01) gets its secret now, marked legacy: a helmet may
+            // still know it by the old tag. Written back below, so it is made once.
+            ?.map { if (it.activeUserTag == null) it.copy(activeUserTag = newTagState(legacy = true)) else it }
             ?: emptyList()
         if (stored != null && profiles.isNotEmpty()) {
             val current = json.encodeToString(profilesSerializer, profiles)

@@ -1,6 +1,6 @@
 # Question for the principal: OI-PRIV-38 (NP-PRIV-ANALYSIS-004), what the Map 3 journal keeps, and whether accessory insertions stay events
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (§6). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#966](https://github.com/stevehickman/NeuroPulse/issues/966)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-38` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding M13)
 **To:** the principal
@@ -127,3 +127,27 @@ not a session.
   no migration).
 - Q2 B or C: a new open item for the record and its schema, after `OI-PRIV-21` (NP-PRIV-ANALYSIS-004).
 - `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) closes when both are ruled and recorded in `data-architecture-detail.md` §5.1.
+
+## 6. Answer (the principal, 2026-11-23)
+
+**Q1.** Neither option as written. The principal's reasoning, in order:
+
+1. The fact that a module is present in a helmet does not mean a protocol used it, so presence is not UHDR. It does
+   mean the module was exposed to the session environment, which is wear, and wear is SHDR.
+2. `dose_accum` and `throttle_count` do measure use, but use need not be tied to a session. It can be accumulated as a
+   lifetime total or a total per period, independent of any session.
+3. The helmet needs no clock: it accumulates between downloads, and the app knows what happened between downloads with
+   whatever timestamps it has.
+4. The opt-in of `NP-MOD-ID-001` §7 for dose and throttle totals stays.
+
+**Recorded design** (`NP-FW-NVRAM-001` §8.5): one running-total row per module in Config, with no per-session row and
+no `ordinal`; the app keeps the previous values and the differences in Map 2; the fleet gets running totals, with
+`dose_accum` and `throttle_count` only under the opt-in. Building it is `OI-NVRAM-20`.
+
+**Q2.** The event per insertion stays (option A). When an accessory was inserted does not tell you when it was used:
+in a clinic a helmet is likely configured for the day, and some accessories go unused in the first session. The
+zone-announce entry drops its session count to the same shape.
+
+**Would reopen it:** a measurement or a use pattern in which insertion time does track use time closely (for
+example, home helmets where every accessory is fitted only for the session that uses it), for Q2; a fleet upload
+of per-window values, or a need for per-session wear data, for Q1.

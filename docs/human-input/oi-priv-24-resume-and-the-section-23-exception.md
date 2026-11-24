@@ -1,10 +1,25 @@
 # Question for the principal and Safety: OI-PRIV-24 (NP-PRIV-ANALYSIS-004), resume on the open pause characteristic, and the §23 exception
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Q1, Q2 and Q3 ruled by the principal, 2026-11-23 (§0). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#952](https://github.com/stevehickman/NeuroPulse/issues/952)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; firmware privacy review `docs/np_priv_analysis_004.md`, Finding H4)
 **To:** the principal (the `CLAUDE.md` §23 exception, `OI-SIMFW-73`); Safety / Risk (the ISO 14971 assessment, `NP-RM-001`)
 **Response needed:** an option for Q1 and Q2, a yes or no for Q3, a short rationale for each, anything that would reopen it, your name, role and the date.
+
+## 0. Rulings (the principal, 2026-11-23)
+
+- **Q1: neither A nor B as written.** Stop and panic stay open. **Pause needs an encrypted link, like resume.** The reason is
+  the principal's: it adds no protection, but it keeps the two halves of a pair together, which helps usability. A person
+  who pauses is thinking of resuming, or they would stop. Built as `REQ-FWHUB-81` (e) and (c) (pause refused with ATT
+  0x0F on an unencrypted link, panic still taken). **The one trade, recorded:** without pairing, the only hold left is the
+  panic, which cuts tDCS at once where a pause ramps it down. The app offers Pause only while it reads the encrypted
+  `SESSION_PROGRESS`, so a person using the app never meets this; a raw unpaired central does.
+- **Q3: yes.** The hazard is `RISK-HUB-04` in `NP-RISK-004`, and `NP-RM-001` §10.2 lists it. Its severity and probability are
+  Risk's to assign (`NP-RM-001` §8.2), not set here.
+- **Q2: B now, C when `OI-SIMFW-72` gives an authenticated link** (the recommendation, accepted). The hub refuses a resume while the
+  detector holds the session, a discharge or a blindness halt alike (`NP_HUB_ERR_PPX_HALT`), and the app offers only Stop for
+  it. `REQ-FWHUB-67` and `-69` say so. A person halted by a false detection starts a new session. Revisit when pairing is
+  authenticated.
 
 ## 1. The question
 

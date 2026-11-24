@@ -138,6 +138,32 @@ export interface NPIndividualProfile {
   name: string;
   notes: string;
   stealth?: boolean;
+  /**
+   * How the profile is named to a helmet (REQ-FAULTMSG-01, OI-PRIV-29 (NP-PRIV-ANALYSIS-004)); the Kotlin store assigns it and
+   * the web app never names a helmet. Kept as read, never made or changed here: dropping it would give the person a new tag
+   * on every helmet, and a helmet holding a cardiac cutoff under the old one would no longer apply it to them. UHDR-class.
+   */
+  activeUserTag?: ProfileTagState;
+}
+
+/** See NPIndividualProfile.activeUserTag and the Kotlin ProfileTagState (common/core NPLimitsStore.kt). */
+export interface ProfileTagState {
+  /** 32 random bytes as 64 lowercase hex digits. */
+  secret: string;
+  /** The profile existed before the per-helmet tag, so a helmet may know it by its old tag. */
+  legacy: boolean;
+  /** The per-helmet tags the profile has moved to. */
+  migrated: number[];
+}
+
+/** A tag state as read back, or null if it is not one (then the field is not kept). */
+function storedTagState(raw: unknown): ProfileTagState | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.secret !== 'string' || !/^[0-9a-f]{64}$/.test(r.secret) || typeof r.legacy !== 'boolean') return null;
+  const migrated = r.migrated === undefined ? [] : r.migrated;
+  if (!Array.isArray(migrated) || !migrated.every(t => Number.isInteger(t) && t >= 1 && t <= 0xfffffffe)) return null;
+  return { secret: r.secret, legacy: r.legacy, migrated: [...migrated] };
 }
 
 /** True when `notes` is within the bound a profile note may hold. */
@@ -153,13 +179,16 @@ export function storedProfile(raw: unknown): NPIndividualProfile | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.id !== 'string' || r.id === '' || typeof r.name !== 'string' || r.name === '') return null;
-  return {
+  const profile: NPIndividualProfile = {
     id: r.id,
     name: r.name,
     notes: typeof r.notes === 'string' ? r.notes.slice(0, ProfileLimits.PROFILE_NOTES_MAX_CHARS) : '',
     // Only true is kept: false is the default and is not written, as the Kotlin store does not write it.
     ...(r.stealth === true ? { stealth: true } : {}),
   };
+  const tag = storedTagState(r.activeUserTag);
+  if (tag) profile.activeUserTag = tag;
+  return profile;
 }
 
 // ─── Validation types ──────────────────────────────────────────────────────────

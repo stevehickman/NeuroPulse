@@ -102,14 +102,16 @@ typedef struct {
 
 /*
  * Logged to SHDR partition per NP-FW-EMMC-001 Rev 1 §12.
- * Fields: accessory authentication pass/fail only — no user biology.
+ * Fields: accessory authentication pass/fail only — no user biology, and no
+ * session count: the time of an insertion is not the time of use, and a count
+ * per record would make a timeline (OI-PRIV-38 (NP-PRIV-ANALYSIS-004), the
+ * principal, 2026-11-23; the same shape as the hub's 0x83 record, REQ-NASAL-16).
  */
 typedef struct {
     uint8_t  zone_id;       /* np_zone_id_t value (1–5, 6=unknown)              */
     uint8_t  slot_index;    /* physical slot (0-based; equals zone_id−1 if valid)*/
     uint8_t  auth_result;   /* 0 = pass, 1 = fail (unknown zone)                */
     uint8_t  debounce_reads_passed; /* how many of 3 reads agreed               */
-    uint32_t session_count; /* device session count at time of insertion         */
 } np_za_shdr_auth_entry_t;
 
 /* ── Callback types ─────────────────────────────────────────────────────────── */
@@ -164,7 +166,6 @@ typedef struct {
     np_za_remove_cb_t   remove_cb;
     np_za_shdr_cb_t     shdr_cb;
     bool                audio_initialized;
-    uint32_t            device_session_count; /* from SHDR, set at init          */
 } np_za_ctx_t;
 
 #endif /* NP_ZONE_ANNOUNCE_TYPES_H */

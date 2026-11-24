@@ -67,9 +67,10 @@ class NPLimitsStoreTests {
         s1.setActiveProfile(sam.id)
 
         val s2 = NPLimitsStore(kv)
-        assertEquals(listOf(alex, sam), s2.profiles)
+        assertEquals(listOf(alex, sam), s2.profiles.withoutTags())
         assertEquals(sam.id, s2.activeProfileId)
-        assertEquals(sam, s2.activeProfile)
+        assertEquals(sam, s2.activeProfile?.copy(activeUserTag = null))
+        assertEquals(s1.profiles, s2.profiles, "the tag state the store assigned is the one it reads back")
     }
 
     // @verifies REQ-NPPS-12
@@ -188,7 +189,7 @@ class NPLimitsStoreTests {
             """[{"id":"p1","name":"Alex","notes":"left chair","dateOfBirth":"1980-01-01"}]""",
         )
         val store = NPLimitsStore(kv)
-        assertEquals(listOf(NPIndividualProfile(id = "p1", name = "Alex", notes = "left chair")), store.profiles)
+        assertEquals(listOf(NPIndividualProfile(id = "p1", name = "Alex", notes = "left chair")), store.profiles.withoutTags())
         val rewritten = kv.getString(NPLimitsStore.PROFILES_KEY)!!
         assertFalse("dateOfBirth" in rewritten)
         assertFalse("1980" in rewritten)
@@ -205,8 +206,8 @@ class NPLimitsStoreTests {
         assertTrue(store.saveProfile(alex))
         assertFalse(store.saveProfile(alex.copy(notes = "x".repeat(max + 1))))
         assertFalse(store.saveProfile(NPIndividualProfile(name = "Sam", notes = "x".repeat(max + 1))))
-        assertEquals(listOf(alex), store.profiles)
-        assertEquals(listOf(alex), NPLimitsStore(kv).profiles)
+        assertEquals(listOf(alex), store.profiles.withoutTags())
+        assertEquals(listOf(alex), NPLimitsStore(kv).profiles.withoutTags())
     }
 
     // @verifies REQ-SW03-32#c
@@ -268,5 +269,51 @@ class NPLimitsStoreTests {
         val sharedIndividual = store.shareLimitsAsNPPS(individual)
         assertFalse("individual_id" in sharedIndividual || profile.id in sharedIndividual, sharedIndividual)
         assertEquals(1.0, store.importLimitsFromNPPS(sharedIndividual).tdcs!!.maxIntensityMilliamps)
+    }
+
+    private fun List<NPIndividualProfile>.withoutTags() = map { it.copy(activeUserTag = null) }
+
+    // ── The per-helmet active-user tag (REQ-FAULTMSG-01, OI-PRIV-29 (NP-PRIV-ANALYSIS-004)) ──
+
+    // @verifies REQ-FAULTMSG-01#e
+    @Test
+    fun aNewProfileGetsAStateThatWasNeverLegacyAndAnEditKeepsIt() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv, randomBytes = { ByteArray(it) { 0x11 } })
+        val alex = NPIndividualProfile(name = "Alex")
+        store.saveProfile(alex)
+        val state = store.profiles.single().activeUserTag!!
+        assertEquals(ProfileTagState(secret = "11".repeat(32), legacy = false), state)
+        assertTrue(state.isWellFormed)
+
+        // A screen saves the profile it holds, with no tag state or a made-up one; the store keeps its own.
+        store.saveProfile(alex.copy(name = "Alex B", activeUserTag = ProfileTagState("22".repeat(32), legacy = true)))
+        assertEquals(state, store.profiles.single().activeUserTag)
+        assertEquals("Alex B", store.profiles.single().name)
+        assertEquals(state, NPLimitsStore(kv).profiles.single().activeUserTag, "and it is what a reload reads")
+    }
+
+    // @verifies REQ-FAULTMSG-01#e
+    @Test
+    fun aProfileStoredBeforeTheTagIsGivenALegacyStateOnceAndKeepsIt() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(NPLimitsStore.PROFILES_KEY, """[{"id":"04030201-0000-4000-8000-000000000000","name":"Alex","notes":""}]""")
+        val first = NPLimitsStore(kv, randomBytes = { ByteArray(it) { 0x33 } }).profiles.single().activeUserTag!!
+        assertTrue(first.legacy, "it may be known to a helmet by its old tag")
+        assertEquals("33".repeat(32), first.secret)
+        val again = NPLimitsStore(kv, randomBytes = { ByteArray(it) { 0x44 } }).profiles.single().activeUserTag
+        assertEquals(first, again, "written back when first read, so the secret is made once")
+    }
+
+    // @verifies REQ-FAULTMSG-01#c
+    @Test
+    fun aMoveIsRecordedOnceAndSurvivesAReload() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv)
+        store.saveProfile(NPIndividualProfile(id = "p1", name = "Alex"))
+        assertTrue(store.recordTagMigration("p1", 0x25DD_4FD5L))
+        assertTrue(store.recordTagMigration("p1", 0x25DD_4FD5L), "recording it again is not a second entry")
+        assertEquals(listOf(0x25DD_4FD5L), NPLimitsStore(kv).profiles.single().activeUserTag!!.migrated)
+        assertFalse(store.recordTagMigration("nobody", 1L), "no such profile: nothing recorded, and the old tag stays")
     }
 }

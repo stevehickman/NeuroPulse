@@ -647,6 +647,13 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_sanitize_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16.  The rollback floor on the
+    # eMMC's RPMB: frame protocol and store against a fake RPMB device.
+    # Moves the Class B count 68 -> 69 and the repo total 79 -> 80.
+    add_test(NAME np_bootloader_rpmb_tests
+        COMMAND np_bootloader_rpmb_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates
     # two numbers the bootloader linker script owns; a linker script cannot
     # include another, so this test is what makes the duplication safe.  Moves
