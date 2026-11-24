@@ -41,10 +41,11 @@
  *                   OI-FWHUB-37.
  *
  * ── Concurrency ────────────────────────────────────────────────────────────
- * The runner task calls the session functions; np_mu_note_fault() comes from
- * whichever task logs a fault.  RAM is changed inside
- * np_transport_hal_enter/exit_critical; the store is written outside it, from
- * a copy, by the runner alone.
+ * The stored totals are touched only by the boot path and the runner task
+ * (np_mu_load, np_mu_session_end, np_mu_snapshot), never concurrently.  Work
+ * not yet committed is held in a second table, keyed by module, which any task
+ * may add a fault to; it is changed only inside
+ * np_transport_hal_enter/exit_critical, and the store is written outside it.
  *
  * Pure C, host-testable (np_module_usage_tests).
  */

@@ -792,6 +792,7 @@ set(HUB_SOURCES
     src/np_session_pause.c        # SWR-SS-05: paused session clock + slot tracker
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
+    src/np_module_usage.c         # REQ-FWHUB-93: per-module running totals
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
     src/np_status_led.c           # REQ-FWHUB-85/-85: the status indicators and stealth mode (OI-PRIV-37)
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches

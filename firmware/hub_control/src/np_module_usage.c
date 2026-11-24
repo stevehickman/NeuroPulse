@@ -1,6 +1,17 @@
 /*
  * NeurOne Hub Control Program — per-module running totals (REQ-FWHUB-93)
  * See np_module_usage.h.
+ *
+ * Two tables:
+ *   s_rows  the stored totals, one row per module.  Touched only by the boot
+ *           path and the runner (np_mu_load, np_mu_session_end,
+ *           np_mu_snapshot), never concurrently, so it needs no lock.
+ *   s_pend  work not yet committed — this session's presence, use and drive
+ *           time, and faults since the last commit — keyed by module, so it is
+ *           independent of where (or whether) the module has a row.  Any task
+ *           may add a fault, so it is changed only inside the critical section.
+ * A load therefore replaces s_rows without disturbing anything pending, and a
+ * commit folds s_pend into s_rows, then writes s_rows.
  */
 
 #include "np_module_usage.h"
@@ -16,11 +27,12 @@ _Static_assert(NP_MU_TABLE_BYTES <= NP_CFG_REPLICA_TABLE_MAX_PAYLOAD,
 /* ── State ─────────────────────────────────────────────────────────────────── */
 
 typedef struct {
-    bool     present;      /* fitted this session */
-    bool     used;         /* driven this session */
-    uint32_t used_ms;      /* drive time this session */
-    uint32_t faults[NP_MU_FAULT_CODES + 1U];  /* since the last commit; [NP_MU_FAULT_CODES] = unmatched */
-    uint8_t  fault_code[NP_MU_FAULT_CODES];   /* the codes the pending counts above belong to */
+    np_mu_key_t key;          /* kind NP_MU_KEY_EMPTY = free entry */
+    bool        present;      /* fitted this session */
+    bool        used;         /* driven this session */
+    uint32_t    used_ms;      /* drive time this session */
+    uint8_t     fault_code[NP_MU_FAULT_CODES];
+    uint32_t    faults[NP_MU_FAULT_CODES + 1U];   /* [NP_MU_FAULT_CODES] = codes with no entry */
 } pending_t;
 
 typedef struct {
@@ -30,12 +42,12 @@ typedef struct {
 } slot_t;
 
 static np_mu_row_t s_rows[NP_MU_MAX_ROWS];
-static pending_t   s_pend[NP_MU_MAX_ROWS];
 static size_t      s_n;
 static bool        s_loaded;
 static uint32_t    s_dropped;
+static pending_t   s_pend[NP_MU_MAX_ROWS];
 static slot_t      s_slot[NP_HUB_SLOT_MAX];
-static uint8_t     s_buf[NP_MU_TABLE_BYTES];   /* encode / decode staging, runner only */
+static uint8_t     s_buf[NP_MU_TABLE_BYTES];   /* encode / decode staging, boot and runner only */
 
 #define CRIT_ENTER() np_transport_hal_enter_critical()
 #define CRIT_EXIT()  np_transport_hal_exit_critical()
@@ -71,19 +83,38 @@ static bool key_valid(const np_mu_key_t *k)
     return k != NULL && (k->kind == (uint8_t)NP_MU_KEY_UID || k->kind == (uint8_t)NP_MU_KEY_PORT);
 }
 
-static bool pending_any(const pending_t *p)
+/* The pending entry for `key`, created if absent; NULL if the pending table is
+ * full.  Caller holds the critical section. */
+static pending_t *pend_for(const np_mu_key_t *key)
 {
-    if (p->present || p->used) { return true; }
-    for (size_t i = 0U; i <= NP_MU_FAULT_CODES; i++) {
-        if (p->faults[i] != 0U) { return true; }
+    pending_t *free_entry = NULL;
+    for (size_t i = 0U; i < NP_MU_MAX_ROWS; i++) {
+        if (s_pend[i].key.kind == (uint8_t)NP_MU_KEY_EMPTY) {
+            if (free_entry == NULL) { free_entry = &s_pend[i]; }
+        } else if (key_eq(&s_pend[i].key, key)) {
+            return &s_pend[i];
+        }
+    }
+    if (free_entry != NULL) {
+        memset(free_entry, 0, sizeof *free_entry);
+        free_entry->key = *key;
+    }
+    return free_entry;
+}
+
+static bool has_pending(const np_mu_key_t *key)
+{
+    for (size_t i = 0U; i < NP_MU_MAX_ROWS; i++) {
+        if (s_pend[i].key.kind != (uint8_t)NP_MU_KEY_EMPTY && key_eq(&s_pend[i].key, key)) { return true; }
     }
     return false;
 }
 
-/* The row for `key`, created if absent.  A full table gives up the row of the
- * module with the fewest sessions present that has nothing pending; NULL if
- * every row is in use this session.  Caller holds the critical section. */
-static size_t find_or_add(const np_mu_key_t *key)
+/* The stored row for `key`, created if absent.  A full table gives up the row
+ * of the module with the fewest sessions present that has nothing pending
+ * (UC-207); NP_MU_MAX_ROWS if every row is pending.  Runner only, called with
+ * the critical section held so the pending table it consults stands still. */
+static size_t row_for(const np_mu_key_t *key)
 {
     for (size_t i = 0U; i < s_n; i++) {
         if (key_eq(&s_rows[i].key, key)) { return i; }
@@ -92,7 +123,7 @@ static size_t find_or_add(const np_mu_key_t *key)
     if (s_n >= NP_MU_MAX_ROWS) {
         at = NP_MU_MAX_ROWS;
         for (size_t i = 0U; i < s_n; i++) {
-            if (pending_any(&s_pend[i])) { continue; }
+            if (has_pending(&s_rows[i].key)) { continue; }
             if (at == NP_MU_MAX_ROWS || s_rows[i].sessions_present < s_rows[at].sessions_present) { at = i; }
         }
         if (at == NP_MU_MAX_ROWS) { return NP_MU_MAX_ROWS; }
@@ -100,7 +131,6 @@ static size_t find_or_add(const np_mu_key_t *key)
         s_n++;
     }
     memset(&s_rows[at], 0, sizeof s_rows[at]);
-    memset(&s_pend[at], 0, sizeof s_pend[at]);
     s_rows[at].key = *key;
     return at;
 }
@@ -144,6 +174,8 @@ void np_mu_encode(const np_mu_row_t *rows, size_t n, uint8_t out[NP_MU_TABLE_BYT
     }
 }
 
+/* Validates the whole record before writing anything into `rows`, so a refused
+ * record leaves the caller's table as it was. */
 bool np_mu_decode(const uint8_t in[NP_MU_TABLE_BYTES], np_mu_row_t *rows, size_t cap, size_t *n_out)
 {
     if (in == NULL || rows == NULL || n_out == NULL) { return false; }
@@ -152,11 +184,14 @@ bool np_mu_decode(const uint8_t in[NP_MU_TABLE_BYTES], np_mu_row_t *rows, size_t
         return false;
     }
     for (size_t i = 0U; i < n; i++) {
+        const uint8_t kind = in[NP_MU_HDR_BYTES + i * NP_MU_ROW_BYTES];
+        if (kind != (uint8_t)NP_MU_KEY_UID && kind != (uint8_t)NP_MU_KEY_PORT) { return false; }
+    }
+    for (size_t i = 0U; i < n; i++) {
         const uint8_t *r = &in[NP_MU_HDR_BYTES + i * NP_MU_ROW_BYTES];
         np_mu_row_t *d = &rows[i];
         memset(d, 0, sizeof *d);
         d->key.kind = r[0];
-        if (!key_valid(&d->key)) { return false; }
         memcpy(d->key.id, &r[2], NP_MU_ID_LEN);
         d->sessions_present = get32(&r[10]);
         d->present_s        = get32(&r[14]);
@@ -186,48 +221,24 @@ bool np_mu_loaded(void) { return s_loaded; }
 
 uint32_t np_mu_sessions_dropped(void) { return s_dropped; }
 
-/* Staging for np_mu_load() and np_mu_session_end().  Static, never on a
- * task's stack (each is several KiB); both functions run only on the boot
- * path before the runner starts, or on the runner task, never concurrently. */
-static np_mu_row_t s_read[NP_MU_MAX_ROWS];
-static np_mu_row_t s_keep_rows[NP_MU_MAX_ROWS];
-static pending_t   s_keep_pend[NP_MU_MAX_ROWS];
-static np_mu_row_t s_out[NP_MU_MAX_ROWS];
-
 np_hub_status_t np_mu_load(void)
 {
-    size_t n = 0U;
-    np_hub_status_t st = np_cfg_store_replicated_read(NP_CFG_FILE_MODULE_USAGE, s_buf, sizeof s_buf);
+    const np_hub_status_t st = np_cfg_store_replicated_read(NP_CFG_FILE_MODULE_USAGE, s_buf, sizeof s_buf);
     if (st == NP_HUB_ERR_NOT_PRESENT) {
-        n = 0U;                       /* never written: every total starts at zero */
+        s_n = 0U;                     /* never written: every total starts at zero */
     } else if (st != NP_HUB_OK) {
         return st;                    /* unknown is not zero */
-    } else if (!np_mu_decode(s_buf, s_read, NP_MU_MAX_ROWS, &n)) {
+    } else if (!np_mu_decode(s_buf, s_rows, NP_MU_MAX_ROWS, &s_n)) {
         return NP_HUB_ERR_STORE_INTEGRITY;
     }
-
-    CRIT_ENTER();
-    /* Rows created in RAM before the load hold only pending work (their totals
-     * are 0): keep that work and merge it under the rows just read. */
-    const size_t keep_n = s_n;
-    memcpy(s_keep_rows, s_rows, sizeof(np_mu_row_t) * keep_n);
-    memcpy(s_keep_pend, s_pend, sizeof(pending_t) * keep_n);
-    memcpy(s_rows, s_read, sizeof(np_mu_row_t) * n);
-    memset(s_pend, 0, sizeof s_pend);
-    s_n = n;
-    for (size_t i = 0U; i < keep_n; i++) {
-        const size_t at = find_or_add(&s_keep_rows[i].key);
-        if (at < NP_MU_MAX_ROWS) { s_pend[at] = s_keep_pend[i]; }
-    }
-    s_loaded = true;
-    CRIT_EXIT();
+    s_loaded = true;                  /* anything pending is in s_pend and is kept */
     return NP_HUB_OK;
 }
 
 void np_mu_session_begin(void)
 {
     CRIT_ENTER();
-    for (size_t i = 0U; i < s_n; i++) {
+    for (size_t i = 0U; i < NP_MU_MAX_ROWS; i++) {
         s_pend[i].present = false;
         s_pend[i].used    = false;
         s_pend[i].used_ms = 0U;
@@ -240,19 +251,19 @@ void np_mu_mark_present(const np_mu_key_t *key)
 {
     if (!key_valid(key)) { return; }
     CRIT_ENTER();
-    const size_t at = find_or_add(key);
-    if (at < NP_MU_MAX_ROWS) { s_pend[at].present = true; }
+    pending_t *p = pend_for(key);
+    if (p != NULL) { p->present = true; }
     CRIT_EXIT();
 }
 
 /* Caller holds the critical section. */
 static void add_used_locked(const np_mu_key_t *key, uint32_t on_ms)
 {
-    const size_t at = find_or_add(key);
-    if (at >= NP_MU_MAX_ROWS) { return; }
-    s_pend[at].present = true;     /* driven means fitted */
-    s_pend[at].used    = true;
-    s_pend[at].used_ms = (UINT32_MAX - s_pend[at].used_ms < on_ms) ? UINT32_MAX : s_pend[at].used_ms + on_ms;
+    pending_t *p = pend_for(key);
+    if (p == NULL) { return; }
+    p->present = true;     /* driven means fitted */
+    p->used    = true;
+    p->used_ms = (UINT32_MAX - p->used_ms < on_ms) ? UINT32_MAX : p->used_ms + on_ms;
 }
 
 void np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms)
@@ -300,12 +311,11 @@ void np_mu_note_fault(uint8_t slot, uint8_t mod_type, uint8_t code)
     if (slot >= NP_HUB_SLOT_MAX) { return; }   /* no module to charge it to */
     const np_mu_key_t k = np_mu_key_port(slot, (np_hub_mod_type_t)mod_type);
     CRIT_ENTER();
-    const size_t at = find_or_add(&k);
-    if (at < NP_MU_MAX_ROWS) {
-        pending_t *p = &s_pend[at];
+    pending_t *p = pend_for(&k);
+    if (p != NULL) {
         size_t c;
         for (c = 0U; c < NP_MU_FAULT_CODES; c++) {
-            if (p->fault_code[c] == code && p->faults[c] != 0U) { break; }
+            if (p->faults[c] != 0U && p->fault_code[c] == code) { break; }
         }
         if (c == NP_MU_FAULT_CODES) {
             for (c = 0U; c < NP_MU_FAULT_CODES; c++) {
@@ -353,46 +363,47 @@ np_hub_status_t np_mu_session_end(uint32_t session_ms)
     if (!s_loaded && np_mu_load() != NP_HUB_OK) {
         /* Unknown is not zero: writing now would replace every module's lifetime with this one session. */
         CRIT_ENTER();
-        for (size_t i = 0U; i < s_n; i++) { memset(&s_pend[i], 0, sizeof s_pend[i]); }
+        memset(s_pend, 0, sizeof s_pend);
         s_dropped++;
         CRIT_EXIT();
         return NP_HUB_ERR_STORE_IO;
     }
 
-    size_t n;
-    CRIT_ENTER();
+    /* Fold the pending work into the rows.  The rows are the runner's; the
+     * critical section holds the pending table still while it is read. */
     const uint32_t session_s = ms_to_s(session_ms);
-    for (size_t i = 0U; i < s_n; i++) {
-        np_mu_row_t *r = &s_rows[i];
-        pending_t   *p = &s_pend[i];
-        if (p->present) {
-            r->sessions_present = sat_add(r->sessions_present, 1U);
-            r->present_s        = sat_add(r->present_s, session_s);
+    CRIT_ENTER();
+    for (size_t i = 0U; i < NP_MU_MAX_ROWS; i++) {
+        pending_t *p = &s_pend[i];
+        if (p->key.kind == (uint8_t)NP_MU_KEY_EMPTY) { continue; }
+        const size_t at = row_for(&p->key);
+        if (at < NP_MU_MAX_ROWS) {
+            np_mu_row_t *r = &s_rows[at];
+            if (p->present) {
+                r->sessions_present = sat_add(r->sessions_present, 1U);
+                r->present_s        = sat_add(r->present_s, session_s);
+            }
+            if (p->used) {
+                r->sessions_used = sat_add(r->sessions_used, 1U);
+                r->used_s        = sat_add(r->used_s, ms_to_s(p->used_ms));
+            }
+            for (size_t c = 0U; c < NP_MU_FAULT_CODES; c++) {
+                if (p->faults[c] != 0U) { row_add_fault(r, p->fault_code[c], p->faults[c]); }
+            }
+            r->faults_other = sat_add(r->faults_other, p->faults[NP_MU_FAULT_CODES]);
         }
-        if (p->used) {
-            r->sessions_used = sat_add(r->sessions_used, 1U);
-            r->used_s        = sat_add(r->used_s, ms_to_s(p->used_ms));
-        }
-        for (size_t c = 0U; c < NP_MU_FAULT_CODES; c++) {
-            if (p->faults[c] != 0U) { row_add_fault(r, p->fault_code[c], p->faults[c]); }
-        }
-        r->faults_other = sat_add(r->faults_other, p->faults[NP_MU_FAULT_CODES]);
         memset(p, 0, sizeof *p);
     }
-    n = s_n;
-    memcpy(s_out, s_rows, sizeof(np_mu_row_t) * n);
     CRIT_EXIT();
 
-    np_mu_encode(s_out, n, s_buf);
+    np_mu_encode(s_rows, s_n, s_buf);
     return np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_USAGE, s_buf, sizeof s_buf);
 }
 
 size_t np_mu_snapshot(np_mu_row_t *out, size_t cap)
 {
     if (out == NULL) { return 0U; }
-    CRIT_ENTER();
     const size_t n = (s_n < cap) ? s_n : cap;
     memcpy(out, s_rows, sizeof(np_mu_row_t) * n);
-    CRIT_EXIT();
     return n;
 }
