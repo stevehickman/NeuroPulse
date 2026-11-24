@@ -4250,6 +4250,66 @@ after it merges, so its self-test runs on the pull request that changes it (`too
 | 5. `--live` | One violation, `L5: strict_required_status_checks_policy is false, expected true`. **No `L2`**, so GitHub requires the new status, and **no `L3`**, so GitHub binds it to the App the other contexts are bound to: the status posted with `GITHUB_TOKEN` is attributed to GitHub Actions, which closes §6.20.4 item 5. This revision sets `status_checks.strict` to `false` in `ci/main-ruleset.json`, so the next run is expected to print `OK` |
 | 2, 3, 6 | The sending account's secrets and the mail rule are the principal's, outside the repository; the first red run on `main` is not yet observed |
 
+### 6.21 The five ruleset questions are answered (2026-11-24, `OI-SWCI-54`)
+
+**The principal answered all five questions of `docs/human-input/oi-swci-54-main-ruleset.md` on 2026-11-24.**
+He gave an option for each and no separate reason, so the reason recorded here is the one the brief gives in its §3.
+
+| # | Answer | Reason (the brief's §3) | Reopens if |
+|---|--------|-------------------------|------------|
+| Q1 | **B**: keep the revision App's bypass in mode `always`, and audit what it pushed | Keeps the 2026-11-02 decision (`docs/human-input/np-qms-dc-001-revision-assignment.md`, option A) and makes its one side effect visible. Detection after the fact, not prevention | the audit finds a push outside `docs/`, or the App is given any other duty |
+| Q2 | **As recommended: B, set P**: add `SHDR Schema Privacy Gate`, `Warranty No-Join Privacy Gate` and `reporting paths cannot leak a sensitive predicate (§5.1)` | Each is a locked-rule gate for CLAUDE.md §5 and already reports on every pull request. The third was required on 2026-11-21 (§6.18); this completes the set | one of the three becomes unreliable, or a job name has to change (§6.13.3) |
+| Q3 | **A**: keep `require_extra_approval_for_unattributed_changes: true` | Pull requests merge under it with no approval (#833 on 2026-11-11 is one), so it does not block the owner's own pull requests | a pull request from a fork or with unattributed commits is blocked or let through unexpectedly (not yet observed) |
+| Q4 | **A**: keep the `copilot_code_review` rule | It asks for a review and requires nothing | the review becomes noise or a cost |
+| Q5 | **A**: leave `strict_required_status_checks_policy` `false` | The same answer as 2026-11-22 (§6.20). **The merge hold of §6.20 stays**: it is the status `main is green, or this PR is up to date with main`, not the strict flag, and this answer does not remove it | `main` goes red again and the hold is not enough |
+
+#### 6.21.1 What this revision changes
+
+| Where | Change |
+|---|---|
+| `ci/required-checks.txt` | Adds `SHDR Schema Privacy Gate` and `Warranty No-Join Privacy Gate` (Q2) |
+| `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml` | The in-file required-context warning on each job. A `merge_group:` trigger, and `merge_group.base_sha` as the base in the `changes` job, as `simulator-ci.yml` has: a required context in a workflow with no `merge_group:` trigger never reports on the queue's commit (§6.19). Correspondence C of `check-ci-scope.ts` fails a tree that has one half of any of these |
+| `main-health.yml` | The two workflows join `NP_GATE_WORKFLOWS`, so a red run of either on `main` holds merging (§6.20). Their names were already in the `workflow_run` list. Correspondence F fails a tree where a workflow that holds a required context is not in the list |
+| `scripts/check-main-pushes.ts` (new) | The audit for Q1: §6.21.3 |
+| `build-all.yml` | Job `main-pushes-audit`, weekly with the rest of the file, read-only, never a required context (`OI-SWCI-23`) |
+| `tooling-ci.yml` | Two steps in the job that runs `check-main-ruleset.ts`: the audit's self-test, and its offline mode |
+| `ci/main-ruleset.json` | `_observed`: the App bypass mode, the unattributed-changes parameter and the Copilot rule are now decided by a record |
+
+Q3, Q4 and Q5 change no setting. Q1 changes no setting. Only Q2 has a settings half.
+
+#### 6.21.2 Why requiring the two gates is safe
+
+- **They report on every pull request.** Both workflows run on `pull_request` with no `paths:`, and both have the §6.7 `changes` shape: a pull request out of scope reports the job as `skipped`, which does not block (§6.7.5), and an unknown scope runs it. `check-ci-scope.ts` correspondence C passes on this tree, which covers the trigger, the absent `paths:`, the absent `strategy:`, the `merge_group:` trigger and the marker comment.
+- **The names carry no count, revision or matrix** (`--contexts` listed both as eligible on 2026-11-11, §6.17).
+- **What is not measured here:** the time either job takes. The SHDR gate starts a PostgreSQL service container.
+- **What a red run now does:** blocks the pull request that causes it, and when it is red on `main` it holds merging through the §6.20 status.
+
+#### 6.21.3 The audit of the App's pushes (Q1, option B)
+
+The App bypasses in mode `always` and a bypass cannot be limited to a path. The audit is the detection of the limit it was granted for: it commits under `docs/` only (`git add -A docs` in `assign-revisions.yml`).
+
+`bun scripts/check-main-pushes.ts --live` reads the commits on `main` from the last 14 days, two periods of the weekly schedule, so one missed run leaves nothing unaudited. A commit passes if GitHub names a merged pull request for it (`GET /commits/SHA/pulls`). A commit with none passes only if every path it touches, a rename's old path included, is under `docs/`. Committer names are not used: whoever pushes sets them. A failed API call exits 2 and audits nothing, and a commit with no merged pull request whose file list was not read is a violation.
+
+Its offline mode, run on every pull request that touches `ci/` or a workflow, fails if `ci/main-ruleset.json` lets an App bypass in mode `always` and `build-all.yml` no longer runs `--live` or has no `schedule:`. Without that, deleting the job would leave the bypass with no detection and nothing red.
+
+**Falsified.** The self-test has 20 cases. Five single mutations of the script each fail at least one: the `docs/` boundary written as a string prefix, a rename's old path ignored, any associated pull request counted as a merge, a missing file list let through, and the window arithmetic. Deleting the `--live` step from `build-all.yml` fails the offline mode.
+
+**What it does not do.** It does not prevent a push; that is option C of the brief, not chosen. It reads 14 days, not all history. A rebase-merged pull request's earlier commits are reported as pushes if GitHub does not list the pull request for them. The report is wrong in the safe direction. It has not run on GitHub: `--live` was not run against the real API in this change. Run *Build All / Test All* by hand to see the first result.
+
+#### 6.21.4 Applying it: the runbook the principal runs, not CI
+
+Tree first, as `docs/human-input/oi-swci-54-main-ruleset.md` §5 orders for an added context.
+
+1. Merge the pull request carrying this revision.
+2. Confirm on an open pull request that `SHDR Schema Privacy Gate` and `Warranty No-Join Privacy Gate` report (`success`, or `skipped` when out of scope).
+3. https://github.com/stevehickman/NeuroPulse/settings/rules → **Safety** → *Require status checks to pass* → **Add checks**: each of the two names exactly as written, source **GitHub Actions** → **Save changes**. Leave the other contexts and the strict flag as they are.
+4. From a checkout of `main`: `bun scripts/check-main-ruleset.ts --live --require-bypass` prints `OK`.
+5. Run *Build All / Test All* by hand and read `main-pushes-audit`.
+
+**Rollback.** Remove the two contexts from the ruleset. Then, in one pull request, remove their lines from `ci/required-checks.txt`, their warnings, and their names from `NP_GATE_WORKFLOWS`.
+
+**Still open under `OI-SWCI-54`:** steps 3 to 5 above, whether `Integration 5585393` is the App `RevNumberFixer` (the brief's §4 asked; no answer was given), and the first run of the `main-ruleset-live` job on GitHub.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -4309,7 +4369,7 @@ after it merges, so its self-test runs on the pull request that changes it (`too
 | OI-SWCI-51 | **Raised 2026-10-14 with §6.15; narrowed 2026-10-28 (Rev 36).** The last-green diff base now covers thirteen of the repository's workflows. It does not cover `codeql.yml` (per-language `analyze` jobs: whether GitHub's code-scanning check accepts a category that was not re-analysed on the new head has to be established before a security scanner skips one) or `dependency-scan.yml` (its `paths:` list uses `**/` and `*` shapes `ci-changed-scope.sh` rejects). Both only gained a `concurrency` group. The nine converted workflows are untested on GitHub until their first pull-request run | Quality / Firmware | — |
 | ~~OI-SWCI-52~~ | **CLOSED 2026-11-11 (§6.17).** `ci-changed-scope.sh --self-test` runs `np_resolve_base` against a stub `gh`: thirteen cases, the four named here among them, and nine single mutations of the function each fail one. ~~**Raised 2026-10-14 with §6.15.5.** The `gh api` lookup in `np_resolve_base` has no self-test. Only the candidate selection does. Add a stub `gh` to `--self-test` covering a found head, no head, a failing call and a head from another repository~~ | Quality | — |
 | ~~OI-SWCI-53~~ | **CLOSED 2026-11-21 (§6.18.4): not acceptable; the `Safety` ruleset requires a branch to be up to date before it merges (`strict: true`, the principal).** ~~**Raised 2026-10-14 with §6.15.3 item 2.** A green run tested the pull request merged with `main` as it was then, and a later push that changes nothing in scope does not re-test it against a `main` that has since moved. Decide whether that is acceptable given the push to `main` and `build-all.yml`, or whether a candidate older than the last move of the base should be refused~~ | Quality | 2026-11-21 |
-| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open. **2026-11-21 (§6.18.4):** the context is in force; Q5 answered B (`strict: true`) and `OI-SWCI-53` closed. Open: §6.18.3 step 5, the rest of set P, Q1, Q3, Q4 and the App id **2026-11-22 (§6.20): Q5 answered again: `strict: false`, with the merge hold (`main is green, or this PR is up to date with main`) in force while `main` is red; replaces option B. The settings half is §6.20.3 steps 4 and 5.** | Steve | — |
+| OI-SWCI-54 | **Raised 2026-11-11 with §6.17 (GitHub #446).** Five settings on the `main` ruleset are in force and decided by no record, or were decided before something changed: the revision App's bypass in mode `always` (it can push to `main` with no pull request); which contexts beyond the ten are required (no privacy gate is); `require_extra_approval_for_unattributed_changes: true`; the `copilot_code_review` rule; and `strict_required_status_checks_policy: false` (`OI-SWCI-53`). `ci/main-ruleset.json` states what GitHub holds today and `check-main-ruleset.ts --live` reports any change to it. The questions, the options and the runbook are `docs/human-input/oi-swci-54-main-ruleset.md`. Also open under this item: the first run of the `main-ruleset-live` job on GitHub, and confirming that `Integration 5585393` is the App `RevNumberFixer`. **2026-11-21 (§6.18):** Q2 answered for one context, `reporting paths cannot leak a sensitive predicate (§5.1)`; the tree half is done, and the ruleset half (§6.18.3 steps 2 to 5), the rest of set P and Q1, Q3, Q4 and Q5 are open. **2026-11-21 (§6.18.4):** the context is in force; Q5 answered B (`strict: true`) and `OI-SWCI-53` closed. Open: §6.18.3 step 5, the rest of set P, Q1, Q3, Q4 and the App id **2026-11-22 (§6.20): Q5 answered again: `strict: false`, with the merge hold (`main is green, or this PR is up to date with main`) in force while `main` is red; replaces option B. The settings half is §6.20.3 steps 4 and 5.** **2026-11-24 (§6.21): Q1 B, Q2 B (set P), Q3 A, Q4 A and Q5 A answered (the principal). The tree half is done, the audit for Q1 is built, and Q3, Q4 and Q5 change no setting. Open: the ruleset half of Q2 (§6.21.4 steps 3 to 5), the App id, and the first run of the `main-ruleset-live` job.** | Steve | — |
 | OI-SWCI-55 | **Raised 2026-11-22 with §6.19.** The tree half of a merge queue is in (the `merge_group` trigger on the four workflows that hold required contexts, the merge-group diff base, the two guards in the queue, and correspondence C and rule R7 to keep it so). **2026-11-22 (§6.19.4): deferred.** GitHub offers the queue only on organization-owned repositories, and this one is owned by a personal account; the principal chose to keep `strict: true` and not to move it for now. Open until the repository is organization-owned: §6.19.3 steps 2 to 5 (switch the queue on with merge method `MERGE`; Q6, whether `strict` stays on; record the queue's parameters in `ci/main-ruleset.json`; observe one pull request through the queue) | Steve | — |
 
 ## 8. Traceability
