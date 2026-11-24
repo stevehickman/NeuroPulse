@@ -229,7 +229,10 @@ np_hub_status_t np_cvfs_build_frame(uint8_t  reenable_state,
     buf[0] = NP_CVFS_WIRE_VERSION;
     buf[1] = (reenable_state <= 4u) ? reenable_state : 0u;
     buf[2] = npick;
-    buf[3] = nv_valid ? (uint8_t)(nv_flags & NP_CVFS_FLAGS_MASK) : 0u;
+    /* Bit 7 says the flags are a validated report.  Without one, bits 0-1 are
+     * 0 AND bit 7 is clear, so the app can tell "unknown" from "nothing
+     * outstanding" (OI-PRIV-29, NP-PRIV-ANALYSIS-004). */
+    buf[3] = nv_valid ? (uint8_t)((nv_flags & NP_CVFS_FLAGS_MASK) | NP_CVFS_FLAG_REPORT_VALID) : 0u;
     o = NP_CVFS_HEADER_LEN;
     for (k = npick; k > 0u; k--) {             /* oldest first on the wire */
         const np_cvfs_entry_t *e = &pick[k - 1u];

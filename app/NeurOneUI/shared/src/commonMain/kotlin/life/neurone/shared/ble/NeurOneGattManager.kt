@@ -6,6 +6,7 @@ import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.consumable.ConsumableResetQueue
 import life.neurone.core.models.ActiveUserTag
+import life.neurone.core.protocol.ProfileTagState
 import life.neurone.core.models.CervicalFaultLedger
 import life.neurone.core.models.CervicalFaultRecord
 import life.neurone.core.models.CervicalFaultStatus
@@ -380,13 +381,34 @@ class NeurOneGattManager(
         _cervicalFaultStatus.value?.let { _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(it.records) }
     }
 
+    /** The person using the device: the active individual profile and how it is named to a helmet (`REQ-FAULTMSG-01`). */
+    data class ActiveUser(val profileId: String, val tagState: ProfileTagState)
+
     /**
-     * The person using the device, from the active individual profile. Sent whenever it
-     * changes and at every connect; null = the app has not named anyone, so the device keeps
-     * assuming whoever it last knew.
+     * The person using the device, from the active individual profile; null = the app has not named anyone, so the device
+     * keeps assuming whoever it last knew. Their tag is worked out per helmet once that helmet's serial has been read
+     * ([recomputeActiveUserTag]).
+     */
+    var activeUser: ActiveUser? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            recomputeActiveUserTag()
+        }
+
+    /**
+     * Records a profile's move to its per-helmet tag before the tag is named (`REQ-FAULTMSG-01` (c)); true once it is
+     * persisted. Until it answers true the old tag stays, so a restart can never bring the old tag back to a helmet that may
+     * now hold a cutoff under the new one. The composition root points it at `NPLimitsStore.recordTagMigration`.
+     */
+    var recordTagMigration: ((profileId: String, tag: Long) -> Boolean)? = null
+
+    /**
+     * The tag named to the helmet on this link; null before its serial is read and after a disconnect. Set by
+     * [recomputeActiveUserTag]; the setter is module-internal so the ledger tests can name a person without a helmet.
      */
     var activeUserTag: Long? = null
-        set(value) {
+        internal set(value) {
             if (field == value) return
             field = value
             sendActiveUserTag()
@@ -395,6 +417,29 @@ class NeurOneGattManager(
                 _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(it.records)
             }
         }
+
+    /**
+     * Work out the tag to name to this helmet ([ActiveUserTag.choose]) and name it if it changed. Run when the person, the
+     * helmet's serial or its fault status changes. A move to the per-helmet tag is recorded first; if it cannot be, the old
+     * tag is named instead.
+     */
+    private fun recomputeActiveUserTag() {
+        val user = activeUser
+        val serial = deviceSerial
+        // Nothing to name yet: the helmet keeps whoever it last knew.
+        if (user == null || serial == null || !_encryptedReadShown.value) return
+        val choice = ActiveUserTag.choose(user.profileId, user.tagState, serial, _cervicalFaultStatus.value) ?: return
+        var tag = choice.tag
+        val moveTo = choice.moveTo
+        if (moveTo != null) {
+            if (recordTagMigration?.invoke(user.profileId, moveTo) == true) {
+                activeUser = user.copy(tagState = user.tagState.copy(migrated = user.tagState.migrated + moveTo))
+            } else {
+                tag = ActiveUserTag.legacy(user.profileId) ?: return
+            }
+        }
+        activeUserTag = tag
+    }
 
     private var reconnectJob: Job? = null
 
@@ -540,7 +585,10 @@ class NeurOneGattManager(
                 _encryptedReadShown.value = true
                 // What was held at the gate goes now (OI-PRIV-17): the active user's tag, and replacements marked meanwhile.
                 if (!wasShown) {
-                    sendActiveUserTag()
+                    // A tag worked out now is sent as it is set; one set before the gate opened was held, and goes now.
+                    val before = activeUserTag
+                    recomputeActiveUserTag()
+                    if (activeUserTag == before) sendActiveUserTag()
                     flushConsumableResets()
                 }
             }
@@ -654,8 +702,8 @@ class NeurOneGattManager(
      * A write to a characteristic that demands an encrypted link, made only once the encrypted-only serial read has succeeded on
      * this link (OI-PRIV-17, CLAUDE.md §23): a peer that only advertises the service receives none of them. False, with nothing
      * written, before that. **Never used for stopping stimulation** (stop, pause, panic, resume): those are not held behind a
-     * read, and a refused one is shown by its own refusal event. The hub itself refuses a resume (ATT 0x0F) on a link that is
-     * not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop, pause and panic it never refuses for encryption.
+     * read, and a refused one is shown by its own refusal event. The hub itself refuses a pause or a resume (ATT 0x0F) on a link
+     * that is not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop and panic it never refuses for encryption.
      */
     private fun writeEncrypted(uuid: UUID, value: ByteArray): Boolean {
         if (!_encryptedReadShown.value) return false
@@ -694,7 +742,9 @@ class NeurOneGattManager(
 
     /**
      * Pause the running session (SWR-SS-05). The hub refuses it during a ramp-up (ATT 0x82) and in any state but running;
-     * the figures that follow in SESSION_PROGRESS say what happened, so the app does not guess.
+     * the figures that follow in SESSION_PROGRESS say what happened, so the app does not guess. Like its resume, it needs an
+     * encrypted link (ATT 0x0F otherwise, `REQ-FWHUB-81` (e)); the session screen offers it only while SESSION_PROGRESS,
+     * itself encrypted, is being read.
      */
     fun requestSessionPause() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x01))
 
@@ -756,6 +806,8 @@ class NeurOneGattManager(
         val status = GattParser.parseCervicalFaultStatus(value) ?: return
         _cervicalFaultStatus.value = status
         _unacknowledgedCervicalFaults.value = cervicalFaultLedger.unacknowledged(status.records)
+        // A valid "nothing outstanding" is what lets a profile leave its old tag (REQ-FAULTMSG-01 (c)).
+        recomputeActiveUserTag()
     }
 
     /** The wearer has read the offline-fault summary. Moves this user's ledger past these records. */
@@ -868,6 +920,7 @@ class NeurOneGattManager(
         _warrantyToken.value = null
         _hubIdentifier.value = null
         deviceSerial = null
+        activeUserTag = null   // the next link may be another helmet, with another tag
         _cervicalPadAlert.value = null
         _cervicalFaultStatus.value = null
         _unacknowledgedCervicalFaults.value = emptyList()

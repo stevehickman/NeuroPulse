@@ -46,6 +46,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
     val connectionState by gatt.connectionState.collectAsState()
     val session by gatt.session.collectAsState()
     val progress by gatt.progress.collectAsState()
+    val holdCause by gatt.holdCause.collectAsState()
     val hardwareVersion by gatt.hardwareVersion.collectAsState()
     val cervicalPadAlert by gatt.cervicalPadAlert.collectAsState()
     val cervicalFaultStatus by gatt.cervicalFaultStatus.collectAsState()
@@ -221,6 +222,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             progress = progress,
             onPause = { gatt.requestSessionPause() },
             onResume = { gatt.requestSessionResume() },
+            resumeOffered = resumeOffered(holdCause),
             modifier = modifier,
             cervicalPadAlert = cervicalPadAlert,
             onAcknowledgeCervicalPadAlert = { gatt.acknowledgeCervicalPadAlert() },
