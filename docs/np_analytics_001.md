@@ -449,6 +449,39 @@ What the relay does:
 
 **Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so the erased ID can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay.
 
+### 7.7 Who may read the analytics data, and the read log (`OI-PRIV-47`, decided by the principal 2026-11-24; GitHub #970)
+
+The analytics store holds each installation's event timeline under its pseudonymous ID. NeurOne holds no link from that ID to a person, but a timeline per installation is still an internal read that needs an owner and a record. This section is the policy. **Only the erasure relay's own ClickHouse user (`np_erase`, §7.6) is built; everything else here is decided and not built.**
+
+**Who holds an account.**
+
+- A PostHog account is held only by the **Analytics Lead** role.
+- The **CEO** approves each account before it is created.
+
+**Separate users.**
+
+- PostHog's application reaches ClickHouse as its own user, and nothing else uses that credential.
+- Each script and each operator has its own ClickHouse user, with only the rights its task needs: `np_erase` may only delete (§7.6), and the retention script's user may only read `system.tables` and change the TTL (§7.1). An operator who needs to read data does so as a named user of their own, so the read log shows who.
+
+**Every read is recorded.**
+
+- **Reads through PostHog** are recorded by a sign-in proxy in front of PostHog's pages. It records the signed-in person and each page they view. ClickHouse cannot do this, because every PostHog query reaches it as PostHog's one application user. The capture endpoints the apps post to, and `/np/erase`, stay outside the proxy: they read nothing.
+- **Reads directly in ClickHouse** are recorded per user, which the separate users make attributable.
+- **What an entry holds:** who, when, which page or table, the number of rows returned, and a hash of the query. **No analytics ID and no query values.** A page whose path carries an ID (a person or event view) is recorded with the ID removed. Otherwise the log would be a second copy of the IDs that erasure (§7.6) cannot reach.
+
+**Where the log is kept.**
+
+- Off the analytics host, in write-once storage with a deletion lock (S3 Object Lock, GCS bucket lock or Azure immutable blob), owned by the **Privacy Lead**. The Analytics Lead and the CEO can neither edit nor delete it.
+- In an EU region wherever EU users are in scope (§6.3).
+- **Kept for 12 months, rolling, from each entry's creation, then deleted.** The lock is set to 12 months and a deletion rule follows it, so write-once does not become kept-forever. Source: CNIL recommendation 2021-122 on logging measures (14 October 2021), which recommends a rolling 6 months to 1 year and asks for a documented justification beyond it; the UK NCSC's *10 Steps: logging and monitoring* advises at least 6 months, because incidents can take months to detect. Checking these two citations against their text is tracked by `OI-PRIV-47`.
+
+**Review.**
+
+- The **Privacy Lead** reviews the log **at least quarterly**, and whenever an alert fires. The quarterly minimum is the principal's choice, with no external source (`UC-205`). What raises an alert is not yet defined (`OI-PRIV-47`).
+- **The Privacy Lead's review records are a separate record from the log.** They say what was reviewed, when, and what was found, and they hold no analytics data. They are kept for **no more than 3 years**, the usual maximum for internal-control records in the same CNIL recommendation. Where they are kept is not yet decided.
+
+**To build** (`OI-PRIV-47`): the sign-in proxy and the identity provider behind it; the log forwarder and the locked bucket; a ClickHouse user per script and operator; the alert rules; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
+
 ## 8. Permitted and prohibited property reference
 
 This section is the PostHog-specific view of NP-APP-TELEMETRY-001. The authoritative source is `docs/np_app_telemetry_001.md`.
