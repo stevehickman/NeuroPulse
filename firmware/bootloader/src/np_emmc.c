@@ -14,6 +14,8 @@
  */
 
 #include "np_emmc.h"
+#include "np_emmc_sanitize.h"
+#include "np_emmc_rpmb.h"
 #include "np_config.h"
 
 /* ── USDHC2 register map ──────────────────────────────────────────────────── */
@@ -98,6 +100,7 @@ typedef struct {
 #define CMD16_SET_BLOCKLEN      16U
 #define CMD17_READ_SINGLE       17U
 #define CMD18_READ_MULTI        18U
+#define CMD23_SET_BLOCK_COUNT   23U
 #define CMD24_WRITE_SINGLE      24U
 #define CMD25_WRITE_MULTI       25U
 #define CMD35_ERASE_START       35U
@@ -185,7 +188,7 @@ static np_status_t send_cmd(uint32_t cmd, uint32_t arg, uint32_t rsp_type,
 static np_status_t extcsd_switch(uint8_t index, uint8_t value)
 {
     /* CMD6 arg: [25:24]=3 (write byte), [23:16]=index, [15:8]=value, [2:0]=0 */
-    uint32_t arg = (3U << 24U) | ((uint32_t)index << 16U) | ((uint32_t)value << 8U);
+    uint32_t arg = np_emmc_switch_arg(index, value);
     np_status_t ret = send_cmd(CMD6_SWITCH, arg, USDHC_CMD_XFR_TYP_RSPTYP_48B, NULL);
     if (ret != NP_OK) {
         return ret;
@@ -278,6 +281,56 @@ np_status_t np_emmc_switch_partition(uint8_t part)
     return ret;
 }
 
+/* One 512-byte data block in from a single-block read command (CMD17 at an  */
+/* LBA, or CMD8 SEND_EXT_CSD with argument 0).                               */
+static np_status_t read_one_block(uint32_t cmd, uint32_t arg, uint32_t *dst)
+{
+    const uint32_t words_per_block = NP_EMMC_SECTOR_SIZE / 4U;
+
+    /* Wait for data inhibit to clear */
+    if (!poll_until(&USDHC2->PRES_STATE, USDHC_PRES_STATE_CDIHB, 0U, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+
+    USDHC2->INT_STATUS   = 0xFFFFFFFFU;
+    USDHC2->BLK_ATT      = (1U << 16U) | NP_EMMC_SECTOR_SIZE;  /* 1 block */
+    USDHC2->MIX_CTRL     = USDHC_MIX_CTRL_DTDSEL;               /* read    */
+
+    USDHC2->CMD_ARG      = arg;
+    USDHC2->CMD_XFR_TYP  = (cmd << 24U)
+                           | USDHC_CMD_XFR_TYP_RSPTYP_48
+                           | USDHC_CMD_XFR_TYP_CICEN
+                           | USDHC_CMD_XFR_TYP_CCCEN
+                           | USDHC_CMD_XFR_TYP_DPSEL;
+
+    /* Wait for command complete */
+    if (!poll_until(&USDHC2->INT_STATUS,
+                    USDHC_INT_STATUS_CC | USDHC_INT_ERR_MASK,
+                    USDHC_INT_STATUS_CC, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+    if (USDHC2->INT_STATUS & USDHC_INT_ERR_MASK) {
+        return NP_ERR_EMMC_READ;
+    }
+
+    /* Read 128 32-bit words from FIFO */
+    for (uint32_t w = 0U; w < words_per_block; w++) {
+        /* Poll buffer read ready (BRR) */
+        if (!poll_until(&USDHC2->INT_STATUS, (1U << 5U), (1U << 5U), 1000000U)) {
+            return NP_ERR_TIMEOUT;
+        }
+        *dst++ = USDHC2->DATA_BUFF_ACC;
+    }
+
+    /* Wait for transfer complete */
+    if (!poll_until(&USDHC2->INT_STATUS,
+                    USDHC_INT_STATUS_TC | USDHC_INT_ERR_MASK,
+                    USDHC_INT_STATUS_TC, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+    return NP_OK;
+}
+
 np_status_t np_emmc_read(uint32_t lba, void *buf, uint32_t count)
 {
     if (!buf || count == 0U) {
@@ -285,50 +338,13 @@ np_status_t np_emmc_read(uint32_t lba, void *buf, uint32_t count)
     }
 
     uint32_t   *dst = (uint32_t *)buf;
-    uint32_t    words_per_block = NP_EMMC_SECTOR_SIZE / 4U;
+    const uint32_t words_per_block = NP_EMMC_SECTOR_SIZE / 4U;
 
     for (uint32_t blk = 0U; blk < count; blk++) {
-        /* Wait for data inhibit to clear */
-        if (!poll_until(&USDHC2->PRES_STATE, USDHC_PRES_STATE_CDIHB, 0U, 1000000U)) {
-            return NP_ERR_TIMEOUT;
-        }
-
-        USDHC2->INT_STATUS   = 0xFFFFFFFFU;
-        USDHC2->BLK_ATT      = (1U << 16U) | NP_EMMC_SECTOR_SIZE;  /* 1 block */
-        USDHC2->MIX_CTRL     = USDHC_MIX_CTRL_DTDSEL;               /* read    */
-
-        /* Issue CMD17 (single block read) */
-        USDHC2->CMD_ARG      = lba + blk;
-        USDHC2->CMD_XFR_TYP  = (CMD17_READ_SINGLE << 24U)
-                               | USDHC_CMD_XFR_TYP_RSPTYP_48
-                               | USDHC_CMD_XFR_TYP_CICEN
-                               | USDHC_CMD_XFR_TYP_CCCEN
-                               | USDHC_CMD_XFR_TYP_DPSEL;
-
-        /* Wait for command complete */
-        if (!poll_until(&USDHC2->INT_STATUS,
-                        USDHC_INT_STATUS_CC | USDHC_INT_ERR_MASK,
-                        USDHC_INT_STATUS_CC, 1000000U)) {
-            return NP_ERR_TIMEOUT;
-        }
-        if (USDHC2->INT_STATUS & USDHC_INT_ERR_MASK) {
-            return NP_ERR_EMMC_READ;
-        }
-
-        /* Read 128 32-bit words from FIFO */
-        for (uint32_t w = 0U; w < words_per_block; w++) {
-            /* Poll buffer read ready (BRR) */
-            if (!poll_until(&USDHC2->INT_STATUS, (1U << 5U), (1U << 5U), 1000000U)) {
-                return NP_ERR_TIMEOUT;
-            }
-            *dst++ = USDHC2->DATA_BUFF_ACC;
-        }
-
-        /* Wait for transfer complete */
-        if (!poll_until(&USDHC2->INT_STATUS,
-                        USDHC_INT_STATUS_TC | USDHC_INT_ERR_MASK,
-                        USDHC_INT_STATUS_TC, 1000000U)) {
-            return NP_ERR_TIMEOUT;
+        np_status_t ret = read_one_block(CMD17_READ_SINGLE, lba + blk,
+                                         dst + blk * words_per_block);
+        if (ret != NP_OK) {
+            return ret;
         }
     }
 
@@ -446,4 +462,201 @@ np_status_t np_emmc_erase(uint32_t lba, uint32_t count)
     }
 
     return NP_ERR_TIMEOUT;
+}
+
+/* ── SANITIZE (OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7) ───────────────────────── */
+/* The transport for np_emmc_sanitize_run() (np_emmc_sanitize.h), which holds  */
+/* the sequence and is host-tested.  These four do nothing but issue commands. */
+
+static np_status_t sanitize_read_ext_csd(void *ctx, uint8_t ext_csd[NP_EMMC_EXT_CSD_SIZE])
+{
+    (void)ctx;
+    /* Word-aligned buffer for the FIFO reads, then copied out byte-wise.    */
+    static uint32_t s_ext_csd_words[NP_EMMC_EXT_CSD_SIZE / 4U];
+    np_status_t ret = read_one_block(CMD8_SEND_EXT_CSD, 0U, s_ext_csd_words);
+    if (ret != NP_OK) {
+        return ret;
+    }
+    const uint8_t *src = (const uint8_t *)s_ext_csd_words;
+    for (uint32_t b = 0U; b < NP_EMMC_EXT_CSD_SIZE; b++) {
+        ext_csd[b] = src[b];
+    }
+    return NP_OK;
+}
+
+static np_status_t sanitize_switch(void *ctx, uint32_t cmd6_arg)
+{
+    (void)ctx;
+    /* R1b: the card holds DAT0 busy for the whole SANITIZE.  Completion is   */
+    /* taken from CMD13 status, never from this command's return.            */
+    return send_cmd(CMD6_SWITCH, cmd6_arg, USDHC_CMD_XFR_TYP_RSPTYP_48B, NULL);
+}
+
+static np_status_t sanitize_status(void *ctx, uint32_t *r1)
+{
+    (void)ctx;
+    return send_cmd(CMD13_SEND_STATUS, (uint32_t)s_rca << 16U,
+                    USDHC_CMD_XFR_TYP_RSPTYP_48, r1);
+}
+
+static void sanitize_wait(void *ctx)
+{
+    (void)ctx;
+    /* At least NP_EMMC_SANITIZE_POLL_MS: every loop iteration is at least   */
+    /* one cycle of the 600 MHz core, so the wait is a floor, and the total  */
+    /* bound can only run long, never cut a SANITIZE short.                  */
+    delay_cycles(600000U * NP_EMMC_SANITIZE_POLL_MS);
+}
+
+np_status_t np_emmc_sanitize(void)
+{
+    const np_emmc_sanitize_ops_t ops = {
+        .read_ext_csd = sanitize_read_ext_csd,
+        .switch_cmd   = sanitize_switch,
+        .send_status  = sanitize_status,
+        .wait_poll    = sanitize_wait,
+        .ctx          = NULL,
+    };
+    /* Issued with the user area selected, where the data partitions are.   */
+    np_status_t ret = np_emmc_switch_partition(NP_EMMC_USER_AREA);
+    if (ret != NP_OK) {
+        return ret;
+    }
+    return np_emmc_sanitize_run(&ops,
+        np_emmc_sanitize_max_polls(NP_EMMC_SANITIZE_TIMEOUT_MS, NP_EMMC_SANITIZE_POLL_MS));
+}
+
+/* ── RPMB transport (OI-PRIV-32, NP-PRIV-ANALYSIS-004; REQ-SW02-16) ──────────── */
+/* The two operations np_rpmb.c needs, each moving one 512-byte frame with the  */
+/* RPMB partition selected (np_emmc_switch_partition(NP_EMMC_RPMB_ACCESS)).    */
+/* Every check on what the device returns is in np_rpmb.c, which is            */
+/* host-tested; these only issue commands. CMD23 then CMD25 / CMD18, as in     */
+/* U-Boot's drivers/mmc/rpmb.c (sources and OI-SW02-02: np_emmc_rpmb.h).       */
+
+#define RPMB_CMD23_RELIABLE     (1UL << 31)
+
+/* Bound on the wait for TRAN after a frame write (UC-205, PROVISIONAL): the   */
+/* same CMD13 poll count and spacing np_emmc_erase() uses. Nothing derives it  */
+/* for an RPMB write: that time is the selected part's figure, and no part is  */
+/* selected (OI-EMMC2-03). A bound is required, or a card that never leaves    */
+/* PRG holds the boot path; running out is an error, so the floor is then      */
+/* unreadable and every image refused (the fail-safe direction).              */
+#define RPMB_WRITE_WAIT_POLLS   100000      /* PROVISIONAL: UC-205 */
+#define RPMB_WRITE_WAIT_CYCLES  1000U       /* PROVISIONAL: UC-205 */
+
+/* After a frame write the card may be programming (a reliable write holds it  */
+/* in PRG): wait for TRAN before the next command, as np_emmc_erase() does.    */
+static np_status_t rpmb_wait_tran(void)
+{
+    uint32_t rsp0;
+    for (int i = 0; i < RPMB_WRITE_WAIT_POLLS; i++) {
+        np_status_t ret = send_cmd(CMD13_SEND_STATUS, (uint32_t)s_rca << 16U,
+                                   USDHC_CMD_XFR_TYP_RSPTYP_48, &rsp0);
+        if (ret == NP_OK && (rsp0 & NP_EMMC_R1_ERROR_MASK) != 0U) {
+            return NP_ERR_EMMC_WRITE;
+        }
+        if (ret == NP_OK && np_emmc_r1_state(rsp0) == NP_EMMC_R1_STATE_TRAN &&
+            (rsp0 & NP_EMMC_R1_READY_FOR_DATA) != 0U) {
+            return NP_OK;
+        }
+        delay_cycles(RPMB_WRITE_WAIT_CYCLES);
+    }
+    return NP_ERR_TIMEOUT;
+}
+
+static np_status_t rpmb_xfer(uint32_t *words, bool is_write, bool reliable)
+{
+    const uint32_t words_per_block = NP_RPMB_FRAME_SIZE / 4U;
+    const uint32_t buf_ready = is_write ? (1U << 4U) : (1U << 5U);   /* BWR / BRR */
+
+    np_status_t ret = send_cmd(CMD23_SET_BLOCK_COUNT,
+                               1UL | (reliable ? RPMB_CMD23_RELIABLE : 0UL),
+                               USDHC_CMD_XFR_TYP_RSPTYP_48, NULL);
+    if (ret != NP_OK) {
+        return ret;
+    }
+    if (!poll_until(&USDHC2->PRES_STATE,
+                    USDHC_PRES_STATE_CIHB | USDHC_PRES_STATE_CDIHB, 0U, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+
+    USDHC2->INT_STATUS  = 0xFFFFFFFFU;
+    USDHC2->BLK_ATT     = (1U << 16U) | NP_RPMB_FRAME_SIZE;
+    /* Multi-block command with a block count from CMD23: no auto CMD12. */
+    USDHC2->MIX_CTRL    = USDHC_MIX_CTRL_MSBSEL | USDHC_MIX_CTRL_BCEN
+                          | (is_write ? 0U : USDHC_MIX_CTRL_DTDSEL);
+    USDHC2->CMD_ARG     = 0U;
+    USDHC2->CMD_XFR_TYP = ((is_write ? CMD25_WRITE_MULTI : CMD18_READ_MULTI) << 24U)
+                          | USDHC_CMD_XFR_TYP_RSPTYP_48
+                          | USDHC_CMD_XFR_TYP_CICEN
+                          | USDHC_CMD_XFR_TYP_CCCEN
+                          | USDHC_CMD_XFR_TYP_DPSEL;
+
+    if (!poll_until(&USDHC2->INT_STATUS,
+                    USDHC_INT_STATUS_CC | USDHC_INT_ERR_MASK,
+                    USDHC_INT_STATUS_CC, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+    if (USDHC2->INT_STATUS & USDHC_INT_ERR_MASK) {
+        return is_write ? NP_ERR_EMMC_WRITE : NP_ERR_EMMC_READ;
+    }
+    for (uint32_t w = 0U; w < words_per_block; w++) {
+        if (!poll_until(&USDHC2->INT_STATUS, buf_ready, buf_ready, 1000000U)) {
+            return NP_ERR_TIMEOUT;
+        }
+        if (is_write) {
+            USDHC2->DATA_BUFF_ACC = words[w];
+        } else {
+            words[w] = USDHC2->DATA_BUFF_ACC;
+        }
+    }
+    if (!poll_until(&USDHC2->INT_STATUS,
+                    USDHC_INT_STATUS_TC | USDHC_INT_ERR_MASK,
+                    USDHC_INT_STATUS_TC, 1000000U)) {
+        return NP_ERR_TIMEOUT;
+    }
+    if (USDHC2->INT_STATUS & USDHC_INT_ERR_MASK) {
+        return is_write ? NP_ERR_EMMC_WRITE : NP_ERR_EMMC_READ;
+    }
+    return is_write ? rpmb_wait_tran() : NP_OK;
+}
+
+static np_status_t rpmb_write_frame(void *ctx, const uint8_t frame[NP_RPMB_FRAME_SIZE],
+                                    bool reliable)
+{
+    (void)ctx;
+    /* Word-aligned copy for the FIFO; the frame's byte order is kept as is. */
+    static uint32_t s_words[NP_RPMB_FRAME_SIZE / 4U];
+    uint8_t *dst = (uint8_t *)s_words;
+    for (uint32_t b = 0U; b < NP_RPMB_FRAME_SIZE; b++) {
+        dst[b] = frame[b];
+    }
+    np_status_t ret = rpmb_xfer(s_words, true, reliable);
+    np_rpmb_wipe(s_words, sizeof(s_words));
+    return ret;
+}
+
+static np_status_t rpmb_read_frame(void *ctx, uint8_t frame[NP_RPMB_FRAME_SIZE])
+{
+    (void)ctx;
+    static uint32_t s_words[NP_RPMB_FRAME_SIZE / 4U];
+    np_status_t ret = rpmb_xfer(s_words, false, false);
+    const uint8_t *src = (const uint8_t *)s_words;
+    if (ret == NP_OK) {
+        for (uint32_t b = 0U; b < NP_RPMB_FRAME_SIZE; b++) {
+            frame[b] = src[b];
+        }
+    }
+    np_rpmb_wipe(s_words, sizeof(s_words));
+    return ret;
+}
+
+const np_rpmb_ops_t *np_emmc_rpmb_ops(void)
+{
+    static const np_rpmb_ops_t RPMB_USDHC_OPS = {
+        .write_frame = rpmb_write_frame,
+        .read_frame  = rpmb_read_frame,
+        .ctx         = NULL,
+    };
+    return &RPMB_USDHC_OPS;
 }

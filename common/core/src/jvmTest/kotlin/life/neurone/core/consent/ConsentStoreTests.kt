@@ -997,7 +997,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS, store.clinicianGrants.single().tier)
     }
 
-    // @verifies REQ-CONSENT-16 REQ-CONSENT-25#b
+    // @verifies REQ-CONSENT-16 REQ-CONSENT-26#b
     @Test
     fun revokingAGrantWithdrawsItsPendingRequest() {
         val (store, _, _) = makeStore()
@@ -1232,7 +1232,7 @@ class ConsentStoreTests {
     }
 
     // L11: a grant never replaces one with the same id.
-    // @verifies REQ-CONSENT-25#d
+    // @verifies REQ-CONSENT-26#d
     @Test
     fun aGrantWithAnIdAlreadyHeldIsRefused() {
         val (store, _, _) = makeStore()
@@ -1247,7 +1247,7 @@ class ConsentStoreTests {
     }
 
     // L10: revoking keeps the grant, inactive and dated, as the record of who had access.
-    // @verifies REQ-CONSENT-25#a,c
+    // @verifies REQ-CONSENT-26#a,c
     @Test
     fun revokingKeepsTheGrantAsAnInactiveRecord() {
         val kv = InMemoryKeyValueStore()

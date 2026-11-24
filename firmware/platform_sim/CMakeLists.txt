@@ -103,6 +103,7 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_consumables.c
     ../hub_control/src/np_cardiac_sens.c
     ../hub_control/src/np_pause_limit.c
+    ../hub_control/src/np_status_led.c          # the indicators and stealth mode the GATT table and the hub's main loop name
     ../hub_control/src/np_ppx_config.c
     ../hub_control/src/np_session_stop.c
     ../hub_control/src/np_warranty_token.c

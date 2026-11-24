@@ -122,8 +122,8 @@ class ConsentStore(
         private set
 
     /**
-     * Studies the user withdrew from, and when (a [WithdrawalMark]). UHDR-class and kept apart from [studyParticipations], which
-     * is SHDR-class. A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put the user back in
+     * Studies the user withdrew from, and when (a [WithdrawalMark]). UHDR-class like [studyParticipations] (`OI-PRIV-07`: the whole
+     * audit trail is UHDR) and kept apart from it. A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put the user back in
      * a study they left (`SWR-MG-04`).
      */
     var studyWithdrawals: Map<String, String> = emptyMap()
@@ -924,7 +924,7 @@ class ConsentStore(
         save()
     }
 
-    // ── Participation audit (SHDR-class) ─────────────────────────────────
+    // ── Participation audit (UHDR-class, OI-PRIV-07) ─────────────────────────────────
 
     /**
      * Append the §5.3 audit-trail record for a study the device has joined.

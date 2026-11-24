@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 16
-**Date:** 2026-11-19
+**Revision:** 17
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -52,7 +52,7 @@ The core (`common/npps-core/Cargo.toml`) names fourteen crates. The FFI crate ad
 | rand_core (as `rand_core09`) | 0.9.5 | default features off | The `RngCore` and `CryptoRng` traits of the version `hpke` takes; `ohttp.rs` implements them over the 32 bytes the host supplied and stops rather than repeat them | MIT OR Apache-2.0 |
 | hmac | 0.12.1 | default | HMAC-SHA-256 over the two SPAKE2 messages: each phone's proof that it holds the shared key (`link.rs`), and the key chain and the signature of the AWS Signature Version 4 signer (`sigv4.rs`; checked against four of Amazon's published S3 signing examples) | MIT OR Apache-2.0 |
 | hkdf | 0.12.4 | default | HKDF-SHA-256: the two directions' keys of the sealed link, from the shared key (`link.rs`) | MIT OR Apache-2.0 |
-| ed25519-dalek | 2.2.0 | `alloc`, `zeroize`; default features **off** (no `std`, no `rand_core`, no `pkcs8` or `serde` feature) | Ed25519 (RFC 8032): the public key of a seed, the signature of the hub descriptor's signed region, and the strict verification of a study descriptor's signature (`primitives.rs`). Verification uses `verify_strict`, which also refuses a weak or small-order key, **except in `tier_record.rs`**, which uses the plain `verify` on purpose, to give the verdict the safety MCU's Monocypher check gives (Rev 14). The secret is created inside the call from a seed the driver supplied, and the signing key is zeroized when dropped | BSD-3-Clause |
+| ed25519-dalek | 2.2.0 | `alloc`, `zeroize`; default features **off** (no `std`, no `rand_core`, no `pkcs8` or `serde` feature) | Ed25519 (RFC 8032): the public key of a seed, the signature of the hub descriptor's signed region, and the strict verification of a study descriptor's signature (`primitives.rs`), and the signature and strict verification of a superseded notice, with its key id the SHA-256 of the public key (`current_device.rs`, `SWR-MG-34`, `OI-PRIV-68`; no new crate and no new version). Verification uses `verify_strict`, which also refuses a weak or small-order key, **except in `tier_record.rs`**, which uses the plain `verify` on purpose, to give the verdict the safety MCU's Monocypher check gives (Rev 14). The secret is created inside the call from a seed the driver supplied, and the signing key is zeroized when dropped | BSD-3-Clause |
 
 The JNI crate (`common/npps-jni`) also links `jni` 0.21.1 (MIT / Apache-2.0), the JNI surface. The first-party core contains
 no `unsafe` block; the FFI and JNI crates do, at the foreign-function boundary, as that is what they are.
@@ -238,3 +238,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 14 | 2026-11-13 | NeurOne Software Engineering | **`ed25519-dalek` gains a use in `tier_record.rs` (plain `verify`, mirroring the safety MCU's check); no new crate and no version change.** |
 | 15 | 2026-11-18 | NeurOne Software Engineering | **§2: `common/npps-ffi` names `zeroize` directly and `aes-gcm` gains its `zeroize` feature (`SWR-MG-28`, `OI-PRIV-12`); no crate and no version is added to the tree.** |
 | 16 | 2026-11-19 | NeurOne Software Engineering | **`zeroize` 1.9.1 becomes a direct dependency of `common/npps-jni` (it wipes the secrets read from a Java array, `SWR-MG-32`), and the allocator the two binding libraries install uses it (`SWR-MG-28` (g)); no new crate and no version change.** |
+| 17 | 2026-11-21 | NeurOne Software Engineering | **`ed25519-dalek` row: gains a use, the signature and strict verification of a superseded notice in `current_device.rs`; no new crate and no version change (`OI-PRIV-68`, `SWR-MG-34`).** |

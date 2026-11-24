@@ -4,8 +4,7 @@
  *
  * Source of truth: locales/*.json (flat key-value per BCP 47 locale) — the ONLY
  * copy of any user-facing string that is committed to the repository.
- * Build outputs (all three are generated at build time and git-ignored):
- *   - Apple:   app/NeurOneShared/Resources/Localizable.xcstrings (String Catalog)
+ * Build outputs (all are generated at build time and git-ignored):
  *   - Web:     common/generated/locales/*.json (copy; the web app and the simulator bundle both import it)
  *   - Android: <buildDir>/generated/res/locales/values-<qualifier>/strings.xml
  *
@@ -74,23 +73,6 @@ const ROOT = join(import.meta.dir, "..");
 const LOCALES_DIR = join(ROOT, "locales");
 
 /**
- * The iOS catalogue is written into the source tree because the .xcodeproj
- * carries a file reference to that exact path; Xcode resolves it at project
- * load, before any build phase has run. It is git-ignored, and the run-script
- * phase regenerates it ahead of the Resources phase that consumes it.
- *
- * Since Issue #189 the .xcodeproj is generated from app/ios/project.yml rather
- * than committed, which makes this generator's ordering load-bearing one step
- * earlier: XcodeGen builds the project from what is on disk, so it must run
- * AFTER this script or the catalogue is in no project at all — and XcodeGen
- * also reads the project's knownRegions out of this very file. project.yml's
- * preGenCommand and ios-ci.yml's explicit step both enforce that order.
- *
- * The iOS project bundles this file by path, so moving it breaks that project.
- */
-const XCSTRINGS_OUT = join(ROOT, "app", "NeurOneShared", "Resources", "Localizable.xcstrings");
-
-/**
  * The web copies go to a directory that is entirely generated — not alongside
  * the hand-written supportedLocales.ts in src/locales/. Vite and tsc both
  * resolve these as ordinary module imports, so they have to sit inside the
@@ -136,7 +118,7 @@ interface LocaleData {
 
 /**
  * The sort is load-bearing, not cosmetic. Map iteration order is insertion
- * order, and generateXCStrings writes each entry's `localizations` in that
+ * order, and the generators write each entry's `localizations` in that
  * order — so an unsorted readdirSync leaks the filesystem's directory order
  * into the generated JSON. That makes the output differ between machines
  * (APFS yielded "bn, ru, en, ..."; the Linux CI runner yields another order)
@@ -203,123 +185,12 @@ function validateLocales(locales: Map<string, LocaleData>): void {
   }
 }
 
-// --- Apple .xcstrings generator ---
-
-interface XCStringUnit {
-  state: string;
-  value: string;
-}
-
-interface XCLocalization {
-  stringUnit: XCStringUnit;
-}
-
-interface XCStringEntry {
-  extractionState?: string;
-  localizations: Record<string, XCLocalization>;
-}
-
-interface XCStringsFile {
-  sourceLanguage: string;
-  strings: Record<string, XCStringEntry>;
-  version: string;
-}
-
 function isPluralSuffix(key: string): boolean {
   return /_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/.test(key);
 }
 
-/**
- * Translation state for one string in one locale. See the header for why this
- * is derived from the values rather than stored. `sourceValue` is the en text
- * after the same Apple transform has been applied, so the comparison is between
- * like and like.
- */
-function deriveState(locale: string, value: string, sourceValue: string | undefined): string {
-  if (locale === SOURCE_LANGUAGE) return "translated";
-  return value === sourceValue ? "needs_review" : "translated";
-}
-
-function generateXCStrings(locales: Map<string, LocaleData>): XCStringsFile {
-  const en = locales.get(SOURCE_LANGUAGE)!;
-  const strings: Record<string, XCStringEntry> = {};
-
-  const processedPluralBases = new Set<string>();
-
-  for (const key of Object.keys(en).sort()) {
-    if (isPluralSuffix(key)) {
-      const base = key.replace(/_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/, "");
-      if (processedPluralBases.has(base)) continue;
-      processedPluralBases.add(base);
-
-      const localizations: Record<string, any> = {};
-      for (const [locale, data] of locales) {
-        const variations: Record<string, { stringUnit: XCStringUnit }> = {};
-        for (const suffix of ["zero", "one", "two", "few", "many", "other"]) {
-          const suffixKey = `${base}_${suffix.toUpperCase()}`;
-          if (data[suffixKey]) {
-            // Compared per plural category: a locale counts as translated for a
-            // category only if that category's text differs from the English.
-            const value = canonicalToApplePlural(data[suffixKey]);
-            const sourceValue =
-              en[suffixKey] === undefined ? undefined : canonicalToApplePlural(en[suffixKey]);
-            variations[suffix] = {
-              stringUnit: { state: deriveState(locale, value, sourceValue), value },
-            };
-          }
-        }
-        if (Object.keys(variations).length > 0) {
-          localizations[locale] = {
-            variations: { plural: variations },
-          };
-        }
-      }
-      strings[base] = {
-        extractionState: "manual",
-        localizations,
-      };
-      continue;
-    }
-
-    const localizations: Record<string, XCLocalization> = {};
-    const sourceValue = canonicalToApple(en[key]);
-    for (const [locale, data] of locales) {
-      if (data[key] !== undefined) {
-        const value = canonicalToApple(data[key]);
-        localizations[locale] = {
-          stringUnit: { state: deriveState(locale, value, sourceValue), value },
-        };
-      }
-    }
-    strings[key] = { extractionState: "manual", localizations };
-  }
-
-  return { sourceLanguage: SOURCE_LANGUAGE, strings, version: "1.0" };
-}
-
-/**
- * A value with no placeholder is read with String(localized:) and never goes
- * through String(format:), so a literal `%` in it must stay a literal `%`. One
- * WITH a placeholder is a format string, so every literal `%` has to be escaped
- * — `{0}%` for a percentage is the common case, and an unescaped trailing `%`
- * makes the whole conversion undefined.
- */
-const hasPlaceholder = (value: string): boolean => /\{\d+\}/.test(value);
 const escapePercent = (value: string): string => value.replace(/%/g, "%%");
-
-/** `{0}` → `%1$@`. Apple positional specifiers are 1-based, not 0-based. */
-function canonicalToApple(value: string): string {
-  if (!hasPlaceholder(value)) return value;
-  return escapePercent(value).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$@`);
-}
-
-/** As above, but `{0}` is the count, so it takes the numeric specifier. */
-function canonicalToApplePlural(value: string): string {
-  if (!hasPlaceholder(value)) return value;
-  return escapePercent(value)
-    .replace(/\{0\}/, "%1$lld")
-    .replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$@`);
-}
+const hasPlaceholder = (value: string): boolean => /\{\d+\}/.test(value);
 
 // --- Web locale copy ---
 
@@ -606,14 +477,12 @@ function main(): void {
   const keyCount = Object.keys(locales.get(SOURCE_LANGUAGE)!).length;
 
   const outputs: Array<[string, string]> = [
-    [XCSTRINGS_OUT, JSON.stringify(generateXCStrings(locales), null, 2) + "\n"],
     ...webOutputs(locales),
     ...generateAndroidXml(locales, resOut),
     ...(composeOut ? generateComposeXml(locales, composeOut) : []),
   ];
 
   for (const dir of [
-    dirname(XCSTRINGS_OUT),
     WEB_LOCALES_OUT,
     ...[...locales.keys()].map((l) => join(resOut, androidValuesDir(l))),
     ...(composeOut ? [...locales.keys()].map((l) => join(composeOut, composeValuesDir(l))) : []),

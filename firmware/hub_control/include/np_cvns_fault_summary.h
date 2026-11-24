@@ -61,13 +61,18 @@
 #include "np_cvns_types.h"
 
 /* ── Wire format: CVNS_FAULT_STATUS (4 + 8n bytes, n ≤ 4) ────────────────────
- *   [0] version 0x01   [1] hub re-enable state (np_cvns_reenable_state_t, 0–4)
+ *   [0] version 0x02   [1] hub re-enable state (np_cvns_reenable_state_t, 0–4)
  *   [2] n              [3] flags — bit 0 active user withheld, bit 1 someone
- *                          on this device has an outstanding cardiac cutoff
+ *                          on this device has an outstanding cardiac cutoff,
+ *                          bit 7 (NP_CVFS_FLAG_REPORT_VALID) bits 0–1 come from
+ *                          a safety-MCU report the hub validated.  Bit 7 clear
+ *                          means bits 0–1 are unknown, never "nothing
+ *                          outstanding" (OI-PRIV-29, NP-PRIV-ANALYSIS-004;
+ *                          REQ-FAULTMSG-01 (c))
  *   per record, oldest first: u32 LE device session counter · u8 fault kind
  *   (np_cvns_fault_reason_t 1–5) · u8 pad side mask (bit 0 left, bit 1 right;
  *   pad-contact faults only) · u16 reserved 0                                  */
-/* NP_CVFS_WIRE_VERSION, _HEADER_LEN, _RECORD_LEN and _MAX_WIRE_RECORDS are generated from common/npps/constants.json
+/* NP_CVFS_WIRE_VERSION, _HEADER_LEN, _RECORD_LEN, _MAX_WIRE_RECORDS and _FLAG_REPORT_VALID are generated from common/npps/constants.json
  * (group CvfsWire), the one source the apps' parsers read as well. */
 #include "../../common/include/np_app_wire_constants.h"
 #define NP_CVFS_FRAME_MAX           (NP_CVFS_HEADER_LEN + \
