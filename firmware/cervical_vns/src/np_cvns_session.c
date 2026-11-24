@@ -24,15 +24,9 @@ static void platform_uhdr_write(const np_cvns_session_record_t *rec)
     (void)rec;
 }
 
-static void platform_shdr_write(const np_cvns_shdr_summary_t *shdr)
-{
-    /* Platform HAL: write to SHDR eMMC partition (NeurOne manufacturing key)*/
-    /* np_platform_shdr_write_cvns(shdr, sizeof(*shdr));                        */
-    /* OI-CVNS-04: implement before compliance.  The struct is the reshaped    */
-    /* three-flag summary (OI-PRIV-23); it carries no impedance, parameters or */
-    /* duration, so wiring it does not move UHDR into SHDR.                    */
-    (void)shdr;
-}
+/* The session writes nothing to SHDR (OI-CVNS-04, retired summary: see
+ * np_cvns_types.h).  Its wear reaches SHDR as the hub's per-module running
+ * totals (REQ-FWHUB-93), its faults through the hub's fault log. */
 
 /* ── Interlock fault callback (invoked from np_cvns_interlock.c) ─────────────── */
 
@@ -151,11 +145,7 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
             stim_elapsed_ms(ctx, now_ms) / 1000U;
     }
 
-    ctx->shdr_summary.cutoff_occurred = (reason == NP_CVNS_ERR_CARDIAC_CUTOFF) ? 1U : 0U;
-    ctx->shdr_summary.fault_reason    = np_cvns_shdr_fault_reason(ctx->interlock->fault_reason);
-
     platform_uhdr_write(&ctx->uhdr_record);
-    platform_shdr_write(&ctx->shdr_summary);
 
     if (ctx->end_cb) {
         ctx->end_cb(&ctx->uhdr_record, reason);
@@ -173,11 +163,7 @@ static void session_complete(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
     ctx->uhdr_record.cutoff_occurred    = 0U;
     ctx->uhdr_record.fault_reason       = (uint8_t)NP_CVNS_FAULT_NONE;
 
-    ctx->shdr_summary.cutoff_occurred   = 0U;
-    ctx->shdr_summary.fault_reason      = np_cvns_shdr_fault_reason(NP_CVNS_FAULT_NONE);
-
     platform_uhdr_write(&ctx->uhdr_record);
-    platform_shdr_write(&ctx->shdr_summary);
 
     if (ctx->end_cb) {
         ctx->end_cb(&ctx->uhdr_record, NP_CVNS_OK);
@@ -217,10 +203,6 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
         ctx->uhdr_record.stim_current_ua    = config->current_ua;
         ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
         ctx->uhdr_record.electrode_config   = config->electrode_config;
-
-        /* Initialize SHDR summary: flags only.  Electrode configuration, frequency, current and duration are UHDR
-         * and are not copied here (REQ-CVNS-15, OI-PRIV-23). */
-        memset(&ctx->shdr_summary, 0, sizeof(ctx->shdr_summary));
     }
 
     /* Initialize stim module (validates config).  A non-NULL safety-response

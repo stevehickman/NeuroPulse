@@ -84,6 +84,7 @@ typedef enum {
     NP_CFG_FILE_PAUSE_LIMIT,   /* the hardware owner's pause time limit — SWR-SS-05 */
     NP_CFG_FILE_PPX_CONFIG,    /* the detector's clinician settings — REQ-FWHUB-71 */
     NP_CFG_FILE_CARDIAC_SENS,  /* the cervical VNS cardiac cutoff's sensitivity — REQ-FWHUB-74 */
+    NP_CFG_FILE_MODULE_USAGE,  /* per-module running totals — NP-FW-NVRAM-001 §8.5, REQ-FWHUB-93 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 
@@ -264,6 +265,14 @@ np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
  * "absent" — until 2026-09-25 all three were reported as NP_HUB_ERR_NOT_PRESENT.
  */
 #define NP_CFG_REPLICA_MAX_PAYLOAD   256U
+
+/* The one exception to that limit: the per-module running-total table
+ * (NP_CFG_FILE_MODULE_USAGE, np_module_usage.h), one fixed-size record of
+ * every module's totals.  It is a single record because the totals must be
+ * upserted, never appended: an appended row per change would be a per-session
+ * history (NP-FW-NVRAM-001 §8.5).  Every other replicated file keeps the
+ * 256-byte limit. */
+#define NP_CFG_REPLICA_TABLE_MAX_PAYLOAD 8192U   /* the next power of two above NP_MU_TABLE_BYTES (7648); np_module_usage.c asserts the table fits */
 
 np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
                                               const uint8_t *payload,

@@ -33,6 +33,7 @@
 #include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
 #include "np_log_hrv.h"        /* HRV session record (OI-HRV-03) */
 #include "np_session_fitting.h"   /* the fitting frame layout (SWR-HV-02, SWR-HV-03) */
+#include "np_module_usage.h"
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -603,6 +604,10 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
         s_fq_dropped++;
     }
     crit_exit(saved);
+
+    /* REQ-FWHUB-93: the module's running fault totals, outside the queue's
+     * critical section.  A fault with no slot belongs to no module. */
+    np_mu_note_fault(slot, (uint8_t)type, fault_code);
 }
 
 /* Called with the lock held, by the outermost take() only.  Each entry leaves

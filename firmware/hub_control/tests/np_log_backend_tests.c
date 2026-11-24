@@ -46,6 +46,12 @@
 #include "../include/np_session_fitting.h"
 #include "../include/np_log_hrv.h"
 
+/* REQ-FWHUB-93: np_log_shdr_fault() hands each fault to the per-module running totals; that module has its own
+ * suite (np_module_usage_tests), so here the hand-off is only counted. */
+#include "np_module_usage.h"
+static unsigned g_mu_faults;
+void np_mu_note_fault(uint8_t slot, uint8_t mod_type, uint8_t code) { (void)slot; (void)mod_type; (void)code; g_mu_faults++; }
+
 static int g_failures = 0;
 
 static void check(int cond, const char *name)

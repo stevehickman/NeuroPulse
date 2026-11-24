@@ -111,48 +111,17 @@ typedef struct {
     uint8_t  reserved[2];
 } np_cvns_session_record_t;
 
-/* ── SHDR session summary ─────────────────────────────────────────────────────── */
-/* Written to the SHDR partition.  Device condition only: two one-byte flags
- * (NP-FW-CVNS-001 §4.6, REQ-CVNS-15).
- *
- * Reshaped again 2026-11-23 (OI-PRIV-40, NP-PRIV-ANALYSIS-004, GitHub #968):
- * the impedance_check_pass flag is gone.  The principal ruled that the
- * in-session impedance check, and everything derived from it, is UHDR: it
- * measures through the wearer and cannot tell a device fault from placement
- * (data-architecture-detail.md §5.1, "In-session electrode impedance check").
- * The member is removed, not zeroed, so no outcome can show through it; and
- * fault_reason never names the impedance check (REQ-CVNS-15 (c),
- * np_cvns_shdr_fault_reason()).
- *
- * Reshaped 2026-11-21 (OI-PRIV-23, NP-PRIV-ANALYSIS-004 H3, GitHub #951).  The
- * struct used to carry electrode_config, stim_freq_hz, stim_current_ua,
- * stim_duration_s and impedance_left/right_kohm.  Every one of those is UHDR:
- * raw tissue impedance is "NEVER written to SHDR" (data-architecture-detail.md
- * §5.1, cervical VNS per-electrode impedance), and protocol parameters and
- * duration are UHDR contents.  They stay in np_cvns_session_record_t above.
- * Joined by session count to the SHDR cutoff events, the old summary would have
- * been a per-session table of neck-stimulation dose against cardiac response,
- * keyed to the warranty token.  Do not add a field here without a §5.1 row that
- * puts it in SHDR; when in doubt it is UHDR. */
-typedef struct {
-    uint8_t  cutoff_occurred;       /* flag only — no HR values, no timing      */
-    uint8_t  fault_reason;          /* np_cvns_shdr_fault_reason(): never IMPEDANCE */
-} np_cvns_shdr_summary_t;
-
-_Static_assert(sizeof(np_cvns_shdr_summary_t) == 2U,
-               "np_cvns_shdr_summary_t is two one-byte flags (REQ-CVNS-15); "
-               "a new field needs a CLAUDE.md §5.1 ruling first");
-
-/* The fault reason as the SHDR summary may carry it (REQ-CVNS-15 (c)): the
- * interlock's reason with NP_CVNS_FAULT_IMPEDANCE reported as
- * NP_CVNS_FAULT_SAFETY_MCU.  An impedance fault is a cut by the safety MCU, so
- * that is true of it, and SAFETY_MCU is a value other faults produce, so the
- * mapped record is one a non-impedance fault also writes (CLAUDE.md §5.1
- * rule 2).  One function for every value: no caller redacts. */
-static inline uint8_t np_cvns_shdr_fault_reason(np_cvns_fault_reason_t r)
-{
-    return (uint8_t)((r == NP_CVNS_FAULT_IMPEDANCE) ? NP_CVNS_FAULT_SAFETY_MCU : r);
-}
+/* ── No SHDR session summary (retired 2026-11-24, OI-CVNS-04) ──────────────────
+ * np_cvns_shdr_summary_t ({cutoff_occurred, fault_reason}, REQ-CVNS-15, now
+ * retired) was never written: its HAL write was a stub.  Wiring it would have
+ * put one record per cervical VNS session into SHDR, and its presence alone
+ * says a neck-stimulation session ran, which modalities ran being UHDR
+ * (data-architecture-detail.md §5.1).  Everything it carried that SHDR may
+ * hold already reaches SHDR another way: each cutoff and fault reason through
+ * the hub's fault log (NP-FW-HUB-001 §6.3), and the accessory's wear through
+ * the per-module running totals (REQ-FWHUB-93: sessions present and used, with
+ * their time, and faults per code), which are totals and never a per-session
+ * record.  The session's own values stay in np_cvns_session_record_t (UHDR). */
 
 /* ── Safety MCU fault log entry (SHDR) ─────────────────────────────────────────
  * 8 bytes.  Device-condition only: WHICH fault fired, and the session ordinal it

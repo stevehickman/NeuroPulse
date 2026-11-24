@@ -30,7 +30,6 @@ struct np_cvns_session_ctx {
     bool      suspended;            /* paused between legs: records open, nothing written, stage IDLE */
 
     np_cvns_session_record_t uhdr_record;
-    np_cvns_shdr_summary_t   shdr_summary;
 
     np_cvns_session_end_cb_t end_cb;
     np_cvns_display_cb_t     display_cb;

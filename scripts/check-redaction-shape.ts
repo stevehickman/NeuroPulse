@@ -154,8 +154,6 @@ const SINKS: { name: string; why: string }[] = [
   { name: "np_log_shdr_zone_auth", why: "SHDR accessory authentication record" },
   { name: "np_log_shdr_pbm_socket_health", why: "SHDR PBM tile health record" },
   { name: "np_log_shdr_pbm_session_counts", why: "SHDR PBM counts record" },
-  { name: "platform_shdr_write", why: "cervical VNS SHDR summary hook (np_cvns_session.c)" },
-  { name: "np_platform_shdr_write_cvns", why: "the platform HAL that hook names" },
   { name: "np_pbm_hal_shdr_log_fault", why: "PBM HAL SHDR fault entry" },
   { name: "write_shdr_summary", why: "PBM session SHDR summary writer (np_pbm_session.c)" },
   { name: "write_combined_shdr", why: "T2 combined PBM SHDR writer (np_pbm_t2_combined.c)" },
@@ -176,7 +174,6 @@ const NON_WRITERS: { name: string; why: string }[] = [
   { name: "np_shdr_crc32", why: "pure CRC over a record already built" },
   { name: "np_accel_shdr_evaluate", why: "decides whether a record is due; writes nothing" },
   { name: "np_factory_reset_hal_zero_shdr", why: "erases the partition; writes no record" },
-  { name: "np_cvns_shdr_fault_reason", why: "maps a cervical VNS fault reason to the value the SHDR summary may carry (IMPEDANCE → SAFETY_MCU, REQ-CVNS-15 c); writes nothing" },
   { name: "np_cvns_reenable_shdr_code", why: "maps a re-enable event to its SHDR code (the cutoff flag, else 0); writes nothing (REQ-FWHUB-91)" },
 ];
 
@@ -336,18 +333,6 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     fn: "log_cvns_event",
     role: "writer",
     note: "the ruled cutoff flag only, via np_cvns_reenable_shdr_code; other lifecycle events are never written (REQ-FWHUB-91, OI-PRIV-28)",
-  },
-  {
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_advance_to_fault",
-    role: "writer",
-    note: "the two-flag summary {cutoff_occurred, fault_reason}, size-asserted; no impedance flag, and the reason never names the impedance check (REQ-CVNS-15, OI-PRIV-23, OI-PRIV-40 (NP-PRIV-ANALYSIS-004))",
-  },
-  {
-    file: "firmware/cervical_vns/src/np_cvns_session.c",
-    fn: "session_complete",
-    role: "writer",
-    note: "the same two-flag summary on normal completion, written on every session (REQ-CVNS-15)",
   },
   // ── PBM and accelerometer ──
   {

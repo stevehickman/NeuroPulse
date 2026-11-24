@@ -81,6 +81,7 @@
 #include <string.h>
 
 #include "np_sw02_platform_hal.h"
+#include "np_module_usage.h"
 
 /* np_hal_proto_queue_receive (OI-HUB-MAIN-01) is implemented by np_transport.c
  * and declared in np_transport.h — the BLE GATT / USB-C CDC transport feeds it
@@ -634,6 +635,10 @@ void np_hub_control_app_main(void)
     /* OI-ACC-08 (#381): load the consumable session counts from Config before
      * the GATT service can be read and before any session can end. */
     np_cons_init();
+    /* REQ-FWHUB-93: the per-module running totals, before any session can end.
+     * An unreadable record leaves them unloaded; the first session end tries again. */
+    np_mu_init();
+    (void)np_mu_load();
     np_pause_limit_init();
     np_ppx_config_init();      /* REQ-FWHUB-71: after the Config store is bound, before the GATT service can be read */
     np_cardiac_sens_init();    /* REQ-FWHUB-74: likewise; it is sent to the safety MCU with the heart-rate report */

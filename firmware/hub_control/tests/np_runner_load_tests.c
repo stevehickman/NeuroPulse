@@ -49,6 +49,8 @@
 #include "np_session_log.h"
 #include "np_session_progress.h"
 #include "np_session_runner.h"
+#include "np_module_usage.h"
+#include "np_module_map.h"
 #include "np_stim_xcheck.h"
 #include "np_sw02_platform_hal.h"
 
@@ -214,6 +216,19 @@ static unsigned g_unexpected;
 #define UNEXPECTED() (g_unexpected++)
 
 void   np_cons_on_session_end(uint32_t mods_active_mask)            { (void)mods_active_mask; UNEXPECTED(); }
+/* REQ-FWHUB-93: the per-module running totals belong to the run, not the load. */
+uint16_t np_module_map_socket_count(void)                           { UNEXPECTED(); return 0U; }
+np_hub_status_t np_module_map_socket_uid(uint16_t s, np_module_uid_t *u) { (void)s; (void)u; UNEXPECTED(); return NP_HUB_ERR_NOT_PRESENT; }
+bool   np_module_uid_is_zero(const np_module_uid_t *a)              { (void)a; UNEXPECTED(); return true; }
+bool   np_pst_usage(uint32_t i, uint16_t *s, uint32_t *ms)          { (void)i; (void)s; (void)ms; UNEXPECTED(); return false; }
+np_mu_key_t np_mu_key_uid(const uint8_t uid[NP_MU_ID_LEN])          { np_mu_key_t k; memset(&k, 0, sizeof k); (void)uid; UNEXPECTED(); return k; }
+np_mu_key_t np_mu_key_port(uint8_t slot, np_hub_mod_type_t type)    { np_mu_key_t k; memset(&k, 0, sizeof k); (void)slot; (void)type; UNEXPECTED(); return k; }
+void   np_mu_session_begin(void)                                    { UNEXPECTED(); }
+void   np_mu_mark_present(const np_mu_key_t *key)                   { (void)key; UNEXPECTED(); }
+void   np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms)       { (void)key; (void)on_ms; UNEXPECTED(); }
+void   np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint32_t now_ms) { (void)slot; (void)type; (void)now_ms; UNEXPECTED(); }
+void   np_mu_slot_off(uint8_t slot, uint32_t now_ms)                { (void)slot; (void)now_ms; UNEXPECTED(); }
+np_hub_status_t np_mu_session_end(uint32_t session_ms)              { (void)session_ms; UNEXPECTED(); return NP_HUB_OK; }
 size_t np_fitting_build(uint8_t hw, const uint8_t *stamp, uint8_t *out, size_t cap) { (void)hw; (void)stamp; (void)out; (void)cap; UNEXPECTED(); return 0U; }
 void   np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)
                                                                     { (void)cmd; (void)session_ms; (void)accepted; UNEXPECTED(); }

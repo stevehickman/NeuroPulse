@@ -50,6 +50,8 @@
 #include "np_session_log.h"
 #include "np_session_progress.h"
 #include "np_session_runner.h"
+#include "np_module_usage.h"
+#include "np_module_map.h"
 #include "np_socket_dispatch.h"
 #include "np_stim_xcheck.h"
 #include "np_sw02_platform_hal.h"
@@ -204,6 +206,12 @@ typedef enum {
     RUN_EV_SEND_LIMITS,
     RUN_EV_SEND_WAVE,
     RUN_EV_HOLD,            /* a = cause (SESSION_HOLD notified) */
+    RUN_EV_MU_BEGIN,        /* np_mu_session_begin */
+    RUN_EV_MU_PRESENT,      /* a = key kind, b = id[0] | id[1] << 8 */
+    RUN_EV_MU_USED,         /* a = id[0] (a tile's first UID byte), b = on_ms */
+    RUN_EV_MU_ON,           /* a = slot, b = mod type */
+    RUN_EV_MU_OFF,          /* a = slot */
+    RUN_EV_MU_END,          /* a = session_ms */
 } run_ev_kind_t;
 
 typedef struct {
@@ -432,6 +440,50 @@ void np_cons_on_session_end(uint32_t mods_active_mask)
     note(RUN_EV_CONS_END, mods_active_mask, 0U);
 }
 
+/* ── The per-module running totals (REQ-FWHUB-93), recorded ──────────────────── */
+
+static uint8_t  g_fit_uid0[4];   /* first UID byte of each fitted tile; 0 = empty socket */
+static uint16_t g_fit_n;
+static uint32_t g_pst_on_ms[4];  /* drive time the dose meter reports per fitted tile */
+
+uint16_t np_module_map_socket_count(void) { return g_fit_n; }
+np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out)
+{
+    if (socket_id >= g_fit_n || g_fit_uid0[socket_id] == 0U) { return NP_HUB_ERR_NOT_PRESENT; }
+    memset(uid_out, 0, sizeof *uid_out);
+    uid_out->b[0] = g_fit_uid0[socket_id];
+    return NP_HUB_OK;
+}
+bool np_module_uid_is_zero(const np_module_uid_t *a)
+{
+    for (size_t i = 0U; i < sizeof a->b; i++) { if (a->b[i] != 0U) { return false; } }
+    return true;
+}
+bool np_pst_usage(uint32_t index, uint16_t *socket_id, uint32_t *on_ms)
+{
+    if (index >= g_fit_n || g_pst_on_ms[index] == 0U) { return false; }
+    *socket_id = (uint16_t)index;
+    *on_ms = g_pst_on_ms[index];
+    return true;
+}
+np_mu_key_t np_mu_key_uid(const uint8_t uid[NP_MU_ID_LEN])
+{
+    np_mu_key_t k; memset(&k, 0, sizeof k); k.kind = (uint8_t)NP_MU_KEY_UID; memcpy(k.id, uid, NP_MU_ID_LEN); return k;
+}
+np_mu_key_t np_mu_key_port(uint8_t slot, np_hub_mod_type_t type)
+{
+    np_mu_key_t k; memset(&k, 0, sizeof k); k.kind = (uint8_t)NP_MU_KEY_PORT; k.id[0] = slot; k.id[1] = (uint8_t)type; return k;
+}
+void np_mu_session_begin(void) { note(RUN_EV_MU_BEGIN, 0U, 0U); }
+void np_mu_mark_present(const np_mu_key_t *key)
+{
+    note(RUN_EV_MU_PRESENT, key->kind, (uint32_t)key->id[0] | ((uint32_t)key->id[1] << 8));
+}
+void np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms) { note(RUN_EV_MU_USED, key->id[0], on_ms); }
+void np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint32_t now_ms) { (void)now_ms; note(RUN_EV_MU_ON, slot, (uint32_t)type); }
+void np_mu_slot_off(uint8_t slot, uint32_t now_ms) { (void)now_ms; note(RUN_EV_MU_OFF, slot, 0U); }
+np_hub_status_t np_mu_session_end(uint32_t session_ms) { note(RUN_EV_MU_END, session_ms, 0U); return NP_HUB_OK; }
+
 void np_progress_notify(void) { note(RUN_EV_PROGRESS, 0U, 0U); }
 void np_hold_notify(void)     { note(RUN_EV_HOLD, (uint32_t)np_runner_hold_cause(), 0U); }
 
@@ -584,6 +636,9 @@ static unsigned       g_mid_n;
 
 static void fresh(void)
 {
+    memset(g_fit_uid0, 0, sizeof g_fit_uid0);
+    memset(g_pst_on_ms, 0, sizeof g_pst_on_ms);
+    g_fit_n = 0U;
     memset(g_fitting_stamp, 0xEE, sizeof g_fitting_stamp);
     g_fitting_stamp_calls = 0U;
     g_waits = g_waits_instant = 0U;
@@ -709,6 +764,64 @@ static void test_a_session_runs_to_its_duration_and_completes(void)
     check(g_cons_mask == g_end_uhdr.mods_active_mask, "complete: the consumables hear the same mask");
     check(count_of(RUN_EV_LOG_END) == 1U && count_of(RUN_EV_FLUSH) == 1U && count_of(RUN_EV_CONS_END) == 1U,
           "complete: the session is closed, flushed and counted once");
+}
+
+static void do_pause_now(void);
+static void do_resume_now(void);
+
+/* @verifies REQ-FWHUB-93#b */
+static void test_the_module_totals_open_with_what_is_fitted_and_follow_each_drive(void)
+{
+    fresh();
+    blob_t b;
+    two_command_session(&b);
+    g_fit_n = 3U;                       /* three sockets: two fitted tiles and an empty one */
+    g_fit_uid0[0] = 0xA1U;
+    g_fit_uid0[2] = 0xA3U;
+    g_pst_on_ms[2] = 2500U;             /* only the second tile was driven, for 2.5 s */
+    (void)load_and_run(&b);
+
+    const int begin = first_of(RUN_EV_MU_BEGIN);
+    check(count_of(RUN_EV_MU_BEGIN) == 1U && begin > first_of(RUN_EV_LOG_FITTING) && begin < first_of(RUN_EV_CONTROL),
+          "totals: the session's totals open once, after the fitting and before any command");
+    check(find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_UID, 0) >= 0 && g_log[find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_UID, 0)].b == 0xA1U
+          && g_log[find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_UID, 1)].b == 0xA3U && find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_UID, 2) < 0,
+          "totals: each fitted tile is present by its UID; the empty socket is not");
+    check(find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_PORT, 0) >= 0 && find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_PORT, 1) >= 0
+          && find_a(RUN_EV_MU_PRESENT, NP_MU_KEY_PORT, 2) < 0,
+          "totals: each fitted accessory is present by its port");
+    check(within(when_a(RUN_EV_MU_ON, NP_HUB_SLOT_EEG, 0), 0U, RUN_SLACK_MS)
+          && within(when_a(RUN_EV_MU_OFF, NP_HUB_SLOT_EEG, 0), 4000U, RUN_SLACK_MS),
+          "totals: EEG's drive time runs from its start to its implicit stop");
+    check(within(when_a(RUN_EV_MU_ON, NP_HUB_SLOT_VISUAL, 0), 1000U, RUN_SLACK_MS)
+          && within(when_a(RUN_EV_MU_OFF, NP_HUB_SLOT_VISUAL, 0), 3000U, RUN_SLACK_MS),
+          "totals: the goggles' drive time runs from 1 s to 3 s");
+    const int used = find_a(RUN_EV_MU_USED, 0xA3U, 0);
+    check(used >= 0 && g_log[used].b == 2500U && find_a(RUN_EV_MU_USED, 0xA1U, 0) < 0,
+          "totals: the driven tile adds the dose meter's drive time; the undriven tile adds none");
+    const int end = first_of(RUN_EV_MU_END);
+    check(count_of(RUN_EV_MU_END) == 1U && end > first_of(RUN_EV_CONS_END) && used < end,
+          "totals: they are committed once, at session end, after the tiles' time is added");
+    check(within(g_log[end].a, 6000U, RUN_SLACK_MS), "totals: with the length the session ran");
+}
+
+/* @verifies REQ-FWHUB-93#b */
+static void test_a_pause_stops_a_module_drive_time(void)
+{
+    fresh();
+    blob_t b;
+    blob_begin(&b, 10000U);
+    blob_slot(&b, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, 0U, 8000U, RUN_GATED_PARAMS, RUN_GATED_PARAMS_LEN);
+    module_present(NP_HUB_SLOT_VISUAL);
+    script_at(2000U, do_pause_now);
+    script_at(4000U, do_resume_now);
+    (void)load_and_run(&b);
+
+    const int pause_at = find_a(RUN_EV_LOG_PAUSE, 1U, 0);
+    const int off = find_a(RUN_EV_MU_OFF, NP_HUB_SLOT_VISUAL, 0);
+    check(pause_at >= 0 && off >= 0 && g_log[off].at_ms <= g_log[pause_at].at_ms + RUN_SLACK_MS,
+          "pause: the goggles' drive time stops when the pause begins");
+    check(find_a(RUN_EV_MU_ON, NP_HUB_SLOT_VISUAL, 1) > off, "pause: and starts again with the resume");
 }
 
 /* @verifies REQ-FWHUB-84#b */
@@ -1496,6 +1609,8 @@ static void test_the_runner_tells_the_cervical_driver_the_authored_block_length(
 int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
+    test_the_module_totals_open_with_what_is_fitted_and_follow_each_drive();
+    test_a_pause_stops_a_module_drive_time();
     test_session_end_wipes_the_protocol_and_the_records();
     test_the_session_start_record_and_the_fitting_come_before_any_command();
     test_the_fitting_is_given_the_stamp_of_the_descriptor_being_run();

@@ -438,6 +438,8 @@ The session writes no SHDR record. It used to keep `np_hd_shdr_summary_t` "for t
 
 Device faults from an HD-tDCS session reach SHDR through the hub's fault log (`NP-FW-HUB-001` §6.3), which carries the fault kind and no session data.
 
+**What HD-tDCS does contribute to SHDR (Rev {NP-FW-HD-001 to}; the principal, 2026-11-24):** cumulative device information, as every modality does, through the hub's per-module running totals (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`): sessions the HD-tDCS accessory was present for and the time present, sessions it was used in and the time used, and its faults per code. They are totals with no session-level detail, upserted on the helmet and seen by the fleet only in the upload's snapshot. The accessory reports no identity, so its row follows the port (`OI-FWHUB-37`).
+
 ---
 
 ## 9. Concurrent EEG During Stimulation
