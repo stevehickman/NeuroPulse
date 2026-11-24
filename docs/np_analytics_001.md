@@ -477,10 +477,28 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 **Review.**
 
-- The **Privacy Lead** reviews the log **at least quarterly**, and whenever an alert fires. The quarterly minimum is the principal's choice, with no external source (`UC-205`). What raises an alert is not yet defined (`OI-PRIV-47`).
+- The **Privacy Lead** reviews the log **at least quarterly**, and whenever an alert fires. The quarterly minimum is the principal's choice, with no external source (`UC-205`). What raises an alert is listed below.
 - **The Privacy Lead's review records are a separate record from the log.** They say what was reviewed, when, and what was found, and they hold no analytics data. They are kept for **no more than 3 years**, the usual maximum for internal-control records in the same CNIL recommendation. Where they are kept is not yet decided.
 
-**To build** (`OI-PRIV-47`): the sign-in proxy and the identity provider behind it; the log forwarder and the locked bucket; a ClickHouse user per script and operator; the alert rules; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
+**Alerts** (decided by the principal 2026-11-24). Each trigger below is something that should never happen, so every occurrence raises an alert and none needs a threshold:
+
+| # | Trigger | What it catches |
+|---|---|---|
+| A1 | A read by an identity not on the approved list | A PostHog account the CEO did not approve, or a ClickHouse user not in the list of users |
+| A2 | PostHog's own ClickHouse credential used from anywhere but the PostHog container | Direct use of the application's credential, which the separate-users rule forbids |
+| A3 | A refused query on an analytics table | A script or a person attempting more than their grant |
+| A4 | A PostHog page reached without passing through the sign-in proxy | A read that would never reach the log |
+| A5 | An account or permission created, changed or removed | A PostHog account, ClickHouse user or grant, checked against a CEO approval |
+| A6 | One installation's events viewed on their own | Looking at a single pseudonymous timeline instead of aggregates: a single-installation page in PostHog (the page type survives the ID's removal), or a ClickHouse query filtering on `distinct_id` by any user but `np_erase` |
+| A7 | An export or bulk download | Data leaving the store in bulk |
+| A8 | The read log stops arriving | A stopped forwarder, which would silence every other alert; detected by a heartbeat entry that goes missing |
+| A9 | The locked bucket's lock, retention or deletion rule changed, or a deletion attempted | Tampering with the audit trail |
+| A10 | A privacy setting drifts | IP anonymisation off, session recording or autocapture on, or the event TTL changed; found by running `apply_project_settings.py --check` and `apply_event_retention.py --check` on a schedule |
+| A11 | An erasure fails | The relay answered `502`, so a withdrawal's deletion is at risk (§7.6) |
+
+**Deferred until a baseline exists.** Three triggers need a threshold: (B1) rows returned by one person in a day well above their measured normal; (B2) access at an unusual time or from a new device or location, where the identity provider's own signal is preferred; (B3) a burst of `429` answers from the erasure relay (`OI-PRIV-48`). Their values are set from the measured log at the first quarterly review after the log is running, not chosen beforehand, so each rests on a measurement (`CLAUDE.md` §19).
+
+**To build** (`OI-PRIV-47`): the sign-in proxy and the identity provider behind it, recording each page's type so A6 and A7 can be seen; the log forwarder, its heartbeat (A8) and the locked bucket; a ClickHouse user per script and operator; alerts A1 to A11, including the schedule A10 runs on and counters the erasure relay exposes while it runs (today it prints them only at shutdown) for A11; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
 
 ## 8. Permitted and prohibited property reference
 
