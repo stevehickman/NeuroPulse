@@ -166,7 +166,6 @@ static void log_shdr(uint8_t slot_index, np_zone_id_t zone,
         .slot_index           = slot_index,
         .auth_result          = pass ? 0U : 1U,
         .debounce_reads_passed = reads_agreed,
-        .session_count        = s_ctx.device_session_count,
     };
     s_ctx.shdr_cb(&entry);
 }
@@ -325,14 +324,12 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
 
 np_za_status_t np_za_init(np_za_insert_cb_t insert_cb,
                            np_za_remove_cb_t remove_cb,
-                           np_za_shdr_cb_t   shdr_cb,
-                           uint32_t          device_session_count)
+                           np_za_shdr_cb_t   shdr_cb)
 {
     memset(&s_ctx, 0, sizeof(s_ctx));
     s_ctx.insert_cb            = insert_cb;
     s_ctx.remove_cb            = remove_cb;
     s_ctx.shdr_cb              = shdr_cb;
-    s_ctx.device_session_count = device_session_count;
 
     return NP_ZA_OK;
 }
