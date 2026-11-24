@@ -66,3 +66,46 @@ fn migration_moves_only_when_nobody_on_the_helmet_is_held() {
     assert_eq!(migration_step(true, Some(true)), Step::NameDerived, "already moved: the derived tag holds it now");
     assert_eq!(migration_step(true, None), Step::NameDerived);
 }
+
+// ── Through the entry point every binding uses (`migration_secret_json`) ──
+
+fn framed(secret: &[u8]) -> Vec<u8> {
+    let mut v = (secret.len() as u32).to_be_bytes().to_vec();
+    v.extend_from_slice(secret);
+    v
+}
+
+fn call(req: &str, secrets: &[u8]) -> Result<serde_json::Value, String> {
+    neurone_npps_core::api::migration_secret_json(req, secrets).map(|(a, _)| serde_json::from_str(&a).unwrap())
+}
+
+// @verifies REQ-FAULTMSG-01#a
+#[test]
+fn the_derived_tag_is_reached_with_the_secret_as_bytes() {
+    let serial_hex: String = b"NP-0001".iter().map(|b| format!("{b:02x}")).collect();
+    let req = format!(r#"{{"op":"activeUserTag","profileSecret":{{"$secret":0}},"helmetSerial":"{serial_hex}"}}"#);
+    let answer = call(&req, &framed(&SECRET_A)).unwrap();
+    assert_eq!(answer["tag"], 0x25DD_4FD5u32, "the same tag as `derive`, through the binding's entry point");
+    let short = call(&req, &framed(&[0x11; 31]));
+    assert!(short.is_err(), "a secret that is not 32 bytes is refused");
+    let none = call(r#"{"op":"activeUserTag","profileSecret":{"$secret":0},"helmetSerial":""}"#, &framed(&SECRET_A));
+    assert!(none.is_err(), "a tag with no helmet is refused");
+}
+
+// @verifies REQ-FAULTMSG-01#b
+#[test]
+fn the_legacy_tag_is_reached_from_the_profile_id() {
+    let answer = call(r#"{"op":"activeUserTagLegacy","profileId":"04030201-0000-4000-8000-000000000000"}"#, &[]).unwrap();
+    assert_eq!(answer["tag"], 0x0102_0304u32, "the apps' old derivation, for migration");
+    assert!(call(r#"{"op":"activeUserTagLegacy","profileId":"not-a-uuid"}"#, &[]).is_err());
+}
+
+// @verifies REQ-FAULTMSG-01#c
+#[test]
+fn the_step_moves_only_on_a_valid_nothing_outstanding() {
+    let step = |m: bool, n: &str| call(&format!(r#"{{"op":"activeUserTagStep","migrated":{m},"nothingOutstanding":{n}}}"#), &[]).unwrap()["step"].clone();
+    assert_eq!(step(false, "true"), "derived", "a valid report of nothing outstanding moves the pair");
+    assert_eq!(step(false, "false"), "legacy", "someone is held: stay");
+    assert_eq!(step(false, "null"), "legacy", "no valid report: stay");
+    assert_eq!(step(true, "null"), "derived", "a moved pair never goes back");
+}

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 402
+**Revision:** 407
 **Date:** 2026-11-24
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 402 | 2026-11-24 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 407 | 2026-11-24 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
-| NP-RM-001 | ISO 14971 Risk Management Plan | 3 | 2026-11-13 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 210 | 2026-11-24 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
+| NP-SW-001 | IEC 62304 Software Development Plan | 211 | 2026-11-24 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -140,16 +140,16 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
-| NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 15 | 2026-11-23 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
+| NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 16 | 2026-11-24 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 2 | 2026-11-21 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 79 | 2026-11-24 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 82 | 2026-11-24 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 7 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 6 | 2026-09-14 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
 | NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 23 | 2026-11-24 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 9 | 2026-11-21 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
-| NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 15 | 2026-11-23 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
+| NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 16 | 2026-11-24 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 5 | 2026-11-21 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
 | NP-FW-REQ-001 | Zone Module Firmware Requirements | 1 | 2026-05-10 | [np_fw_req_001.docx](./superseded/np_fw_req_001.docx) | SUPERSEDED by individual firmware specs | REQ |
@@ -170,7 +170,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-NPPS-REF-001 | NPPS Language Reference | 43 | 2026-11-21 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
-| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 51 | 2026-11-24 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 53 | 2026-11-24 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 
@@ -195,7 +195,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | SUPERSEDED 2026-08-11 by NP-RISK-002/003/004 | RISK |
 | **NP-RISK-002** | Risk File Re-Baseline and NP-RISK-001 Disposition | 17 | 2026-11-11 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | Hex-Tile Module — Risk Register and Problem Analysis | 3 | 2026-09-29 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
-| **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 4 | 2026-09-25 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
+| **NP-RISK-004** | Shell, Socket, Interconnect and Hub — Risk Register and Problem Analysis | 5 | 2026-11-24 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
 | NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA | 23 | 2026-10-04 | [np_fmea_001.md](./np_fmea_001.md) | DRAFT | RISK |
 
 **Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev 1 are tracked separately in NP-PRIV-REM-001 Rev 1 (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
@@ -235,7 +235,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 4 | 2026-11-11 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
-| NP-SW-FAULTMSG-001 | Offline Fault Explanation | 4 | 2026-11-22 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
+| NP-SW-FAULTMSG-001 | Offline Fault Explanation | 5 | 2026-11-24 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
 | NP-IFU-001 | Instructions for Use — Working Text | 10 | 2026-11-03 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
 | NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 10 | 2026-11-21 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |

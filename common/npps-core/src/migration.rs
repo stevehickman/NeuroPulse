@@ -629,6 +629,9 @@ pub(crate) fn dispatch(op: &str, req: &Value) -> R<Value> {
     if let Some(answer) = bundle_key::op(op, req) {
         return answer;
     }
+    if let Some(answer) = crate::active_user_tag::op(op, req) {
+        return answer;
+    }
     migration_op(op, req)
 }
 

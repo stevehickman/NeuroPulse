@@ -46,9 +46,10 @@ import org.jetbrains.compose.resources.stringResource
  * restarts it where it was held (a full start-up, as a resume always is). Resume is offered only once the helmet has said
  * the session is held, so the person is never told it is held when it is not.
  *
- * The same question is put when the HELMET holds the session on its own (the detector found a discharge, or can no longer see
- * the EEG signal: [HoldCause.isAutomated]): the dialog opens without the person having pressed anything, says why in plain words,
- * and has the same two answers. A pause or a panic the person made is not put to them again.
+ * When the HELMET holds the session on its own (the detector found a discharge, or can no longer see the EEG signal:
+ * [HoldCause.isAutomated]) the dialog opens without the person having pressed anything and says why in plain words, and its
+ * only answer is Stop: the hub does not resume a detector hold (`REQ-FWHUB-67`, `REQ-FWHUB-69`; the principal, 2026-11-23,
+ * `OI-PRIV-24` Q2), so the app does not offer it ([resumeOffered]). A pause or a panic the person made is not put to them again.
  *
  * Place it once, over the whole content. [PanicControlLayer] does that.
  */
@@ -118,12 +119,6 @@ fun PanicControlLayer(services: AppServices, modifier: Modifier = Modifier) {
                             },
                         ),
                     )
-                    if (cause?.isAutomated == true) {
-                        // The goggles latch off for the rest of the session after the detector's halt, so a Resume restarts the
-                        // rest and not them. Say so, so the person is not surprised.
-                        Text(stringResource(Res.string.panic_dialog_goggles_off), style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 8.dp))
-                    }
                     Text(stringResource(Res.string.panic_dialog_cable_note), style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 8.dp))
                 }
@@ -134,15 +129,23 @@ fun PanicControlLayer(services: AppServices, modifier: Modifier = Modifier) {
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 ) { Text(stringResource(Res.string.panic_stop)) }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { gatt.requestSessionResume(); asking = false; answered = true },
-                    enabled = held,
-                ) { Text(stringResource(Res.string.panic_resume)) }
-            },
+            dismissButton = if (resumeOffered(cause)) {
+                {
+                    OutlinedButton(
+                        onClick = { gatt.requestSessionResume(); asking = false; answered = true },
+                        enabled = held,
+                    ) { Text(stringResource(Res.string.panic_resume)) }
+                }
+            } else null,
         )
     }
 }
+
+/**
+ * Whether Resume is offered for a hold: never for one the helmet's detector made ([HoldCause.isAutomated]), which the hub
+ * refuses to resume (`REQ-FWHUB-67`, `REQ-FWHUB-69`); its only second step is Stop.
+ */
+fun resumeOffered(cause: HoldCause?): Boolean = cause?.isAutomated != true
 
 /** The panic control is offered while a session is running or paused, and only then (there is nothing to cut otherwise). */
 fun panicControlOffered(status: SessionStatus): Boolean =
