@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-ANON-001
-**Revision:** 2
-**Date:** 2026-11-21
+**Revision:** 3
+**Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -272,7 +272,7 @@ Suppressed records are included in the transmission as zeroed dummy records to p
 
 ### 7.2 Extract envelope
 
-> **Rev {NP-FW-ANON-001 to} (2026-11-23, `OI-PRIV-74`, GitHub #1025): the envelope carries nothing that identifies the device.** (1) `device_warranty_token` is removed. The token keys the device's SHDR record and, through the warranty database, leads to its registrant, and it was the same in every study, so it joined every extract a device sent; the principal ruled on `OI-PRIV-67` (2026-11-20) that no device identifier, token or serial travels with an extract, which is stored by study ID only (`CLAUDE.md` §5.3; `docs/reference/data-architecture-detail.md` §5.3 step 4). (2) `device_signature`, made with a per-device key, linked a device's extracts across studies in the same way and is replaced by `extract_token`, an anonymous token (§7.3). **The principal ruled on `OI-PRIV-74` (2026-11-23): the research store must refuse an extract that did not come from a genuine NeurOne device (Q1 yes), and the proof is an anonymous token (Q2 A)** (`docs/human-input/oi-priv-74-extract-authenticity.md`).
+> **Rev 3 (2026-11-23, `OI-PRIV-74`, GitHub #1025): the envelope carries nothing that identifies the device.** (1) `device_warranty_token` is removed. The token keys the device's SHDR record and, through the warranty database, leads to its registrant, and it was the same in every study, so it joined every extract a device sent; the principal ruled on `OI-PRIV-67` (2026-11-20) that no device identifier, token or serial travels with an extract, which is stored by study ID only (`CLAUDE.md` §5.3; `docs/reference/data-architecture-detail.md` §5.3 step 4). (2) `device_signature`, made with a per-device key, linked a device's extracts across studies in the same way and is replaced by `extract_token`, an anonymous token (§7.3). **The principal ruled on `OI-PRIV-74` (2026-11-23): the research store must refuse an extract that did not come from a genuine NeurOne device (Q1 yes), and the proof is an anonymous token (Q2 A)** (`docs/human-input/oi-priv-74-extract-authenticity.md`).
 
 The extract is wrapped in an envelope that carries one anonymous token (§7.3):
 
@@ -294,7 +294,7 @@ The extract is wrapped in an envelope that carries one anonymous token (§7.3):
 
 The `records_b64` field is encrypted with the study public key from the descriptor (NaCl box or AES-256-GCM with ECDH-derived key). Only the researcher with the corresponding private key can decrypt the records. NeurOne cannot read the extract content even in transit.
 
-### 7.3 Extract token: proof of origin that names no device (added Rev {NP-FW-ANON-001 to}, 2026-11-23, `OI-PRIV-74`)
+### 7.3 Extract token: proof of origin that names no device (added Rev 3, 2026-11-23, `OI-PRIV-74`)
 
 **Ruled by the principal (2026-11-23, `OI-PRIV-74` Q1 yes, Q2 A):** the research store refuses an extract that did not come from a genuine NeurOne device, and the proof is an anonymous token, not a signature by a device key. The study's encryption key cannot serve: it is in the descriptor every subscribed device receives (`OI-PRIV-68`), so it keeps outsiders from reading an extract and not from writing one.
 
@@ -373,3 +373,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 2 | 2026-11-21 | NeurOne Firmware Engineering | **§8.1: the per-study budget record is UHDR and never copied to SHDR; §8.2: the `NP_ANON_CONSENT_WITHDRAWN` SHDR event is retired (`OI-PRIV-07`, the principal, 2026-11-20).** |
+| 3 | 2026-11-23 | NeurOne Firmware Engineering | **§7.2: `device_warranty_token` and `device_signature` removed from the extract envelope, which now carries one `extract_token`; §7.3 added: the anonymous-token rules for proof of origin (the principal, 2026-11-23, `OI-PRIV-74` Q1 yes, Q2 A; GitHub #1025).** |
