@@ -17,10 +17,10 @@ import life.neurone.core.platform.secureRandomBytes
 // Argon2id computation, which the core also runs, so there is one implementation for every app.
 //
 // The secret and the key are memory-only, like the UHDR key: never written to a file or a log, never transmitted. NeurOne never
-// holds either (CLAUDE.md §5.1). One exception, which the person chooses: to make a backup without asking again, the secret may
-// be kept in the app's SEALED per-install store (`np.backup.auto-secret`, encrypted under the device-only data key, never in a
-// bundle and never moved to another phone), by `toStoredText` and `storedSecret`. It is the person's own phone holding the
-// person's own secret, and it is destroyed by turning the automatic backup off and by the clear.
+// holds either (CLAUDE.md §5.1). **The secret is never stored.** To make a backup without asking again, the automatic backup keeps a
+// key derived from it under one salt, sealed by the core under the data key of the store that holds it ([KeptKeySealer],
+// `keySeal`; `SWR-MG-32` (i)), so a passphrase a person may reuse elsewhere is not on the phone (the principal, 2026-11-24,
+// `OI-PRIV-65` (2)). It was the secret itself, as hex, until then.
 
 enum class BundleKeyMethod(val wire: String) {
     RECOVERY_CODE("recoveryCode"),
@@ -63,13 +63,18 @@ class BundleSecret internal constructor(bytes: ByteArray) {
     }
 }
 
-/** The secret as text, for the sealed per-install store only (the automatic backup). Never for a file, a log or the network. */
-fun BundleSecret.toStoredText(): String = bytes().toHex()
+/**
+ * Seals a bundle key the core keeps, so it can be stored, and opens it back into a kept key (`keySeal`, `keyUnseal`;
+ * `SWR-MG-32` (i)). The key never comes to this side as bytes or text: what is stored is the core's sealing of it under the data key
+ * of the store that holds it, bound to [name]. Implemented by the store that seals values at rest (`EncryptedKeyValueStore`), so the
+ * key is under the same key as its tier: the person's gated key when the presence gate is on.
+ */
+interface KeptKeySealer {
+    /** [key] sealed under this store's data key for [name], or null when it cannot be (no key, or the keystore cannot be asked). */
+    fun sealKept(name: String, key: BundleKey): String?
 
-/** The secret kept by [toStoredText], or null when [text] is not one. */
-fun BundleKeyDerivation.storedSecret(text: String): BundleSecret? {
-    val bytes = runCatching { text.hexToBytes() }.getOrNull()?.takeIf { it.isNotEmpty() } ?: return null
-    return BundleSecret(bytes).also { bytes.fill(0) }
+    /** The key [sealed] holds, kept again in the core with a new handle the caller destroys; null when it does not open here. */
+    fun openKept(name: String, sealed: String): BundleKey?
 }
 
 /** A recovery code just made: the [text] to show the user once, and the [secret] it stands for. */

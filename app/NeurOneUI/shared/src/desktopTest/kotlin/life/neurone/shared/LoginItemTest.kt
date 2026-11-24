@@ -33,9 +33,13 @@ class LoginItemTest {
         override fun set(on: Boolean): Boolean { calls += on; this.on = on; return true }
     }
 
+    /** The host's keystore, the same across relaunches in one test: the automatic backup keeps its key sealed under it (`OI-PRIV-65` (2)). */
+    private val keystore = life.neurone.core.common.InMemorySecretKeyStore()
+
     private fun services(item: Item, kv: InMemoryKeyValueStore = InMemoryKeyValueStore()) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
+            override val secretKeyStore = keystore
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()

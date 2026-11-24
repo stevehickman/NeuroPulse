@@ -34,9 +34,13 @@ class BackgroundBackupTest {
     private val store = MemoryObjectStore()
     private val recorder = Recorder()
 
+    /** The host's keystore, the same across relaunches in one test: the automatic backup keeps its key sealed under it (`OI-PRIV-65` (2)). */
+    private val keystore = life.neurone.core.common.InMemorySecretKeyStore()
+
     private fun services(kv: KeyValueStore, placeOn: Boolean = true) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
+            override val secretKeyStore = keystore
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
