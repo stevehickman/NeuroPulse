@@ -162,7 +162,9 @@ uint8_t np_fault_latch_get_slot(void)
  *             the wearer and cannot tell a device fault from placement.  The
  *             cardiac bit is not device-class either; the cardiac cutoff still
  *             shows as CUTOFF, and the hub's SHDR fault log records it by name
- *             (NP_CVNS_SHDR_EV_CUTOFF) under the safety-interlock rule.
+ *             (NP_CVNS_SHDR_EV_CUTOFF → fault_log.fault_type
+ *             'CVNS_CARDIAC_INTERLOCK_CUTOFF': one event for every cause, which
+ *             SHDR never learns, OI-PRIV-41 Q2) under the safety-interlock rule.
  *
  *   count   → SHDR unconditionally: the number of transitions of the
  *             device-class bits since power-on (np_fault_latch_commit keeps it

@@ -12,7 +12,7 @@
 
 ## 40Hz Vibrotactile — Mastoid LRA Pad (provisional)
 
-Purpose-built accessory delivering precisely characterized 40Hz somatosensory stimulation, aligned to Tsai lab (MIT) GENUS multi-sensory protocol. **Provisional — release contingent on HOPE Phase 3 results (mid-2026). Hardware provision in first revision at zero tooling cost.**
+Purpose-built accessory delivering precisely characterized 40Hz somatosensory stimulation, aligned to Tsai lab (MIT) GENUS multi-sensory protocol. **Provisional — release gate unresolved (`NP-ACC-PRIORITY-001` `OI-ACC-10`). HOPE Phase 3, the former gate, read out on 2026-11-16 with its primary endpoint missed, and it never tested a tactile channel. Hardware provision in first revision at zero tooling cost.**
 
 - **Actuator:** Linear resonant actuator (LRA), 8–10mm diameter, e.g. Jinlong JMC0834 or equivalent. LRA preferred over ERM: precise frequency control, low distortion, flat resonance profile at 40Hz drive.
 - **Driver IC:** Texas Instruments DRV2605L (I2C, open-loop mode). Open-loop drive at 40Hz ± 0.5Hz with amplitude control via gain register. No resonant frequency tuning required (drive frequency set in firmware, not actuator resonance).
@@ -24,7 +24,7 @@ Purpose-built accessory delivering precisely characterized 40Hz somatosensory st
 - **Retail accessory price (projected):** $49–79 per pad / $79–119 bilateral.
 - **Firmware:** 40Hz square-wave drive pattern; session start/stop synchronized with audio/visual 40Hz channels via hub; amplitude ramp 2s up/down (comfort).
 - **Marketing note:** Apple Watch sync app is available as a free companion — but the mastoid pad delivers results the Watch cannot. Key differences: mastoid placement couples directly to skull (vs wrist-to-brain soft tissue attenuation); 40Hz ± 0.5Hz locked precision (vs uncharacterised Taptic Engine output); hub-powered (vs Watch battery drain from 20 min continuous haptics). Message: "Use the Watch app as an extra layer — for the full experience, the pad is what delivers it." See marketing-notes.md for full draft copy.
-- **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
+- **Status:** PROVISIONAL, **release gate unresolved** (`NP-ACC-PRIORITY-001` `OI-ACC-10`). The former rule (release within 6 months if HOPE Phase 3 was positive) did not fire. HOPE (Cognito Therapeutics, n=673) missed its primary endpoint on 2026-11-16. Spectris is light and sound only, so the trial never bore on a 40 Hz tactile pad. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost), retained and marked inactive (`NP-TOOL-SHELL-002` S2-F01, `OI-TSHELL2-08` closed).
 - **Priority: rank 1 of 19** — `NP-ACC-PRIORITY-001` §5, class **C1 (access)**: the 40 Hz somatosensory channel exists nowhere else on the platform, and watchOS has no continuous-waveform haptic API to substitute for it. **The anchor-boss provision does not wait on HOPE** (`NP-ACC-PRIORITY-001` §7): the provision is free at first tooling cut and the retrofit is not, so it should be made whichever way the trial reads out. That is an argument for a provision already described here, not a change to it.
 
 ## Thermal Remote-Sink Accessories (provisional) — TEC base-station chiller · hip ice pack
