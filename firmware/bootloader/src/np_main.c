@@ -347,14 +347,20 @@ void Bootloader_Reset(void)
          * this branch; the application's np_factory_reset_boot_check() finds
          * it instead, from the durable marker in Config (NP-FW-NVRAM-001
          * §3.4.1 option A, OI-NVRAM-05).
-         * Re-sanitize all data partitions.  This leaves Config with no
-         * filesystem, which np_factory_reset_boot_check() reads as a reset
-         * still running, so the application completes R-5..R-10 (new salt,
-         * new warranty token) before it mounts UHDR or SHDR. */
+         * Re-sanitize all data partitions: ERASE each of the three, which
+         * unmaps it, then eMMC SANITIZE, which purges every unmapped block,
+         * including the stale copies wear levelling kept (NP-FW-EMMC-002
+         * §B.3 R-5..R-7a; OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7: until then this
+         * step was the three erases alone, which is not a purge).  This
+         * leaves Config with no filesystem, which
+         * np_factory_reset_boot_check() reads as a reset still running, so the
+         * application completes R-5..R-10 (new salt, new warranty token)
+         * before it mounts UHDR or SHDR. */
         np_status_t wipe = np_emmc_switch_partition(NP_EMMC_USER_AREA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_UHDR_LBA_START, NP_UHDR_SIZE_LBA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_SHDR_LBA_START, NP_SHDR_SIZE_LBA);
         if (wipe == NP_OK) wipe = np_emmc_erase(NP_CONFIG_LBA_START, NP_CONFIG_SIZE_LBA);
+        if (wipe == NP_OK) wipe = np_emmc_sanitize();
 
         /* Only clear the in-progress flag if every wipe step succeeded.  If any
          * step failed, leave the flag SET so the next boot retries — the device

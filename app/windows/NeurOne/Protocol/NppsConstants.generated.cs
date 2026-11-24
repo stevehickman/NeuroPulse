@@ -248,6 +248,10 @@ static class GattIds
     /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     public const int PAUSE_LIMIT_ID = 0x001B;
+    /// READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
+    /// the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+    /// in hub RAM only; every boot starts with it off (OI-PRIV-37).
+    public const int STEALTH_ID = 0x0022;
     /// READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
     /// (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
     /// REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -347,6 +351,10 @@ static class GattUuidStrings
     /// READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     /// seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     public const string PAUSE_LIMIT_ID = "4E455550-001B-1000-8000-00805F9B34FB";
+    /// READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
+    /// the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+    /// in hub RAM only; every boot starts with it off (OI-PRIV-37).
+    public const string STEALTH_ID = "4E455550-0022-1000-8000-00805F9B34FB";
     /// READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
     /// (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
     /// REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -396,6 +404,8 @@ static class GattSizes
     public const int PAUSE_LIMIT_LEN = 4;
     /// PPX_CONFIG read: one byte of flags, one byte of evidence level.
     public const int PPX_CONFIG_LEN = 2;
+    /// STEALTH: one byte of flags, read and write; bit 0 is stealth on.
+    public const int STEALTH_LEN = 1;
     /// PPX_CONFIG write: one byte of flags.
     public const int PPX_CONFIG_WRITE_LEN = 1;
     /// SESSION_HOLD: one byte, the hold cause.

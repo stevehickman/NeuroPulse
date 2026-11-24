@@ -152,7 +152,7 @@ static void session_advance_to_fault(np_cvns_session_ctx_t *ctx,
     }
 
     ctx->shdr_summary.cutoff_occurred = (reason == NP_CVNS_ERR_CARDIAC_CUTOFF) ? 1U : 0U;
-    ctx->shdr_summary.fault_reason    = (uint8_t)ctx->interlock->fault_reason;
+    ctx->shdr_summary.fault_reason    = np_cvns_shdr_fault_reason(ctx->interlock->fault_reason);
 
     platform_uhdr_write(&ctx->uhdr_record);
     platform_shdr_write(&ctx->shdr_summary);
@@ -174,7 +174,7 @@ static void session_complete(np_cvns_session_ctx_t *ctx, uint32_t now_ms)
     ctx->uhdr_record.fault_reason       = (uint8_t)NP_CVNS_FAULT_NONE;
 
     ctx->shdr_summary.cutoff_occurred   = 0U;
-    ctx->shdr_summary.fault_reason      = (uint8_t)NP_CVNS_FAULT_NONE;
+    ctx->shdr_summary.fault_reason      = np_cvns_shdr_fault_reason(NP_CVNS_FAULT_NONE);
 
     platform_uhdr_write(&ctx->uhdr_record);
     platform_shdr_write(&ctx->shdr_summary);
@@ -303,8 +303,8 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
             /* Store impedance in UHDR record (raw measurement = user biology).  */
             ctx->uhdr_record.impedance_left_kohm  = ctx->stim->impedance_kohm[0];
             ctx->uhdr_record.impedance_right_kohm = ctx->stim->impedance_kohm[1];
-            /* SHDR gets the pass flag only, never a kΩ value (REQ-CVNS-15). */
-            ctx->shdr_summary.impedance_check_pass = 1U;
+            /* SHDR gets nothing from the check, not even a pass flag: the
+             * in-session impedance result is UHDR (REQ-CVNS-15, OI-PRIV-40). */
             ctx->stage = NP_CVNS_STAGE_BASELINE;
         }
         break;

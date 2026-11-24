@@ -3,6 +3,9 @@ name: Assign revisions (docs/revisions/README.md)
 # Revision numbers are assigned here, when a change merges, not by its author: a PR adds one fragment under
 # docs/revisions/pending/ and this workflow writes the numbers, one commit per fragment, oldest first. Two PRs can no
 # longer take the same number. The decision: docs/human-input/np-qms-dc-001-revision-assignment.md (option A).
+# A fragment's `## LOG` entries are appended to docs/status/completed-decisions.md, and its `## CLAUDE.md` section sets
+# CLAUDE.md's revision, its DHF row and its history entry, in the same commit, so two PRs no longer conflict on those
+# either.
 #
 # It does nothing until docs/revisions/policy.json says "assign-at-merge", which is set only once the GitHub App below
 # exists. It pushes to `main` as the App, which is on the branch ruleset's bypass list: the built-in GITHUB_TOKEN cannot
@@ -82,7 +85,8 @@ jobs:
             # The commit is authored by whoever added the fragment (the PR's author), committed by the App.
             IFS=$'\t' read -r an ae subj < <(git log -1 --diff-filter=A --format='%an%x09%ae%x09%s' -- "$frag")
             bun scripts/assign-revisions.ts --next
-            git add -A docs
+            # CLAUDE.md is at the root: a fragment's `## CLAUDE.md` section sets its revision line.
+            git add -A docs CLAUDE.md
             GIT_AUTHOR_NAME="$an" GIT_AUTHOR_EMAIL="$ae" git commit -q \
               -m "Assign revisions for: ${subj}" \
               -m "Assigned by the assign-revisions workflow from ${frag}."
