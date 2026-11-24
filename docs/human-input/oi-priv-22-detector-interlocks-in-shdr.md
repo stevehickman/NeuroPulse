@@ -7,7 +7,7 @@
 > On surveillance: "SHDR should know that a cutoff occurred because it causes a change in power / usage and thus affects hardware life. It doesn't need to know why
 > the cutoff occurred. There may be other kinds of stops (hardware failure, panic, etc.) that look identical in terms of hardware usage changes."
 > Implemented as one cause-free `stopped_early` byte in the SHDR session-end record (`REQ-FWHUB-89` (c)), set alike by any abort, any cervical VNS fault and any
-> grant the safety MCU withdraws. This also answers Q2 of `oi-priv-41-session-ordinal-and-cardiac-cause.md`: SHDR says nothing about a cutoff's cause, because it has no cutoff event.
+> grant the safety MCU withdraws. It also overtakes Q2 of `oi-priv-41-session-ordinal-and-cardiac-cause.md` (ruled option A the same day, one cause-neutral event): SHDR says nothing about a cutoff's cause, because it has no cutoff event.
 **GitHub issue:** [#950](https://github.com/stevehickman/NeuroPulse/issues/950)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-22` of NP-PRIV-ANALYSIS-004 in `docs/status/pending-decisions.md`; firmware privacy review, Finding H2)
 **To:** the principal (Safety consulted on option B, below)
