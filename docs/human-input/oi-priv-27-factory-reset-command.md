@@ -1,10 +1,10 @@
 # Question for the principal: OI-PRIV-27 (NP-PRIV-ANALYSIS-004), who starts a factory reset, and how
 
-**Status:** PARTLY ANSWERED 2026-11-23 by the principal: Q2 (who may reset) and the reset flow, §8. Q1, Q3 and the new Q4 to Q6 are open (§9). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#955](https://github.com/stevehickman/NeuroPulse/issues/955)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding H7)
 **To:** the principal (a wire and design change); Firmware and Software to implement
-**Response needed:** an option for Q1, a yes or no on Q3, answers to Q4 to Q6 (§9), a short rationale, anything that would reopen it, and your name, role and the date. Q2 is answered (§8).
+**Response needed:** answers to Q7 and Q8 (§12). Everything else is answered (§8, §11).
 
 ## 1. The question
 
@@ -124,4 +124,33 @@ Recommendation: **A.** It adds nothing to the helmet, and the clinic already kno
 
 - The ruling in §8 is recorded in `NP-FW-EMMC-002` §B.2, in the `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) row and in the decision log, in the change that wrote this section. No code is changed: the reset command is not built.
 - Q1's answer, with `OI-SIMFW-71` Q8, fixes the wire format. Q4 to Q6 fix the list. Then the command, the list and the export screen are built together, with their requirement rows and tests (`CLAUDE.md` §21).
+
+## 11. Answers received (the principal, 2026-11-24)
+
+| Q | Answer | What follows |
+|---|--------|--------------|
+| §8 consequences 1 to 3 | **Confirmed, all three.** | (1) The wipe starts only after every selected export has finished and the warranty owner's app holds it; a failed export erases nothing. (2) The confirmation step names every deselected person: their data will be destroyed and cannot be recovered. (3) The list is shown on every attempt, even when it is empty. |
+| Q1 | **Recommendation accepted.** | A signed reset blob on the existing upload path (0x0008), with a hub-issued nonce and the device serial, signed by a key bound to the warranty owner's pairing. It is accepted on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). It waits on the warranty owner's role (`OI-SIMFW-71` Q8). |
+| Q3 | **Change the text.** | The BIPA consent text stops promising a factory reset to the person. It names profile deletion as the person's own erasure, and says that it is not yet available. The new wording goes to regulatory and legal review before it ships, then into all eleven locales (`CLAUDE.md` §17). |
+| Q4 | **The warranty owner must see something it can associate with a specific user, and never the user's data.** It must know enough to decide whose data to back up, and no more. | Option A meets this: each row shows a label the warranty owner's app holds for the profile, matched to the opaque profile identifier, and the export size bucket §C.8.1 already allows. No UHDR content, and no name stored on the helmet. How the owner's app learns which profile is which, without seeing any data, is Q8 (§12). |
+| Q4, added | **By default, only the data of users who are *current* on that helmet is offered for backup.** A user who is not current on the helmet is assumed not to want it backed up. | **This changes §8's default.** Every user with data is still listed. Current users start selected; users who are not current start deselected, and the owner may select them. A deselected user is named on the confirmation step as before (§8 consequence 2). How the helmet knows who is current is Q7 (§12). |
+| Q5 | **Agreed.** | A user whose only data on the helmet is a safety-MCU cardiac-cutoff record is listed, marked as such. What the reset does to that record is `OI-PRIV-25`'s. |
+| Q6 | **Understood.** | The reset command is built with per-person profiles (§C.8), or after them. No reset ships that cannot show the list. |
+
+**The flow, as ruled.** The warranty owner starts a reset. The helmet lists every user with any data on it, each row labelled so the owner can tell who it is, with no data shown. Users current on the helmet start selected for export; the others start deselected. The owner adjusts the selection. Deselecting everyone means wipe everything. The confirmation names everyone whose data will be destroyed. The selected exports run, and the owner's app confirms it holds each one. Then the wipe runs, and resets the helmet. If any export fails, nothing is erased.
+
+## 12. What remains (design, not new rulings)
+
+**Q7. What "current on that helmet" means, and how the helmet knows it.** "Current" already exists for research: a person is current on the last device they registered, and moving publishes a signed superseded notice under the person's current-device key (`docs/reference/data-architecture-detail.md` §5.3 step 1a, `OI-PRIV-68`). That rule is written for the device that holds the person's UHDR and runs the extract. It does not say whether a helmet a person has moved away from learns it, or how. Two readings:
+
+| Option | Meaning | Cost |
+|---|---|---|
+| **A. The same key and notice, extended to helmets** | A profile on a helmet records the person's current-device key id. When the person moves to another helmet, the superseded notice reaches this helmet through the owner's or the person's app, and the profile is marked not current | One mechanism for both. The notice names no person and the helmet verifies it, so nothing new is trusted. A helmet that never sees the notice keeps the profile current, which is the safe direction: its data is offered for backup |
+| B. A helmet-local rule | A profile is current until that person exports it to another helmet (§C.8.4, "a person moving to their own helmet") | Nothing new, but it misses a person who simply stopped using the helmet without moving |
+
+Recommendation: **A**, because it reuses a mechanism already decided and fails toward keeping data. **What it discloses:** the warranty owner learns that a person has moved to another device. That is a fact about the person's behaviour, not their health, and it follows from the ruling's need for a default. It is noted here, not decided.
+
+**Q8. How the owner's app learns the label for each profile without seeing any data.** Option A of Q4 needs the owner's app to hold a label per profile identifier. The natural moment is when the profile is created on the helmet, in the clinic, with both the person and the owner present: the owner's app records its own label for the new identifier. The helmet never stores it. A profile created without the owner present, or imported (§C.8.4), shows as an unlabelled profile with its identifier and size bucket until the owner labels it. Recommendation: **label at profile creation, in the owner's app only.**
+
+Both points are recorded under `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) and are settled with the build of §C.8, which the reset command waits on anyway (Q6).
 

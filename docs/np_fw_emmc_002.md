@@ -82,15 +82,20 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 > - **Only the warranty owner may start a factory reset.** No user can, present or not.
 > - **Every attempt first shows a list of every user who has any data on the helmet**, before any choice and before
 >   anything is erased.
-> - **The warranty owner then chooses which users' data to back up (export).** Every user is selected by default.
->   Deselecting every user means wipe everything; there is no other path.
+> - **The warranty owner then chooses which users' data to back up (export).** Each row shows something the owner can
+>   associate with a specific user, and never any of that user's data. **Users current on the helmet start selected;
+>   users who are not current start deselected** (ruled 2026-11-24). Deselecting every user means wipe everything;
+>   there is no other path.
 > - **The backup, if any, is followed by the wipe** (§B.3 R-1 to R-12). The export is §C.8.4's clinic backup of the
 >   selected profiles, so the warranty owner can read none of it.
 >
-> The brief's own reading of the ruling, for confirmation: the wipe starts only after every selected export has
-> finished and the owner's app holds it; a failed export erases nothing. **Not built.** The command's form, how the
-> warranty owner's role is proved (`OI-SIMFW-71` Q8), what a row of the list shows, and the dependency on §C.8 (the
-> helmet cannot list its users before per-person profiles exist) are open in the brief's §9.
+> **Confirmed 2026-11-24:** the wipe starts only after every selected export has finished and the owner's app holds
+> it, and a failed export erases nothing; the confirmation names every deselected user; the list is shown even when
+> empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
+> signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
+> owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
+> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
 
 ### B.3 Reset sequence
 
