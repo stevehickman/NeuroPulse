@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 412
+**Revision:** 413
 **Date:** 2026-11-24
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 412 | 2026-11-24 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 413 | 2026-11-24 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 212 | 2026-11-24 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -142,7 +142,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 17 | 2026-11-24 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 3 | 2026-11-23 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 83 | 2026-11-24 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 84 | 2026-11-24 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 7 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
@@ -184,7 +184,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | **NP-TOOL-HEXTILE-001** | Universal Hex-Tile Module Shell — Tooling Specification | 2 | 2026-09-26 | [np_tool_hextile_001.md](./np_tool_hextile_001.md) | DRAFT | SPEC-TOOL |
 | NP-TOOL-ZM-SM-001 | 1064nm Smart Zone Module — Mould Variant Specification | 1 | 2026-05-12 | [np_tool_zm_sm_001.md](./superseded/np_tool_zm_sm_001.md) | SUPERSEDED 2026-07-28 — see in-doc note | SPEC-TOOL |
 | NP-TOOL-SHELL-001 | Shell Tooling Specification | 3 | 2026-09-23 | [np_tool_shell_001.docx](./superseded/np_tool_shell_001.docx) | SUPERSEDED 2026-09-25 by NP-TOOL-SHELL-002 | SPEC-TOOL |
-| **NP-TOOL-SHELL-002** | Two-Bowl Headset Shell Tooling Specification | 1 | 2026-09-25 | [np_tool_shell_002.md](./np_tool_shell_002.md) | DRAFT | SPEC-TOOL |
+| **NP-TOOL-SHELL-002** | Two-Bowl Headset Shell Tooling Specification | 2 | 2026-11-24 | [np_tool_shell_002.md](./np_tool_shell_002.md) | DRAFT | SPEC-TOOL |
 | NP-TOOL-LENS-001 | Lens and Goggle Assembly Tooling Specification | 2 | 2026-05-10 | [np_tool_lens_001.docx](./np_tool_lens_001.docx) | ACTIVE | SPEC-TOOL |
 | NP-TOOL-HUB-001 | Hub Enclosure Tooling Specification | 4 | 2026-09-25 | [np_tool_hub_001.md](./np_tool_hub_001.md) | BASELINED | SPEC-TOOL |
 
@@ -305,7 +305,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 5 | 2026-10-21 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
+| NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 6 | 2026-11-24 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
 | NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 9 | 2026-11-21 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 1 | 2026-07-18 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
