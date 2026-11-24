@@ -34,4 +34,14 @@ describe('storedProfile', () => {
   it('cuts a stored note to the bound', () => {
     expect(storedProfile({ id: 'p1', name: 'Alex', notes: 'n'.repeat(MAX + 40) })?.notes).toBe('n'.repeat(MAX));
   });
+
+  // @verifies REQ-FAULTMSG-01#e
+  it('keeps a well-formed tag state and drops a malformed one', () => {
+    const state = { secret: 'ab'.repeat(32), legacy: true, migrated: [0x25dd4fd5] };
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', activeUserTag: state })?.activeUserTag).toEqual(state);
+    expect(storedProfile({ id: 'p1', name: 'Alex', activeUserTag: { secret: 'ab'.repeat(32), legacy: false } })?.activeUserTag)
+      .toEqual({ secret: 'ab'.repeat(32), legacy: false, migrated: [] });
+    expect(storedProfile({ id: 'p1', name: 'Alex', activeUserTag: { secret: 'xyz', legacy: true } })?.activeUserTag).toBeUndefined();
+    expect(storedProfile({ id: 'p1', name: 'Alex', activeUserTag: { ...state, migrated: [0] } })?.activeUserTag).toBeUndefined();
+  });
 });

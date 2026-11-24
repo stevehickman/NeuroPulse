@@ -12,7 +12,6 @@ import life.neurone.shared.AppServices
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.ble.NeurOneGattManager
 import life.neurone.core.common.KeyValueStore
-import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.protocol.NPLimitsStore

@@ -1,6 +1,6 @@
 # Safety request: OI-PRIV-29 (NP-PRIV-ANALYSIS-004) (does naming an active-user tag over BLE get round a cardiac hold?)
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** Q2 ANSWERED 2026-11-23 by the principal (section 6). Q1 DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#957](https://github.com/stevehickman/NeuroPulse/issues/957)
 **From:** NeurOne Software + Firmware (`OI-PRIV-29` (NP-PRIV-ANALYSIS-004), Finding M2 of `docs/np_priv_analysis_004.md`)
 **To:** the embedded safety team and the Quality Lead, for `NP-RISK-002` hazard 25-c; the principal if the answer reopens the per-user scope decision of 2026-09-22. No names are assigned.
@@ -82,3 +82,21 @@ tag; that is the safe direction.
 - Q2: yes or no; if no, the condition under which a pair may move.
 - Name, role, date. Record the answer in `NP-RISK-002` (25-c) and `NP-SW-FAULTMSG-001` §9.2, and log it in
   `docs/status/completed-decisions.md`.
+
+## 6. Answer to Q2 (2026-11-23)
+
+**Yes, with the condition the engineering note in section 3 named.** The principal chose to wire the per-helmet tag with
+the migration rule, and to add a validity bit to the fault-status frame first, so "no valid report" cannot read as "nothing
+outstanding". Recorded in `NP-SW-FAULTMSG-001` §9.2 (`REQ-FAULTMSG-01` (c)–(e)) and in the decisions log.
+
+What was built: the hub sets `CVNS_FAULT_STATUS` byte 3 bit 7 only for a validated safety-MCU report (frame version 2);
+the app moves a pre-existing profile to its per-helmet tag on a helmet only on a frame with that bit set and nobody
+outstanding, records the move before naming the new tag, and never names the old tag to that helmet again. A profile made
+since gets the per-helmet tag at once. The record of the move travels with the profile.
+
+**Residual, for Safety to weigh with Q1:** two copies of one profile on two phones that are not synchronised (one copied
+before the other migrated) can name different tags to one helmet; the copy that has not moved still names the old tag,
+and a cutoff held under the new one does not apply to it. The same profile on two phones is not a supported use today,
+and the blanket warning still shows on both.
+
+**Q1 is still open.**

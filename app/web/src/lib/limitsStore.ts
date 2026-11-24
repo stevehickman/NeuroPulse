@@ -154,10 +154,13 @@ class LimitsStore extends EventTarget {
     const profile = storedProfile(input);
     if (!profile) return false;
     const idx = this._profiles.findIndex(p => p.id === profile.id);
+    // The tag state is never set by an edit: the profile keeps the one it has (REQ-FAULTMSG-01).
+    const { activeUserTag: _ignored, ...edited } = profile;
     if (idx >= 0) {
-      this._profiles[idx] = profile;
+      const kept = this._profiles[idx].activeUserTag;
+      this._profiles[idx] = kept ? { ...edited, activeUserTag: kept } : edited;
     } else {
-      this._profiles.push(profile);
+      this._profiles.push(edited);
     }
     this.persist();
     this.emit();
