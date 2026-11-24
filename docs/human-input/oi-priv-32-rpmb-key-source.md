@@ -11,7 +11,7 @@
 
 1. **Q1.** Where does each helmet's 32-byte RPMB key come from, and where is it kept so that the bootloader gets the same key at every boot?
 2. **Q2.** Who may program the key into a blank RPMB after the unit has left the factory (a replaced eMMC, a repaired hub)?
-3. **Q3.** The bootloader must derive the key (Q1 A) and compute RPMB's HMAC-SHA256. Is that written in C in the bootloader, as its Ed25519 check already is, or in `no_std` Rust from `common/npps-core` (`CLAUDE.md` §22)?
+3. **Q3.** Under Q1 A the bootloader derives the key. Is that derivation written in C in the bootloader, or in `no_std` Rust from `common/npps-core` (`CLAUDE.md` §22)? The same question for the RPMB MAC (HMAC-SHA256) is already `OI-SW02-01`, so Q3 asks only that the derivation follow whatever `OI-SW02-01` decides.
 
 ## 2. What is known
 
@@ -45,7 +45,7 @@
 
 - **The SHDR key** is derived by NeurOne from a fleet-wide manufacturing root key and the device serial, injected into the Config partition at manufacture, and wrapped under the SNVS OTPMK (`NP-FW-EMMC-001` §7.3, `EMMC-SHDR-04` to `-07`). So **the application already uses the DCP with the SNVS master key** at every boot. That decides option D below.
 - **The bootloader is not authenticated by the ROM.** Its image header sets `csf = 0` (HAB disabled, `firmware/bootloader/src/np_main.c:103`), and no document specifies HAB closed configuration or a debug-port lock for production (`OI-SEC-02`, open). **Whatever runs first on the RT1062 can derive or read any key the RT1062 holds.** No key source keeps the key from an attacker who can replace the bootloader. Every option below assumes `OI-SEC-02` (a) and (b) are done.
-- **As built, the application raises the floor.** `np_ota_confirm_boot()` raises it (`np_ota.c:553-565`), and `np_ota.h` step 9 says the application calls it. `np_ota_verify_scratch()`, which reads the floor, is also application-side (step 3). An RPMB floor store under that code needs the key in the application. **So the key can be kept from the application only if the floor is read and raised by the bootloader alone**: the application records "confirmed", the bootloader raises the floor at the next boot before it hands over, and the application's own admission check reads a floor value the bootloader handed it (advisory; the bootloader's boot trial already checks the floor itself, `np_ota_handle_boot_verification`). This is a change to the store's design, which is the sibling session's, and is recommended under Q1.
+- **As built, the application raises the floor.** `np_ota_confirm_boot()` raises it (`np_ota.c:553-565`), and `np_ota.h` step 9 says the application calls it. `np_ota_verify_scratch()`, which reads the floor, is also application-side (step 3). An RPMB floor store under that code needs the key in the application. **So the key can be kept from the application only if the floor is read and raised by the bootloader alone**: the application records "confirmed", the bootloader raises the floor at the next boot before it hands over, and the application's own admission check reads a floor value the bootloader handed it (advisory; the bootloader's boot trial already checks the floor itself, `np_ota_handle_boot_verification`). The RPMB store is now built (`REQ-SW02-16`, `np_rollback_store_rpmb.c`, PR #1030) under the same application-side callers, so this is a change to the callers of that store, and is recommended under Q1.
 
 ### 2.4 How others do it
 
@@ -82,7 +82,9 @@ A blank or wrong-key RPMB refuses every image (first brief §8, Q1 conditions). 
 
 **Recommendation: (b) until a service network exists, then (a).** (b) needs nothing new. (a) is worth its key once eMMC replacement in the field is a real service.
 
-## 5. Q3: C or Rust for the key derivation and the RPMB MAC
+## 5. Q3: C or Rust for the key derivation
+
+**Since this brief was drafted, the RPMB store (PR #1030) raised `OI-SW02-01` for the MAC, with its own brief (`docs/human-input/oi-sw02-01-rpmb-mac-in-the-bootloader.md`).** The derivation needs a MAC or block-cipher construction of the same kind, so the two should be decided together. The options below are kept for the derivation; **the recommendation is that the derivation follow `OI-SW02-01`'s answer**, so the bootloader does not end up with its cryptography split across C and Rust.
 
 `CLAUDE.md` §22 puts key derivation and message authentication in Rust in `common/npps-core`, and permits `no_std` Rust on the main processor (the principal, 2026-11-11). The bootloader is C today, and already does cryptography in C: Ed25519 through the vendored Monocypher, and its own SHA-256 in `np_signature.c`.
 
@@ -91,11 +93,11 @@ A blank or wrong-key RPMB refuses every image (first brief §8, Q1 conditions). 
 | **(a) C in the bootloader, recorded as an exception** | The KDF (over the DCP) and HMAC-SHA256 in C beside `np_signature.c` | Matches what is there. A second implementation of HMAC-SHA256 beside the Rust one in `common/npps-core` (which the host model of §7.10 uses), so the two must be pinned to each other by test vectors |
 | **(b) `no_std` Rust from `common/npps-core`, linked into the bootloader** | The KDF's software half and HMAC-SHA256 compiled for Cortex-M7 and called through the C ABI | One implementation, as §22 asks. A Rust cross-toolchain in the bootloader build, and a code-size figure nobody has measured (the bootloader's budget is in its linker script) |
 
-**Recommendation: (b) if the size fits, measured before the driver is written; otherwise (a) with shared test vectors.** Either way the DCP calls stay in C, because they are register access, not cryptography.
+**Recommendation: whatever `OI-SW02-01` decides for the MAC.** Either way the DCP calls stay in C, because they are register access, not cryptography.
 
 ## 6. What this change has built (no decision was needed)
 
-- **The seam.** `firmware/bootloader/include/np_rpmb_key.h` declares `np_status_t np_rpmb_key_get(uint8_t key[32]);`, the signature the RPMB floor store calls.
+- **The seam.** `firmware/bootloader/include/np_rpmb_key.h` declares `np_status_t np_rpmb_key_get(uint8_t key[32]);`, the signature the RPMB floor store (PR #1030) calls; that PR created the header, and this one adds the no-key-material-on-error clause and the `REQ-RPMBK-01` reference.
 - **The device build fails closed.** `firmware/bootloader/src/np_rpmb_key_unbuilt.c` always returns an error and wipes the buffer. The floor store therefore cannot authenticate, the floor reads as an error, and every image is refused, as it is today. It is never replaced by a fixed, all-zero or build-time key (`REQ-RPMBK-01`).
 - **The factory step's design and its requirements:** `NP-REG-UPG-001` §7.10, `REQ-RPMBK-01` to `-06`.
 - **A host model of the programming sequence:** `common/npps-core/src/rpmb_provision.rs`. It refuses an all-zero or all-one key before sending anything; reads the part first; programs only a part that reports no key; never sends a second programming request; proves the key with an authenticated read whose MAC verifies and whose nonce comes back; refuses a part holding another key; accepts a re-run on a part already holding this key. Ten tests, against a simulated part.
@@ -104,7 +106,7 @@ A blank or wrong-key RPMB refuses every image (first brief §8, Q1 conditions). 
 
 - Q1: A, B, C or D, and, if A, who confirms the three reference-manual points.
 - Q2: (a), (b) or (c), now and later.
-- Q3: (a) or (b).
+- Q3: follow `OI-SW02-01` (recommended), or (a) or (b) for the derivation alone.
 - For each: a reason, what would reopen it, and a name, role and date.
 
 Once answered, the answer is recorded in `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), in `NP-REG-UPG-001` §7.10 and in `docs/status/completed-decisions.md`. Nothing in the repository acts on it before then: the key source stays the failing stub.

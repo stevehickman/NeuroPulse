@@ -7,7 +7,10 @@
  *
  * UHDR and SHDR data routing follows NP-FW-EMMC-001 Rev 1 §12 classification.
  * UHDR data (user biology) is returned to caller via end_cb for encrypted write.
- * SHDR data (device metrics) is returned via shdr field for fleet telemetry.
+ * The session keeps no SHDR summary (OI-PRIV-75, NP-FW-HD-001 §8.2): every
+ * field it held (montage, anode electrode, current, duration, mean impedance,
+ * the impedance check's result, abort reason) is UHDR.  Device faults reach
+ * SHDR through the hub's fault log, not from here.
  */
 
 #include "np_hd_session.h"
@@ -80,9 +83,6 @@ struct np_hd_session {
 
     /* Session record for UHDR (user biology — never transmitted by NeurOne). */
     np_hd_session_record_t   record;
-
-    /* SHDR summary (device metrics — no user biology). */
-    np_hd_shdr_summary_t     shdr;
 
     /* Display state. */
     np_hd_display_state_t    display;
@@ -326,11 +326,6 @@ np_hd_status_t np_hd_session_select_montage(np_hd_session_t *sess, uint32_t now_
         sess->record.cathode_electrodes[k] = (uint8_t)sess->montage.cathodes[k];
     }
 
-    /* SHDR montage summary (no user biology — electrode position is device metric). */
-    sess->shdr.montage_type     = (uint8_t)sess->montage.type;
-    sess->shdr.center_electrode = (uint8_t)sess->montage.center;
-    sess->shdr.anode_current_ua = sess->montage.anode_current_ua;
-
     sess->display.montage = sess->montage;
     sess->display.stage   = NP_HD_STAGE_MONTAGE;
     if (sess->display_cb) {
@@ -399,15 +394,14 @@ void np_hd_session_safety_mcu_response(np_hd_session_t *sess,
     np_hd_stim_safety_mcu_response(&sess->stim, granted, impedance_kohm);
 
     if (impedance_kohm) {
-        /* Record impedance in UHDR and SHDR. */
+        /* Record impedance in UHDR only: the in-session check measures
+         * through the wearer (data-architecture-detail.md §5.1). */
         float mean = 0.0f;
         for (uint8_t i = 0U; i < NP_HD_RING_ELECTRODE_COUNT; i++) {
             mean += impedance_kohm[i];
         }
         mean /= (float)NP_HD_RING_ELECTRODE_COUNT;
         sess->record.mean_impedance_kohm = mean;
-        sess->shdr.mean_impedance_kohm   = mean;
-        sess->shdr.impedance_check_pass  = granted ? 1U : 0U;
         sess->display.mean_impedance_kohm = mean;
     }
 }
@@ -459,9 +453,6 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms)
                 np_hd_stim_anode_charge_ua_s(&sess->stim);
             sess->record.abort_reason = 0U;
 
-            sess->shdr.stim_duration_s = sess->record.stim_duration_s;
-            sess->shdr.abort_reason    = 0U;
-
             sess->stage = NP_HD_STAGE_COMPLETE;
             if (sess->end_cb) {
                 sess->end_cb(&sess->record, NP_HD_OK);
@@ -497,7 +488,6 @@ void np_hd_session_abort(np_hd_session_t *sess,
     sess->record.abort_reason     = (uint8_t)(-(int8_t)reason);
     sess->record.stim_duration_s  =
         (uint32_t)((now_ms - sess->stage_start_ms) / 1000U);
-    sess->shdr.abort_reason = sess->record.abort_reason;
 
     sess->stage = NP_HD_STAGE_ABORTED;
     if (sess->end_cb) {

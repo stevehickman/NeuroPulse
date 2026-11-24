@@ -670,8 +670,9 @@ so the station supplies no key and holds none.
    it is sent once (`REQ-RPMBK-02`).
 5. **Prove it.** Read the write counter again with a new nonce. Accept only if the result is OK, the counter has not
    expired, the nonce comes back and the MAC verifies under the key (`REQ-RPMBK-03`).
-6. **Write the initial floor**: the signed version of the image installed at the factory, through the floor store's own
-   write, and read it back through the store's own read (`REQ-RPMBK-05`). A keyed RPMB with no floor refuses every image,
+6. **Write the initial floor**: the signed version of the image installed at the factory, as the floor record the store
+   defines (`np_rollback_rpmb_encode()`, at RPMB address 0, `REQ-SW02-16`), and read it back through the store's own
+   read (`REQ-RPMBK-05`). The bootloader never writes a first record, so this step is the only writer of one. A keyed RPMB with no floor refuses every image,
    so a unit shipped without this step can never be updated.
 7. **Prove it across a reset.** Reset the unit. The bootloader obtains the key again from nothing (which shows the fuse
    value and the derivation are stable) and reads the floor. Accept only if it reads the value written in step 6.
@@ -702,8 +703,8 @@ which was not read. **Built (device seam).** `firmware/bootloader/include/np_rpm
 decided.
 
 **Not built, and not decided:** the key source (Q1); field re-provisioning (Q2); C or Rust for the KDF and the RPMB MAC
-in the bootloader (Q3); the RPMB driver and floor store (built separately under `OI-PRIV-32`); the floor store's
-initial-write operation that step 6 uses; whether the bootloader alone reads and raises the floor, which is what keeps
+in the bootloader (Q3, which follows `OI-SW02-01` for the MAC); the factory-side write of the first floor record in
+step 6 (the record format and the store are built, `REQ-SW02-16`, `np_rollback_rpmb_encode()`); whether the bootloader alone reads and raises the floor, which is what keeps
 the key from the application (the brief, §2.3: as built, the application raises it through `np_ota_confirm_boot()`); the
 station, fixture and authorisation that let a unit enter the step; and the three reference-manual checks option A needs.
 
@@ -713,7 +714,7 @@ station, fixture and authorisation that let a unit enter the step; and the three
 | **REQ-RPMBK-02** | **The key is programmed only into a part that reported no key in the same run.** (a) A part that answers *key not programmed* is sent one key-programming request. (b) A part that answers with any key, this unit's included, is never sent a key-programming request | A part programs one key, so a second request cannot help, and it puts the key on the bus in the clear again | JESD84's one-time key (as stated in the task; not read here); OP-TEE's warning that programming outside a controlled environment leaks the key (`mk/config.mk` `CFG_RPMB_WRITE_KEY`) | Test of the host model: request counts on a blank part, a re-run and a part holding another key | **Built** in the host model |
 | **REQ-RPMBK-03** | **No part is accepted until an authenticated read proves the key.** The step reads the write counter with a nonce not used before in the run, and accepts only a response of the right type, result OK, counter not expired, the nonce returned and a MAC that verifies under the unit's key | A unit whose part kept no key, kept a different one, or whose counter is exhausted refuses every firmware image in the field, and is found only when its first update fails | The principal's Q1 conditions (a wrong-key RPMB refuses every image); §7.9's rule that the unit's own answer, not the station's, decides acceptance (`REQ-UPG-04`) | Test of the host model: a dropped key, a replayed answer, a tampered MAC, a wrong type, an expired counter, a bus failure, a repeated or zero nonce | **Built** in the host model. On a unit: not run |
 | **REQ-RPMBK-04** | **A part already holding a key is judged by the authenticated read.** (a) A part whose answer does not verify under the unit's key is refused and quarantined, and never shipped in that unit. (b) A part whose answer verifies (a run interrupted after programming) is accepted without programming | (a) The unit would refuse every image for life. (b) Refusing it would scrap a good part for an interrupted run | `REQ-RPMBK-02`, `REQ-RPMBK-03` | Test of the host model | **Built** in the host model |
-| **REQ-RPMBK-05** | **No unit leaves manufacture without its initial floor in RPMB**: the signed version of the image installed at the factory, written by the floor store and read back by the bootloader after a reset | A keyed RPMB with no floor reads as an error, so the unit refuses every update for life | The floor store's contract (`np_rollback_store.h`: an unprovisioned store is an error) and the principal's Q1 conditions | Test, once the floor store exists: a unit that skips the write is refused at step 7 | **Not built**: needs the floor store's initial-write operation |
+| **REQ-RPMBK-05** | **No unit leaves manufacture without its initial floor in RPMB**: the signed version of the image installed at the factory, written by the floor store and read back by the bootloader after a reset | A keyed RPMB with no floor reads as an error, so the unit refuses every update for life | The floor store's contract (`np_rollback_store.h`: an unprovisioned store is an error) and the principal's Q1 conditions | Test: a unit that skips the write is refused at step 7 | **Not built.** The record format and the store's read are built (`REQ-SW02-16`, `np_rollback_rpmb_encode()`); the factory write is not |
 | **REQ-RPMBK-06** | **Device firmware never programs an RPMB key because it found a blank part.** It programs one only inside this factory step, or a field provisioning the principal has approved (the brief, Q2) | An interposer that answers *key not programmed* is handed the key; and a fresh part provisioned on its own starts with no floor, which is the downgrade the floor exists to stop | The principal's Q1 conditions (a blank RPMB refuses every image); OP-TEE `CFG_RPMB_WRITE_KEY` (the brief, §2.4) | Inspection of the RPMB driver and every caller of its key-programming request | **Holds today**: no RPMB driver exists. To be inspected when the driver lands |
 
 ---
