@@ -451,14 +451,21 @@ object ConsentLimits {
 // The CVNS_FAULT_STATUS frame (NP-SW-FAULTMSG-001): a 4-byte header then up to MAX_WIRE_RECORDS records of RECORD_LEN
 // bytes. The hub writes it and the apps parse it.
 object CvfsWire {
-    // Byte 0 of the frame.
-    const val WIRE_VERSION: Int = 1
+    // Byte 0 of the frame. Version 2 adds FLAG_REPORT_VALID to byte 3 (OI-PRIV-29, NP-PRIV-ANALYSIS-004);
+    // version 1, where a flags byte of 0 could mean either 'nothing outstanding' or 'no valid report', was
+    // never deployed and is refused.
+    const val WIRE_VERSION: Int = 2
     // Header bytes before the first record.
     const val HEADER_LEN: Int = 4
     // Bytes in one fault record.
     const val RECORD_LEN: Int = 8
     // Most records one frame carries.
     const val MAX_WIRE_RECORDS: Int = 4
+    // Byte 3, bit 7: the flags below it come from a safety-MCU report the hub validated (magic and
+    // checksum). Clear when the hub has no valid report or has published nothing, so a 0 in bits 0-1 then
+    // means 'unknown', never 'nothing outstanding'. An app moves a person to a new active-user tag only on
+    // a frame with this bit set and bit 1 clear (REQ-FAULTMSG-01 (c)).
+    const val FLAG_REPORT_VALID: Int = 128
 }
 
 // The ZONE_MODULE_STATUS notification frame (np_zone_notify.h): a 4-byte header then fixed-size records, either status

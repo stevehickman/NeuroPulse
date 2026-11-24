@@ -192,9 +192,11 @@
  */
 #define NP_GATT_SESSION_PROGRESS_LEN 22U
 /*
- * Byte 0 of the frame.
+ * Byte 0 of the frame. Version 2 adds FLAG_REPORT_VALID to byte 3 (OI-PRIV-29, NP-PRIV-ANALYSIS-004);
+ * version 1, where a flags byte of 0 could mean either 'nothing outstanding' or 'no valid report', was
+ * never deployed and is refused.
  */
-#define NP_CVFS_WIRE_VERSION 1U
+#define NP_CVFS_WIRE_VERSION 2U
 /*
  * Header bytes before the first record.
  */
@@ -207,6 +209,13 @@
  * Most records one frame carries.
  */
 #define NP_CVFS_MAX_WIRE_RECORDS 4U
+/*
+ * Byte 3, bit 7: the flags below it come from a safety-MCU report the hub validated (magic and
+ * checksum). Clear when the hub has no valid report or has published nothing, so a 0 in bits 0-1 then
+ * means 'unknown', never 'nothing outstanding'. An app moves a person to a new active-user tag only on
+ * a frame with this bit set and bit 1 clear (REQ-FAULTMSG-01 (c)).
+ */
+#define NP_CVFS_FLAG_REPORT_VALID 128U
 /*
  * Byte 0 of every frame.
  */

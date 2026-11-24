@@ -101,7 +101,7 @@ np_stim_xcheck_nonfinite_tests 130  # measured 133 on a local --coverage build; 
 np_transport_tests 209
 np_uhdr_key_tests 431
 np_uhdr_profile_tests 698
-np_zone_announce_tests 444
+np_zone_announce_tests 442   # 444 -> 442 (OI-PRIV-38 (NP-PRIV-ANALYSIS-004), ruled 2026-11-23): the SHDR auth entry no longer carries the session count, so the two lines that stored it at np_za_init() and wrote it in log_shdr() no longer exist
 np_zone_notify_tests 372
 np_session_fitting_tests 146
 np_session_pause_tests 117

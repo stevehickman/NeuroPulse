@@ -364,6 +364,16 @@ np_hold_cause_t np_runner_hold_cause(void)
     return s_hold_cause;
 }
 
+/* A hold the photoparoxysmal detector made (a discharge, or it could not see): its only second step is a stop (REQ-FWHUB-67,
+ * REQ-FWHUB-69; the principal, 2026-11-23, OI-PRIV-24 (NP-PRIV-ANALYSIS-004) Q2).  Pairing is not authenticated (OI-SIMFW-72),
+ * so "whoever can pair" is not a person who may restart photic stimulation after a detected discharge.  Revisit when an
+ * authenticated link exists. */
+static bool held_by_detector(void)
+{
+    const np_hold_cause_t c = s_hold_cause;
+    return c == NP_HOLD_DETECTOR_DISCHARGE || c == NP_HOLD_DETECTOR_BLIND;
+}
+
 static bool s_panic_from_start;   /* a start gate was closed by a panic: its resume must mark the ramped modalities as used */
 
 static bool is_ramped_start(const np_session_cmd_t *c, uint8_t *which)
@@ -1036,7 +1046,10 @@ np_hub_status_t np_runner_run(void)
                 loop_wait(gate_sleep_ms(), 0U);
             } else if (ev & NP_EV_SESSION_RESUME) {
                 xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
-                do_resume();
+                /* Checked again here: a resume posted before a detector halt that the loop takes after it is dropped. */
+                if (!held_by_detector()) {
+                    do_resume();
+                }
             } else {
                 static uint32_t paused_ms;
                 paused_ms += NP_RUNNER_TICK_MS;
@@ -1296,6 +1309,9 @@ np_hub_status_t np_runner_resume(void)
 {
     if (np_runner_get_state() != NP_SESSION_PAUSED) {
         return NP_HUB_ERR_NO_SESSION;
+    }
+    if (held_by_detector()) {
+        return NP_HUB_ERR_PPX_HALT;   /* a detector hold is ended only by a stop */
     }
     if (s_gate.open) {
         return NP_HUB_ERR_RAMPING;   /* already resuming */

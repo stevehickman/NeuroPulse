@@ -272,12 +272,13 @@ Suppressed records are included in the transmission as zeroed dummy records to p
 
 ### 7.2 Extract envelope
 
-The extract is wrapped in a signed envelope:
+> **Rev {NP-FW-ANON-001 to} (2026-11-23, `OI-PRIV-74`, GitHub #1025): the envelope carries nothing that identifies the device.** (1) `device_warranty_token` is removed. The token keys the device's SHDR record and, through the warranty database, leads to its registrant, and it was the same in every study, so it joined every extract a device sent; the principal ruled on `OI-PRIV-67` (2026-11-20) that no device identifier, token or serial travels with an extract, which is stored by study ID only (`CLAUDE.md` §5.3; `docs/reference/data-architecture-detail.md` §5.3 step 4). (2) `device_signature`, made with a per-device key, linked a device's extracts across studies in the same way and is replaced by `extract_token`, an anonymous token (§7.3). **The principal ruled on `OI-PRIV-74` (2026-11-23): the research store must refuse an extract that did not come from a genuine NeurOne device (Q1 yes), and the proof is an anonymous token (Q2 A)** (`docs/human-input/oi-priv-74-extract-authenticity.md`).
+
+The extract is wrapped in an envelope that carries one anonymous token (§7.3):
 
 ```json
 {
   "study_id": "NP-STUDY-001",
-  "device_warranty_token": "[opaque 256-bit token — not linked to user identity]",
   "extract_timestamp_week": "2027-W11",
   "n_records_total": 150,
   "n_records_suppressed": 8,
@@ -287,11 +288,25 @@ The extract is wrapped in a signed envelope:
   "records_b64": "[Base64-encoded AES-256-GCM ciphertext of records array]",
   "records_nonce": "[Base64-encoded 12-byte GCM nonce]",
   "records_tag": "[Base64-encoded 16-byte GCM tag]",
-  "device_signature": "[Ed25519 signature over all above fields, device key]"
+  "extract_token": "[one unspent anonymous token (§7.3); it names no device and no study]"
 }
 ```
 
 The `records_b64` field is encrypted with the study public key from the descriptor (NaCl box or AES-256-GCM with ECDH-derived key). Only the researcher with the corresponding private key can decrypt the records. NeurOne cannot read the extract content even in transit.
+
+### 7.3 Extract token: proof of origin that names no device (added Rev {NP-FW-ANON-001 to}, 2026-11-23, `OI-PRIV-74`)
+
+**Ruled by the principal (2026-11-23, `OI-PRIV-74` Q1 yes, Q2 A):** the research store refuses an extract that did not come from a genuine NeurOne device, and the proof is an anonymous token, not a signature by a device key. The study's encryption key cannot serve: it is in the descriptor every subscribed device receives (`OI-PRIV-68`), so it keeps outsiders from reading an extract and not from writing one.
+
+- **The token.** A Privacy Pass token (IETF RFC 9576 architecture, RFC 9578 issuance) blind-signed by NeurOne's token issuer with RSA blind signatures (RFC 9474). Blinding means the issuer cannot match a token it later sees spent to the device it issued it to, even though NeurOne runs both the issuer and the research store.
+- **Redemption.** Each extract carries exactly one unspent token in `extract_token`. The store accepts the extract only if the token verifies under a current issuer key and is not on its spent list, then adds it to the list. An extract with no token, a bad token or a spent one is refused. The store learns nothing else from the token.
+- **Issuance.** A device proves it is genuine to the issuer only when it collects tokens, never with an extract. **Every subscribed device collects the same number of tokens on the same schedule, whether or not it takes part in any study, and the request names no study**, so issuance does not reveal who is active in research or in which study. A device holds its batch and spends tokens later, so the time a token is spent does not point back to its issuance.
+- **Transport.** Issuance and redemption both go through the Oblivious HTTP relay (`NP-INFRA-001` §3.3b; `OI-PRIV-69`: every device-to-NeurOne research call takes it).
+- **What it limits.** A party without a genuine device gets no tokens, and the batch size caps how many extracts one device can send per period. Duplicate prevention for an honest device stays on the device (`OI-PRIV-68`, `OI-PRIV-70`); the token adds none and needs none.
+- **What it links.** Nothing: no two extracts can be joined through their tokens, within a study or across studies. A study that declared tracking (`OI-PRIV-70`) links a person's releases through its own per-study identifier, never through the token.
+- **Code.** Blind-signature code is cryptographic: it is written once in `common/npps-core` (`CLAUDE.md` §22), and any crate it uses is checked for its licence and joins `NP-SOUP-RUST-001`.
+
+**Not yet decided or built (`OI-PRIV-74`):** the batch size and period, the issuer's key rotation and how a device learns the current key, whether a token is bound to the extract it travels with, what the device presents to the issuer to show it is genuine (the hub's own key, or the phone platform's app attestation, which depends on whether the extract is made in the hub, as §2 says, or in the app, as `CLAUDE.md` §5.3 says), the issuer and spent-list service in `NP-INFRA-001`, and the requirement rows and tests. Nothing in this section is built.
 
 ---
 
