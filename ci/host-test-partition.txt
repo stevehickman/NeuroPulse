@@ -52,6 +52,7 @@ B np_bootloader_sanitize_tests
 B np_bootloader_flexram_tests
 B np_bootloader_mem_tests
 B np_bootloader_rollback_tests
+B np_bootloader_rpmb_tests
 B np_cfg_store_tests
 B np_chan_decl_tests
 B np_consumables_tests
