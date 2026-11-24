@@ -193,13 +193,13 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     file: "firmware/safety_mcu/src/np_fault_latch.c",
     fn: "np_fault_latch_build_report",
     role: "builder",
-    note: "#272's fixed-shape marshaller for any future fault-latch SPI read",
+    note: "#272's fixed-shape marshaller for any future fault-latch SPI read: status masked to device-class bits and the count of their transitions, no slot, no tick (REQ-SW01-06, OI-PRIV-40 (NP-PRIV-ANALYSIS-004))",
   },
   {
     file: "firmware/pbm/src/np_pbm_session.c",
     fn: "np_pbm_session_build_shdr_summary",
     role: "builder",
-    note: "per-session PBM device metrics → SHDR",
+    note: "per-session PBM summary, no duration or abort reason (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)); its write is omitted because the socket list is not SHDR-writable as shaped (OI-FWHUB-21, NP-FW-HUB-001)",
   },
   // ── np_session_log.c: the hub logger ──
   {
@@ -291,8 +291,8 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     note: "unrestored socket after a hold → np_log_shdr_fault(PBM, code), no slot (F11 shape)",
   },
   // ── cervical VNS: since the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004, 2026-11-23) the fault
-  //    callback, the re-enable lifecycle and the session summary write nothing to SHDR (REQ-FWHUB-91, REQ-CVNS-15).
-  //    The one cervical VNS writer left, cvns_impedance_crossval_fail, is a known violation owned by OI-PRIV-40 ──
+  //    callback, the re-enable lifecycle and the session summary write nothing to SHDR (REQ-FWHUB-91, REQ-CVNS-15),
+  //    and OI-PRIV-40 retired the impedance cross-validation code 0xC7: no cervical VNS SHDR writer is left ──
   // ── PBM and accelerometer ──
   {
     file: "firmware/pbm/src/np_pbm_detect.c",
@@ -305,6 +305,35 @@ const REPORTING_PATHS: { file: string; fn: string; role: Role; note: string }[] 
     fn: "np_pbm_drive_poll_status",
     role: "writer",
     note: "PBM drive fault entry → np_pbm_hal_shdr_log_fault",
+  },
+  // The PBM session summaries (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)): no duration
+  // and no abort reason since 2026-11-23. The write itself is a stub and stays
+  // omitted: the per-session socket list is UHDR (F1, F13b) and the record is
+  // not SHDR-writable as shaped (OI-FWHUB-21, NP-FW-HUB-001). Wiring it needs
+  // that reshape first.
+  {
+    file: "firmware/pbm/src/np_pbm_session.c",
+    fn: "np_pbm_session_tick",
+    role: "writer",
+    note: "write_shdr_summary on completion (stub, omitted write; OI-FWHUB-21)",
+  },
+  {
+    file: "firmware/pbm/src/np_pbm_session.c",
+    fn: "np_pbm_session_abort",
+    role: "writer",
+    note: "write_shdr_summary on abort, the same shape (stub, omitted write; OI-FWHUB-21)",
+  },
+  {
+    file: "firmware/pbm/src/np_pbm_t2_combined.c",
+    fn: "np_pbm_t2_tick",
+    role: "writer",
+    note: "write_combined_shdr on completion or fault: no duration, no abort reason (stub; OI-FWHUB-21)",
+  },
+  {
+    file: "firmware/pbm/src/np_pbm_t2_combined.c",
+    fn: "np_pbm_t2_abort",
+    role: "writer",
+    note: "write_combined_shdr on abort, the same shape (stub; OI-FWHUB-21)",
   },
   {
     file: "firmware/shdr/src/np_accel_shdr.c",
@@ -327,16 +356,7 @@ const KNOWN_VIOLATIONS: {
   owners: { oi: string; issue: number }[];
   why: string;
 }[] = [
-  {
-    rule: "status-copy",
-    file: "firmware/safety_mcu/src/np_fault_latch.c",
-    fn: "np_fault_latch_build_report",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why:
-      "copies the whole latch status byte, IMPEDANCE included. No SHDR write uses the report " +
-      "today. Ruled UHDR 2026-11-23: the report is reshaped so an impedance-only transition " +
-      "is indistinguishable from none, by bit, slot or count",
-  },
+
   {
     rule: "undeclared-writer",
     file: "firmware/hub_control/src/np_session_log.c",
@@ -371,47 +391,6 @@ const KNOWN_VIOLATIONS: {
     fn: "log_shdr",
     owners: [{ oi: "OI-PRIV-38 (NP-PRIV-ANALYSIS-004)", issue: 966 }],
     why: "zone authentication entry carries the session count",
-  },
-  // The principal's ruling of 2026-11-23 (OI-PRIV-40): the in-session impedance
-  // check is UHDR, so nothing derived from it stays in SHDR. These writers were
-  // declared under the earlier SHDR rulings and now await the firmware change.
-  {
-    rule: "undeclared-writer",
-    file: "firmware/hub_control/modules/np_mod_cvns.c",
-    fn: "cvns_impedance_crossval_fail",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why: "IMP_CROSSVAL is derived from the in-session impedance check, ruled UHDR 2026-11-23",
-  },
-  // Found by this gate (OI-PRIV-40): the PBM session SHDR summaries carry
-  // duration_s and abort_reason, which §5.1 lists as UHDR ("session timestamps
-  // and duration"). The HAL write is stubbed, so no byte reaches SHDR today.
-  {
-    rule: "undeclared-writer",
-    file: "firmware/pbm/src/np_pbm_session.c",
-    fn: "np_pbm_session_tick",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why: "PBM session SHDR summary carries duration_s and abort_reason (stubbed write)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/pbm/src/np_pbm_session.c",
-    fn: "np_pbm_session_abort",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why: "PBM session SHDR summary carries duration_s and abort_reason (stubbed write)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/pbm/src/np_pbm_t2_combined.c",
-    fn: "np_pbm_t2_tick",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why: "T2 combined PBM SHDR summary carries duration_s and abort_reason (stubbed write)",
-  },
-  {
-    rule: "undeclared-writer",
-    file: "firmware/pbm/src/np_pbm_t2_combined.c",
-    fn: "np_pbm_t2_abort",
-    owners: [{ oi: "OI-PRIV-40 (NP-PRIV-ANALYSIS-004)", issue: 968 }],
-    why: "T2 combined PBM SHDR summary carries abort_reason (stubbed write)",
   },
 ];
 

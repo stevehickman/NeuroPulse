@@ -923,9 +923,11 @@ static void test_hb_impedance_crossval_agrees(void)
 }
 
 /* Hub and MCU disagree beyond tolerance: fail-closed — the library is faulted,
- * the session never reaches delivery, and exactly one SHDR crossval diagnostic
- * (suppressed timestamp) is recorded. */
-/* @verifies REQ-CVNS-06 */
+ * the session never reaches delivery, and SHDR gets only the generic
+ * safety-MCU refusal, the same entry a real refusal writes: the divergence is
+ * derived from the in-session impedance check, which is UHDR (OI-PRIV-40
+ * (NP-PRIV-ANALYSIS-004)); its own code 0xC7 is retired. */
+/* @verifies REQ-CVNS-06 REQ-FWHUB-92#a,b */
 static void test_hb_impedance_crossval_diverges(void)
 {
     reset_mocks();
@@ -940,17 +942,15 @@ static void test_hb_impedance_crossval_diverges(void)
           "crossval-diverge: impedance NOT accepted (fail-closed)");
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-diverge: session advanced to FAULT (blocked before delivery)");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
-          "crossval-diverge: one SHDR crossval diagnostic logged");
-    check(g_fault_log_ms == 0U, "crossval-diverge: SHDR timestamp suppressed");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "crossval-diverge: nothing to SHDR, no 0xC7; one cause-free early stop, as any fault (REQ-FWHUB-91)");
     check(!np_mod_cvns_test_enable_requested(), "crossval-diverge: enable never requested");
     check(!np_mod_cvns_test_active(), "crossval-diverge: driver released");
 }
 
 /* Tolerance boundary: a difference EXACTLY at NP_CVNS_IMPEDANCE_CROSSVAL_KOHM is
  * accepted (strict >); a difference just over it fails closed. */
-/* @verifies REQ-CVNS-06 */
+/* @verifies REQ-CVNS-06 REQ-FWHUB-92#a,b */
 static void test_hb_impedance_crossval_boundary(void)
 {
     /* Exactly at tolerance (1.0 kΩ): accepted. */
@@ -963,7 +963,7 @@ static void test_hb_impedance_crossval_boundary(void)
     check(np_mod_cvns_test_stim()->impedance_ok &&
           np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
           "crossval-boundary: diff == tolerance accepted");
-    check(g_fault_log_calls == 0, "crossval-boundary: no diagnostic at exact tolerance");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 0, "crossval-boundary: no diagnostic and no stop at exact tolerance");
 
     /* Just over tolerance: fail-closed. */
     reset_mocks();
@@ -973,9 +973,38 @@ static void test_hb_impedance_crossval_boundary(void)
     run_impedance_measurement(3.0f, 2.99f);  /* right diff = 1.01 kΩ > tolerance */
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-boundary: diff just over tolerance fails closed");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
-          "crossval-boundary: diagnostic logged just over tolerance");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "crossval-boundary: just over tolerance writes nothing to SHDR and notes one early stop");
+}
+
+/* What a cross-validation fault leaves on the SHDR side is what a real safety-MCU
+ * enable refusal leaves: no record, one cause-free early stop.  SHDR cannot tell
+ * the impedance-derived fault from a refusal (OI-PRIV-40, OI-PRIV-22
+ * (NP-PRIV-ANALYSIS-004), §5.1 rule 2). */
+/* @verifies REQ-FWHUB-92#b */
+static void test_hb_impedance_crossval_logs_as_refusal(void)
+{
+    /* A real refusal: the safety MCU rejects the enable. */
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    cvns_start(&p);
+    np_cvns_interlock_spi_response(np_mod_cvns_test_interlock(),
+                                   NP_CVNS_SPI_RSP_ENABLE_REJECTED, NULL, 0U);
+    int refusal_calls = g_fault_log_calls;
+    int refusal_stops = g_early_stop_calls;
+
+    /* A cross-validation fault. */
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    cvns_start(&p);
+    publish_mcu_impedance(2.0f, 2.0f);
+    run_impedance_measurement(2.0f, 4.5f);
+
+    check(refusal_calls == 0 && refusal_stops == 1,
+          "crossval-as-refusal: a real refusal writes no SHDR record and notes one early stop (positive pin)");
+    check(g_fault_log_calls == refusal_calls && g_early_stop_calls == refusal_stops,
+          "crossval-as-refusal: the cross-validation fault leaves exactly what the refusal leaves");
 }
 
 /* When the MCU report is absent, no cross-check is possible and the session
@@ -1275,6 +1304,7 @@ int main(void)
     test_hb_impedance_crossval_agrees();
     test_hb_impedance_crossval_diverges();
     test_hb_impedance_crossval_boundary();
+    test_hb_impedance_crossval_logs_as_refusal();
     test_hb_impedance_crossval_no_mcu_report();
     test_hb_enable_grant();
     test_hb_enable_reject_impedance();

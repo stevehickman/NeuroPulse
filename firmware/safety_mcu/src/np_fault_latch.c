@@ -16,7 +16,12 @@
  *   offset 5:  uint8_t  slot    (fault_slot at time of fault)
  *   offset 6:  uint32_t count   (total fault transitions since last power-on reset; 32-bit, never saturates)
  *   offset 10: uint32_t tick_ms (SysTick timestamp of last fault)
- *   offset 14: uint8_t  pad[50] (reserved)
+ *   offset 14: uint32_t dev_count (transitions of the DEVICE-CLASS bits only; the reported count, OI-PRIV-40)
+ *   offset 18: uint8_t  pad[46] (reserved)
+ *
+ * dev_count was carved from pad, which init and clear zero and nothing else
+ * writes, so a latch left by the previous image reads dev_count 0: the magic is
+ * unchanged because no field an older image wrote changed meaning.
  *
  * OI-UINT16-01: `count` was 16 bits and stopped at 65535.  The latch lives in non-cleared SRAM, so a reset after a
  * firmware swap finds the previous image's latch: NP_FAULT_LATCH_MAGIC was changed with this layout so that an
@@ -24,13 +29,18 @@
  *
  * Privacy classification of the latch fields for any hub-facing read
  * (NP-FW-EMMC-001 Rev 2 §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
- * privacy gate", re-resolved 2026-08-12): `status` and `slot` are already
- * surfaced in the 8-byte reply frame and are SHDR device-condition data.
- * `count` is not in that frame and is SHDR.  `tick_ms` is NOT SHDR-reportable
- * at all — fault event timing is UHDR.  A future dedicated read command must
- * marshal the reportable fields through np_fault_latch_build_report(), which
+ * privacy gate", re-resolved 2026-08-12; narrowed by the principal's ruling of
+ * 2026-11-23 under OI-PRIV-40 (NP-PRIV-ANALYSIS-004), data-architecture-detail.md
+ * §5.1 "In-session electrode impedance check"): the report carries `status`
+ * projected onto the device-class bits and the count of transitions of those
+ * bits, and nothing else.  The in-session impedance result is UHDR and the
+ * cardiac bit is not a device-class bit, so neither reaches the report by bit,
+ * slot or count.  `slot` and `tick_ms` are not reported.  A future dedicated
+ * read command must marshal through np_fault_latch_build_report(), which
  * returns one fixed-shape record with no status-dependent behaviour.  See the
- * block comment above that function.
+ * block comment above that function.  (The 8-byte heartbeat reply frame still
+ * carries the raw status and slot to the hub: that is the device-internal
+ * control path the hub's drivers act on, not an SHDR write.)
  */
 
 #include "np_safety_config.h"
@@ -47,9 +57,10 @@ typedef struct __attribute__((packed)) {
     uint8_t  slot;
     uint32_t count;
     uint32_t tick_ms;
-    uint8_t  pad[50];
+    uint32_t dev_count;
+    uint8_t  pad[46];
 } np_fault_latch_t;
-_Static_assert(sizeof(np_fault_latch_t) == 64U, "the fault latch is 64 bytes: the layout comment above and the linker section size depend on it");
+_Static_assert(sizeof(np_fault_latch_t) == NP_FAULT_LATCH_BYTES, "the fault latch is 64 bytes: the layout comment above and the linker section size depend on it");
 
 /* Placed in the .fault_latch section by the linker script (NOLOAD, no zero).
  * Host unit tests (NPTEST_HOST) build this translation unit without the section
@@ -96,6 +107,13 @@ void np_fault_latch_commit(const np_safety_state_t *state)
     bool status_changed = (s_latch.status != state->status) ||
                           (s_latch.slot   != state->fault_slot);
 
+    /* Reporting bookkeeping only (OI-PRIV-40): a transition of the device-class
+     * bits.  A change of the impedance bit, the cardiac bit or the slot alone is
+     * not one, so the reported count cannot carry them.  Nothing reads
+     * dev_count but np_fault_latch_build_report(); no control decision uses it. */
+    bool device_changed = ((uint8_t)(s_latch.status ^ state->status) &
+                           NP_FAULT_LATCH_DEVICE_BITS) != 0U;
+
     s_latch.magic  = NP_FAULT_LATCH_MAGIC;
     s_latch.status = state->status;
     s_latch.slot   = state->fault_slot;
@@ -103,6 +121,9 @@ void np_fault_latch_commit(const np_safety_state_t *state)
     if (status_changed) {
         s_latch.tick_ms = np_hal_get_tick_ms();
         s_latch.count++;     /* 32-bit: a count never saturates (OI-UINT16-01) */
+    }
+    if (device_changed) {
+        s_latch.dev_count++; /* 32-bit, as count */
     }
 }
 
@@ -124,71 +145,105 @@ uint8_t np_fault_latch_get_slot(void)
     return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.slot : 0xFFU;
 }
 
-/* ── SHDR read marshalling (NP-FW-EMMC-001 Rev 2 §12) ─────────────────────────
+/* ── SHDR read marshalling (NP-FW-EMMC-001 Rev 2 §12; REQ-SW01-06) ───────────
  *
  * The current 8-byte MCU→hub reply frame carries `status` and `fault_slot` only;
- * `count` and `tick_ms` never leave SRAM today.  When a future dedicated
+ * nothing else in the latch leaves SRAM today.  When a future dedicated
  * fault-latch SPI read command is designed to let the hub retrieve the latch, it
  * MUST build its payload from np_fault_latch_build_report() instead of touching
- * s_latch directly.  That bakes the docs/status/pending-decisions.md §13.4
- * privacy-gate resolution into enforceable code rather than prose.
+ * s_latch directly.  That bakes the privacy rulings into enforceable code
+ * rather than prose.
  *
- *   status  → carries the fault KIND, including NP_SAFETY_STATUS_CARDIAC and
- *             NP_SAFETY_STATUS_IMPEDANCE.  Since 2026-11-23 a safety interlock
- *             that trips on a reading of the wearer is UHDR, never SHDR (the
- *             principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004),
- *             data-architecture-detail.md §5.1), and the hub's 0xC1 cutoff event
- *             is retired.  No SHDR write uses this report today; before one does,
- *             the CARDIAC bit must leave its SHDR copy for every status value,
- *             and the IMPEDANCE bit waits on OI-PRIV-40.
+ *   status  → SHDR, PROJECTED onto the device-class bits (FAULT, WATCHDOG,
+ *             CUTOFF, THERMAL, CHARGE, SIG_PENDING; the bits
+ *             scripts/check-redaction-shape.ts classes "device").  The
+ *             in-session impedance bit is UHDR (the principal, 2026-11-23,
+ *             OI-PRIV-40 (NP-PRIV-ANALYSIS-004)): the check measures through
+ *             the wearer and cannot tell a device fault from placement.  The
+ *             cardiac bit is not device-class either: a safety interlock that
+ *             trips on a reading of the wearer is UHDR (the principal,
+ *             2026-11-23, OI-PRIV-22 (NP-PRIV-ANALYSIS-004)), and the hub's
+ *             0xC1 cutoff event is retired.  A cardiac cutoff still shows as
+ *             CUTOFF, the bit every cutoff sets, which says a stop and not why.
  *
- *   slot    → SHDR.  Already in the reply frame.  Device topology, no biology.
+ *   count   → SHDR unconditionally: the number of transitions of the
+ *             device-class bits since power-on (np_fault_latch_commit keeps it
+ *             as dev_count).  A change of the impedance bit, the cardiac bit or
+ *             the slot alone does not move it.  This is what fleet predictive
+ *             maintenance consumes (NP-PMS-001 §5: "fault latch counts").
  *
- *   count   → SHDR unconditionally.  A tally of DISTINCT fault transitions since
- *             power-on (see np_fault_latch_commit change-gating); device-
- *             condition only, no biology, no timestamp — mirrors the SHDR
- *             "device session count".  This is the field fleet predictive
- *             maintenance actually consumes (NP-PMS-001 §5: "fault latch counts").
+ *   slot    → NOT REPORTED (OI-PRIV-40).  The latch keeps one slot, and the
+ *             last writer wins: the impedance check writes its channel's slot
+ *             without a device-class bit, a device-class bit can rise without
+ *             writing the slot (SIG_PENDING, WATCHDOG), and the thermal
+ *             interlock runs before the impedance poll in the same main-loop
+ *             iteration.  So no slot can be attributed to a device-class
+ *             transition without sometimes being the one the impedance check
+ *             wrote.  Masking the bit and keeping the slot would read
+ *             "OK with a slot", the impedance failure and its channel
+ *             (CLAUDE.md §5.1 rule 2).
  *
  *   tick_ms → NOT REPORTED.  Device-internal only.  Fault event timing is UHDR:
  *             ci/shdr/shdr_fleet_schema.sql `fault_log` has no timing column and
- *             states "Precise fault event timing, where it exists at all, is
- *             UHDR under the user's key", and the hub logger np_log_shdr_fault()
- *             already discards its `session_ms` argument for EVERY caller.  This
- *             function is consistent with that existing unconditional rule.
+ *             the hub logger np_log_shdr_fault() discards its `session_ms`
+ *             argument for EVERY caller.
  *
- * WHY THIS SHAPE — the retired design and the defect it created (2026-08-12):
- * Until now `count` and `tick_ms` were two INDEPENDENT accessors, and `tick_ms`
- * was zeroed only when the latched fault carried NP_SAFETY_STATUS_CARDIAC.  That
- * made the observable pair (count > 0, tick_ms == 0) a one-bit cardiac oracle,
- * readable with certainty and needing no correlation against anything — strictly
- * worse than not redacting at all, because a bare relative SysTick value is
- * meaningless without a session record SHDR does not hold, whereas the redaction
- * PATTERN was self-interpreting.  A redaction applied conditionally on a
- * sensitive predicate leaks that predicate; it must be unconditional, or the
- * predicate must not be inferable from the pattern of redaction.
- *
- * The fix is therefore structural, not a different constant: ONE fixed-shape
- * record, every member populated for every fault type, no branch anywhere in
- * this path that reads the status word.  A field cannot be present for one fault
- * kind and absent for another when the struct shape is fixed at compile time.
+ * WHY ONE FIXED SHAPE — the retired design and the defect it created (2026-08-12):
+ * `count` and `tick_ms` were once two INDEPENDENT accessors, and `tick_ms` was
+ * zeroed only when the latched fault carried the cardiac bit.  That made the
+ * observable pair (count > 0, tick_ms == 0) a one-bit cardiac oracle.  A
+ * redaction applied conditionally on a sensitive predicate leaks that
+ * predicate; it must be unconditional, or the predicate must not be inferable
+ * from the pattern of redaction.  The projection here is the same for every
+ * fault: one mask, applied always; one counter, kept always.  An impedance-only
+ * transition therefore reports exactly as no transition does.
  *
  * IEC 62304 Class C: this is a reporting-path change only.  No stimulation
- * enable, interlock threshold, cutoff timing, or latch-commit behaviour is
- * altered; np_fault_latch_commit()/_clear()/_init() are untouched.
+ * enable, interlock threshold, cutoff timing or control decision is altered;
+ * np_fault_latch_commit() gained only the dev_count bookkeeping that this
+ * function reads, and _clear()/_init() are untouched.
  *
- * Invalid latch yields the same fixed shape (status OK, slot 0xFF, count 0) —
- * indistinguishable from a valid latch that has recorded no fault, and carrying
- * no sensitive predicate either way.
+ * Invalid latch yields the same fixed shape (status OK, count 0),
+ * indistinguishable from a valid latch that has recorded no fault.
  */
 void np_fault_latch_build_report(np_fault_latch_report_t *out)
 {
     if (out == NULL) {
         return;
     }
-    /* Derived from the existing accessors so the invalid-latch sentinels stay
-     * single-sourced.  No member consults NP_SAFETY_STATUS_CARDIAC. */
-    out->status = np_fault_latch_get_status();
-    out->slot   = np_fault_latch_get_slot();
-    out->count  = (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.count : 0U;
+    /* The mask is written out here, not through NP_FAULT_LATCH_DEVICE_BITS, so
+     * scripts/check-redaction-shape.ts can see that only device-class bits pass
+     * (rule 6); the _Static_assert below holds the two equal. */
+    out->status = np_fault_latch_get_status() &
+                  (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_WATCHDOG |
+                   NP_SAFETY_STATUS_CUTOFF | NP_SAFETY_STATUS_THERMAL |
+                   NP_SAFETY_STATUS_CHARGE | NP_SAFETY_STATUS_SIG_PENDING);
+    out->count  = (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.dev_count : 0U;
 }
+_Static_assert(NP_FAULT_LATCH_DEVICE_BITS ==
+               (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_WATCHDOG |
+                NP_SAFETY_STATUS_CUTOFF | NP_SAFETY_STATUS_THERMAL |
+                NP_SAFETY_STATUS_CHARGE | NP_SAFETY_STATUS_SIG_PENDING),
+               "the report's mask and the commit's device-class mask are one set (REQ-SW01-06)");
+
+#if defined(NPTEST_HOST)
+/* ── Host models only: not built into the device image, not a reporting path ──
+ * The simulator models a warm reset by keeping what the part's retained SRAM
+ * keeps: the whole latch, byte for byte (np_sim_safety_hal.c keep_latch /
+ * restore_latch).  It used to read the latch through the report, which no
+ * longer carries the slot or the raw count. */
+void np_fault_latch_host_save(uint8_t out[NP_FAULT_LATCH_BYTES])
+{
+    memcpy(out, &s_latch, NP_FAULT_LATCH_BYTES);
+}
+
+void np_fault_latch_host_restore(const uint8_t in[NP_FAULT_LATCH_BYTES])
+{
+    memcpy(&s_latch, in, NP_FAULT_LATCH_BYTES);
+}
+
+uint32_t np_fault_latch_host_raw_count(void)
+{
+    return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.count : 0U;
+}
+#endif
