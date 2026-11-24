@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-UPG-001
-**Revision:** 10
-**Date:** 2026-11-21
+**Revision:** 11
+**Date:** 2026-11-23
 **Status:** DRAFT — **§7 DECIDED 2026-09-23 by the principal: (a) new unit, with module carry-over** (§7.0). §2–§6 are the Rev 1 analysis, unchanged except §6.6's question list. §7.4–§7.6 apply the decision. `OI-TACSDRV-06` is **CLOSED**.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -637,9 +637,9 @@ read; the exact read-out-protection setting; and the sampling plan, if the unit 
 rather than every unit. The writer's reading is that every unit is verified, because the record cannot be
 corrected, and no sampling plan is stated.
 
-### 7.10 The factory step that programs the eMMC RPMB key (Rev {NP-REG-UPG-001 to}) — design, not built
+### 7.10 The factory step that programs the eMMC RPMB key (Rev 11) — design, not built
 
-> **Rev {NP-REG-UPG-001 to} (2026-11-23).** New section, for `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), GitHub #960. The principal put the
+> **Rev 11 (2026-11-23).** New section, for `OI-PRIV-32` (NP-PRIV-ANALYSIS-004), GitHub #960. The principal put the
 > firmware rollback floor in the eMMC's RPMB (2026-11-23, `docs/human-input/oi-priv-32-firmware-rollback-floor-and-dfu.md`
 > §8). RPMB authenticates every write with a 32-byte key programmed once into the eMMC, so every unit needs a factory
 > step that programs it. **Where the key comes from is not decided** (`docs/human-input/oi-priv-32-rpmb-key-source.md`,
@@ -785,3 +785,4 @@ station, fixture and authorisation that let a unit enter the step; and the three
 | 8 | 2026-11-21 | NeurOne Systems Engineering | **§7.8: the tier report is at window bytes 24 to 30 of a 42-byte reply since `OI-UINT16-01` (was 20 to 26 of 38).** |
 | 9 | 2026-11-13 | NeurOne Software Engineering | **§7.9, §7.5 (REQ-UPG-04) and §9 (OI-UPG-08): the byte-level stages of the factory step that need no manufacturer exist as `tier_record.rs` in `common/npps-core` (record builder, firmware-equivalent verifier, refusals of steps 2, 3, 5 and 6, tests pinned to the firmware's signer). No key, signer, fixture or lock exists; what waits and the principal's seven decisions are in a human-input request. No decision changed.** |
 | 10 | 2026-11-21 | NeurOne Firmware Engineering | **§7: the tier report is at window bytes 24 to 30 of a 66-byte reply window (was a 42-byte reply); the offsets are unchanged.** |
+| 11 | 2026-11-23 | NeurOne Firmware Engineering | **§7.10 (new): the factory step that programs the eMMC RPMB key for the rollback floor (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), GitHub #960), run in the §7.9 pass before the locks; REQ-RPMBK-01 to -06. Built: np_rpmb_key.h with a failing device source, and the host model rpmb_provision.rs. Not decided: the key source, field re-provisioning, C or Rust (brief). §9 cross-references OI-PRIV-32 and OI-SEC-02. No decision changed.** |

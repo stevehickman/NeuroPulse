@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-MOD-ID-001
-**Revision:** 1
-**Date:** 2026-08-11
+**Revision:** 2
+**Date:** 2026-11-22
 **Status:** DRAFT
 **Effective Date:** TBD — pending principal approval and the two BLOCKING open items in §9
 **Author:** NeurOne Firmware + Data Architecture
@@ -510,7 +510,7 @@ verified against the live catalog of the Rev 4 schema:
 |---|---|
 | Columns matching `user\|patient\|subject\|person\|tag\|session_id\|episode\|visit\|operator\|wearer` | **none** |
 | Columns of type `timestamp`/`time`/`interval` | **none** |
-| `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts) |
+| `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts, month-truncated since SHDR schema Rev G, `OI-PRIV-58`; calendar age is counted in months) |
 
 A duty row is therefore `(warranty_token, session_index, socket_number,
 module_ref, duty)` — a device, an **ordinal**, a position, and a number. On any
@@ -875,3 +875,11 @@ research-consent L4 commitment (CLAUDE.md §6.2) and is the point at which a
 *NP-MOD-ID-001 Rev 1 is a DRAFT for principal review. It specifies no code and
 changes no schema; implementation follows approval, OI-MODID-08 (privacy-notice
 correction), and legal review of Appendix A.*
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-22 | NeurOne Software Engineering | **The date-typed columns row: `manufacture_date` and `module_manufacture_date` are month-truncated since SHDR schema Rev G (`OI-PRIV-58`).** |
