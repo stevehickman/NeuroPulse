@@ -162,7 +162,7 @@ private fun spkiHeader(raw: ByteArray): ByteArray? = when {
 }
 
 /**
- * The hub's SHDR records, one file per helmet in the app's Documents folder (`shdr_staging-<key>.bin`, REQ-SHDR-08 (e)), as
+ * The hub's SHDR records, one file per helmet in the app's Documents folder (`shdr_staging-<key>.bin`, REQ-SHDR-08 (f)), as
  * `FileShdrStaging` keeps them on the JVM. The key is the warranty owner's store's salted hash for the helmet. The one unbound
  * `shdr_staging.bin` an earlier version read names no helmet and is deleted unread.
  */

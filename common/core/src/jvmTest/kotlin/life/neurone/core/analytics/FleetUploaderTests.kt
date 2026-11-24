@@ -37,6 +37,7 @@ class FleetUploaderTests {
         override fun save(hub: String, token: String) { byHub[hub] = token; fromHub -= hub }
         override fun loadHubToken(hub: String): String? = byHub[hub]?.takeIf { hub in fromHub }
         override fun saveHubToken(hub: String, token: String) { byHub[hub] = token; fromHub += hub }
+        override fun forget(hub: String) { byHub.remove(hub); fromHub -= hub }
         val value: String? get() = byHub[HUB]
     }
 
@@ -92,7 +93,7 @@ class FleetUploaderTests {
 
     // @verifies REQ-SHDR-05#c
     @Test fun hubTokenBelongsToItsHelmetOnly() {
-        val up = uploader(FakeTokenStore(), hub = "AA:BB:CC:00:00:01")
+        val up = uploader(FakeTokenStore(), hub = "AA:BB:CC:00:00:01", consented = true)
         up.upgradeDeviceToken(ByteArray(32) { 0x42 })
         val a = up.deviceToken
         up.setHubIdentifier(null)
@@ -115,7 +116,7 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun upgradeAdoptsHubToken() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         val hub = ByteArray(32) { it.toByte() }
         up.upgradeDeviceToken(hub)
         assertEquals(hub.toHex(), store.value)
@@ -125,7 +126,7 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun nullWarrantyTokenDoesNotDowngrade() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x7F }, HUB, up)
         val after = store.value
         assertNotNull(after)
@@ -136,11 +137,56 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun shortOrLongHubTokenRejected() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x11 }, HUB, up)
         val before = store.value
         up.upgradeDeviceToken(ByteArray(31)); up.upgradeDeviceToken(ByteArray(33)); up.upgradeDeviceToken(ByteArray(0))
         assertEquals(before, store.value)
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun hubTokenIsNotStoredWithoutTheHelmetsConsent() {
+        val store = FakeTokenStore()
+        val up = uploader(store, consented = false)
+        up.upgradeDeviceToken(ByteArray(32) { 0x42 })
+        assertTrue(store.byHub.isEmpty(), "a phone with no consent for the helmet keeps no copy of its owner's token")
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x43 }, HUB, up)
+        assertTrue(store.byHub.isEmpty())
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun heldHubTokenIsStoredByTheFirstUploadAfterConsent() = runBlocking {
+        val store = FakeTokenStore()
+        val gate = WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore()))
+        // No gateway key: the upload stops after the gate and the held token, before any request.
+        val up = FleetUploader(store, gate, never, gatewayKeyConfigHex = "").also { it.setHubIdentifier(HUB) }
+        val hubToken = ByteArray(32) { 0x42 }
+        up.upgradeDeviceToken(hubToken)
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertTrue(store.byHub.isEmpty(), "a closed gate stores nothing")
+        assertTrue(gate.grant(HUB))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertEquals(hubToken.toHex(), store.value, "the hub's token, not an interim one, once the consent is open")
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun heldHubTokenIsDroppedByADisconnectAndNeverReachesAnotherHelmet() = runBlocking {
+        val store = FakeTokenStore()
+        val other = "AA:BB:CC:00:00:02"
+        val gate = WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore()))
+        val up = FleetUploader(store, gate, never, gatewayKeyConfigHex = "").also { it.setHubIdentifier(HUB) }
+        val hubToken = ByteArray(32) { 0x42 }
+        up.upgradeDeviceToken(hubToken)
+        up.setHubIdentifier(null)
+        up.setHubIdentifier(other)
+        assertTrue(gate.grant(other))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertNotEquals(hubToken.toHex(), store.byHub[other], "one helmet's token is not stored for another")
+        up.setHubIdentifier(null)
+        up.setHubIdentifier(HUB)
+        assertTrue(gate.grant(HUB))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertNotEquals(hubToken.toHex(), store.value, "a disconnect dropped the held token; the hub delivers it again on the next link")
     }
 
     // @verifies REQ-SHDR-01
@@ -261,7 +307,7 @@ class FleetUploaderTests {
         return Rig(staging, records, WarrantyAnalyticsGate(records), FakeTokenStore())
     }
 
-    // @verifies REQ-SHDR-08#e
+    // @verifies REQ-SHDR-08#f
     @Test fun aStagedRecordIsSentOnlyForTheHelmetThatStagedIt() = runBlocking {
         val r = rig()
         val other = "AA:BB:CC:00:00:02"
@@ -283,7 +329,7 @@ class FleetUploaderTests {
         assertTrue(r.staging.files.isEmpty())
     }
 
-    // @verifies REQ-SHDR-08#e
+    // @verifies REQ-SHDR-08#f
     @Test fun oneReadingOfTheHelmetNamesTheConsentTheTokenAndTheRecord() = runBlocking {
         val r = rig()
         val other = "AA:BB:CC:00:00:02"
@@ -298,7 +344,7 @@ class FleetUploaderTests {
         assertNull(r.tokens.byHub[other], "no token was made for B")
     }
 
-    // @verifies REQ-SHDR-08#e
+    // @verifies REQ-SHDR-08#f
     @Test fun nothingIsStagedForAHelmetWhoseOwnerHasNotConsented() {
         val r = rig()
         assertFalse(r.gate.stage(HUB, byteArrayOf(1)), "never asked")
@@ -309,7 +355,7 @@ class FleetUploaderTests {
         assertTrue(r.staging.files.isEmpty())
     }
 
-    // @verifies REQ-SHDR-08#f
+    // @verifies REQ-SHDR-08#g
     @Test fun aRevokeDeletesTheHelmetsStagedRecordSoALaterGrantSendsNothingFromBeforeIt() = runBlocking {
         val r = rig()
         val other = "AA:BB:CC:00:00:02"
@@ -345,13 +391,19 @@ class FleetUploaderTests {
         assertFalse(enrolment.isOpen(HUB))
         assertEquals(0, enrolment.consentEpoch(HUB), "the new owner's first enrolment is genuinely their first")
         assertNull(r.records.staged(HUB), "the old owner's staged record is gone")
-        assertEquals(ByteArray(32) { 2 }.toHex(), up.deviceToken)
+        assertNull(r.tokens.byHub[HUB], "and the old owner's token; the new one is held, not stored, until the new owner consents")
         // Every other helmet is untouched.
         assertTrue(r.gate.isOpen(other) && enrolment.isOpen(other))
         assertEquals(1, enrolment.consentEpoch(other))
         assertEquals(listOf<Byte>(2), r.records.staged(other)?.toList())
-        // And the new owner's grant starts a new custody: enrolment is not brought back.
+        // The new owner consents; the link drops before any upload, and the hub delivers its token again on the next link.
         r.gate.grant(HUB)
+        up.setHubIdentifier(null)
+        up.setHubIdentifier(HUB)
+        up.upgradeDeviceToken(ByteArray(32) { 2 })
+        assertTrue(r.gate.isOpen(HUB), "the new owner's token again is not another change of custody")
+        assertEquals(ByteArray(32) { 2 }.toHex(), r.tokens.loadHubToken(HUB), "stored now that the new owner consents")
+        // And the new custody does not bring the old enrolment back.
         assertFalse(enrolment.isOpen(HUB))
         assertEquals(1, enrolment.grant(HUB))
     }
@@ -373,6 +425,7 @@ class FleetUploaderTests {
         val r = rig()
         val other = "AA:BB:CC:00:00:02"
         r.gate.grant(HUB)
+        r.gate.grant(other)
         val up = FleetUploader(r.tokens, r.gate, never).also { it.setHubIdentifier(HUB) }
         FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 1 }, HUB, up)
         // The uploader's copy still says A when B's token arrives: B's token is B's, and A's custody is not ended by it.
@@ -384,7 +437,7 @@ class FleetUploaderTests {
         assertEquals(ByteArray(32) { 1 }.toHex(), r.tokens.byHub[HUB], "with no helmet named nothing is kept")
     }
 
-    // @verifies REQ-SHDR-08#e
+    // @verifies REQ-SHDR-08#f
     @Test fun theFileStagingKeepsOneFilePerHelmetKeyAndDropsTheUnboundFile() {
         val dir = kotlin.io.path.createTempDirectory("staging").toFile()
         try {

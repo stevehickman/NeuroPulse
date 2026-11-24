@@ -447,7 +447,7 @@ Firmware specification for multi-wavelength PBM session coordination (T2 only). 
 
 ### [OI-CVNS-HUB-11](#oi-cvns-hub-11)
 **OI-CVNS-HUB-11** — Hub-to-MCU Cervical VNS Impedance Cross-Validation  
-Specification for cervical VNS safety MCU impedance monitoring. Hub measures electrode contact impedance; safety MCU reads per-electrode impedance for cross-validation. Divergence flag (`NP_CVNS_SHDR_EV_IMP_CROSSVAL`, no kΩ values, suppressed timestamp) logged to SHDR to detect contact degradation. Cardiac rhythm interlock: safety MCU monitors R-peak; HR change >15 BPM within 5s → GPIO cutoff <100ms. See CLAUDE.md §3 (T2 cervical VNS) and §5.1 (SHDR boundary cases).
+Specification for cervical VNS safety MCU impedance monitoring. Hub measures electrode contact impedance; safety MCU reads per-electrode impedance for cross-validation. A divergence fails the session closed, and SHDR records it only as a safety-MCU refusal (the in-session impedance check is UHDR, the principal, 2026-11-23; its former SHDR flag `0xC7` is retired). Cardiac rhythm interlock: safety MCU monitors R-peak; HR change >15 BPM within 5s → GPIO cutoff <100ms. See CLAUDE.md §3 (T2 cervical VNS) and §5.1 (SHDR boundary cases).
 
 ### [OI-PBM-HW-01](#oi-pbm-hw-01)
 **OI-PBM-HW-01** — Base PBM Module Hardware Specification (Rev B pending)  

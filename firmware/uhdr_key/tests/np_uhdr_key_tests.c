@@ -24,6 +24,12 @@
  *   T11 AAD binding (Finding 2): tampering an above-floor param or the salt
  *       fails AUTH (params + salt are authenticated).
  *   T12 unlock scrubs a prior UKMD on an early-exit failure (Finding 3).
+ *   T13 attempt limit (§C.7, REQ-EMMC2-01; OI-PRIV-35 Finding M10): charge
+ *       before test, clear on success, back-off refuses without KDF or charge,
+ *       doubles and caps, survives a reboot, fails closed on storage faults.
+ *   T14 64-byte XTS key (REQ-EMMC2-06; OI-PRIV-35 Finding M9): the whole
+ *       K1 || K2 is wrapped, authenticated, recovered and mounted, and a key
+ *       with K1 == K2 is never minted or mounted.
  *
  * Return convention: 0 = PASS, non-zero = failure count.
  */
@@ -41,6 +47,12 @@ extern const np_ukmd_record_t *np_uhdr_host_config(void);
 extern np_ukmd_record_t       *np_uhdr_host_config_mut(void);
 extern void                    np_uhdr_host_set_device_key(const uint8_t *key);
 extern void                    np_uhdr_host_reset(void);
+extern uint32_t                np_uhdr_host_attempts(void);
+extern void                    np_uhdr_host_set_uptime_ms(uint64_t ms);
+extern void                    np_uhdr_host_attempts_write_fail(bool fail);
+extern void                    np_uhdr_host_attempts_invalidate(void);
+extern void                    np_uhdr_host_reboot(void);
+extern void                    np_uhdr_host_trng_equal_halves(bool on);
 
 static int g_fail_count = 0;
 
@@ -384,6 +396,241 @@ static void test_nonce_uniqueness(void)
     np_uhdr_key_background(&ctx);
 }
 
+/* ── §C.7 unlock attempt limit (REQ-EMMC2-01; OI-PRIV-35, NP-PRIV-ANALYSIS-004) ── */
+
+static const uint8_t CRED_WRONG[] = { 'w', 'r', 'o', 'n', 'g' };
+
+/* Provision, lock, and leave the clock at `t0`. */
+static void provision_locked(np_uhdr_key_ctx_t *ctx, uint64_t t0)
+{
+    np_uhdr_host_reset();
+    memset(ctx, 0, sizeof(*ctx));
+    (void)np_uhdr_key_provision(ctx, CRED_A, sizeof(CRED_A));
+    np_uhdr_key_background(ctx);
+    np_uhdr_host_set_uptime_ms(t0);
+}
+
+/* @verifies REQ-EMMC2-01#a,b */
+static void test_attempt_charged_then_cleared(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 0U);
+    ASSERT(np_uhdr_host_attempts() == 0U, "provision stores a zero count");
+
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_WRONG, sizeof(CRED_WRONG)) == NP_UHDR_ERR_AUTH,
+           "wrong credential fails AUTH");
+    ASSERT(np_uhdr_host_attempts() == 1U, "a failed attempt is charged");
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_WRONG, sizeof(CRED_WRONG)) == NP_UHDR_ERR_AUTH,
+           "second wrong credential fails AUTH");
+    ASSERT(np_uhdr_host_attempts() == 2U, "each failed attempt is charged");
+
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK,
+           "right credential unlocks inside the free attempts");
+    ASSERT(np_uhdr_host_attempts() == 0U, "a successful unlock clears the count");
+    np_uhdr_key_background(&ctx);
+}
+
+/* @verifies REQ-EMMC2-01#a */
+static void test_charge_failure_refuses_untested(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 0U);
+    const uint32_t mounts = np_uhdr_host_mount_count();
+
+    np_uhdr_host_attempts_write_fail(true);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CONFIG,
+           "a charge that cannot be persisted refuses even the right credential");
+    ASSERT(!ctx.unlocked, "ctx stays locked when the charge fails");
+    ASSERT(np_uhdr_host_mount_count() == mounts, "no mount when the charge fails");
+    np_uhdr_host_attempts_write_fail(false);
+
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK,
+           "once storage works the right credential unlocks");
+    np_uhdr_key_background(&ctx);
+}
+
+/* @verifies REQ-EMMC2-01#c */
+static void test_backoff_refuses_without_charge(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 1000U);
+
+    for (uint32_t i = 0; i < NP_UHDR_UNLOCK_FREE_ATTEMPTS; i++) {
+        ASSERT(np_uhdr_key_unlock(&ctx, CRED_WRONG, sizeof(CRED_WRONG)) == NP_UHDR_ERR_AUTH,
+               "free attempts are tested");
+    }
+    ASSERT(np_uhdr_host_attempts() == NP_UHDR_UNLOCK_FREE_ATTEMPTS, "count at the free limit");
+
+    uint64_t wait = 0U;
+    ASSERT(np_uhdr_key_unlock_wait_ms(&wait) == NP_UHDR_OK, "wait query succeeds");
+    ASSERT(wait == NP_UHDR_UNLOCK_BACKOFF_BASE_MS, "first wait is the base back-off");
+
+    /* Even the RIGHT credential is refused untested inside the back-off. */
+    const uint32_t mounts = np_uhdr_host_mount_count();
+    np_uhdr_host_set_uptime_ms(1000U + NP_UHDR_UNLOCK_BACKOFF_BASE_MS - 1U);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_LOCKOUT,
+           "inside the back-off the right credential is refused");
+    ASSERT(!ctx.unlocked, "locked out ctx stays locked");
+    ASSERT(np_uhdr_host_mount_count() == mounts, "no mount while locked out");
+    ASSERT(np_uhdr_host_attempts() == NP_UHDR_UNLOCK_FREE_ATTEMPTS,
+           "a refused attempt is not charged");
+
+    /* At the boundary the attempt is tested again. */
+    np_uhdr_host_set_uptime_ms(1000U + NP_UHDR_UNLOCK_BACKOFF_BASE_MS);
+    ASSERT(np_uhdr_key_unlock_wait_ms(&wait) == NP_UHDR_OK && wait == 0U,
+           "wait reaches zero when the back-off has elapsed");
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK,
+           "after the back-off the right credential unlocks");
+    ASSERT(np_uhdr_host_attempts() == 0U, "and the count is cleared");
+    np_uhdr_key_background(&ctx);
+}
+
+/* @verifies REQ-EMMC2-01#c */
+static void test_backoff_doubles_and_caps(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 0U);
+
+    uint64_t t = 0U;
+    uint64_t expect = 0U;
+    for (uint32_t n = 1U; n <= NP_UHDR_UNLOCK_FREE_ATTEMPTS + 40U; n++) {
+        ASSERT(np_uhdr_key_unlock(&ctx, CRED_WRONG, sizeof(CRED_WRONG)) == NP_UHDR_ERR_AUTH,
+               "each permitted wrong attempt fails AUTH");
+        uint64_t wait = 0U;
+        (void)np_uhdr_key_unlock_wait_ms(&wait);
+        if (n < NP_UHDR_UNLOCK_FREE_ATTEMPTS) {
+            ASSERT(wait == 0U, "no wait inside the free attempts");
+        } else {
+            expect = (n == NP_UHDR_UNLOCK_FREE_ATTEMPTS)
+                         ? NP_UHDR_UNLOCK_BACKOFF_BASE_MS
+                         : expect * 2U;
+            if (expect > NP_UHDR_UNLOCK_BACKOFF_MAX_MS) {
+                expect = NP_UHDR_UNLOCK_BACKOFF_MAX_MS;
+            }
+            ASSERT(wait == expect, "the wait doubles per failure up to the cap");
+        }
+        t += wait;
+        np_uhdr_host_set_uptime_ms(t);
+    }
+    ASSERT(expect == NP_UHDR_UNLOCK_BACKOFF_MAX_MS, "the wait reached the cap");
+}
+
+/* @verifies REQ-EMMC2-01#d */
+static void test_backoff_survives_reboot(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 0U);
+    for (uint32_t i = 0; i < NP_UHDR_UNLOCK_FREE_ATTEMPTS; i++) {
+        (void)np_uhdr_key_unlock(&ctx, CRED_WRONG, sizeof(CRED_WRONG));
+    }
+    np_uhdr_host_set_uptime_ms(NP_UHDR_UNLOCK_BACKOFF_BASE_MS - 1U);
+
+    /* Power cycle just before the wait ends: uptime restarts at zero and the
+     * wait restarts with it, the persisted count is kept. */
+    np_uhdr_host_reboot();
+    ASSERT(np_uhdr_host_attempts() == NP_UHDR_UNLOCK_FREE_ATTEMPTS, "count survives a reboot");
+    np_uhdr_key_ctx_t fresh;
+    memset(&fresh, 0, sizeof(fresh));
+    ASSERT(np_uhdr_key_unlock(&fresh, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_LOCKOUT,
+           "a reboot (and a fresh context) does not end the back-off");
+    np_uhdr_host_set_uptime_ms(NP_UHDR_UNLOCK_BACKOFF_BASE_MS);
+    ASSERT(np_uhdr_key_unlock(&fresh, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK,
+           "the full wait counted from boot ends it");
+    np_uhdr_key_background(&fresh);
+}
+
+/* @verifies REQ-EMMC2-01#e */
+static void test_unreadable_count_refuses(void)
+{
+    np_uhdr_key_ctx_t ctx;
+    provision_locked(&ctx, 0U);
+    np_uhdr_host_attempts_invalidate();
+    const uint32_t mounts = np_uhdr_host_mount_count();
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CONFIG,
+           "a missing count refuses the attempt (never read as zero)");
+    ASSERT(!ctx.unlocked && np_uhdr_host_mount_count() == mounts,
+           "nothing mounted with no count");
+    uint64_t wait = 1U;
+    ASSERT(np_uhdr_key_unlock_wait_ms(&wait) == NP_UHDR_ERR_CONFIG,
+           "the wait query reports the missing count");
+    ASSERT(np_uhdr_key_unlock_wait_ms(NULL) == NP_UHDR_ERR_INVALID, "NULL wait rejected");
+}
+
+/* ── 64-byte XTS key (REQ-EMMC2-06; OI-PRIV-35, NP-PRIV-ANALYSIS-004 M9) ──── */
+
+/* @verifies REQ-EMMC2-06#a */
+static void test_ukmd_is_full_xts_key(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT(NP_UHDR_UKMD_LEN == 64U, "the UKMD is 64 bytes (K1 || K2)");
+    ASSERT(sizeof(np_uhdr_host_config()->ukmd_ciphertext) == NP_UHDR_UKMD_LEN,
+           "the record carries all 64 bytes");
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "provision");
+
+    const uint8_t *k1 = ctx.ukmd;
+    const uint8_t *k2 = ctx.ukmd + NP_UHDR_XTS_HALF_LEN;
+    ASSERT(!buf_is_zero(k1, NP_UHDR_XTS_HALF_LEN) && !buf_is_zero(k2, NP_UHDR_XTS_HALF_LEN),
+           "both halves are minted");
+    ASSERT(memcmp(k1, k2, NP_UHDR_XTS_HALF_LEN) != 0, "K1 differs from K2");
+    const np_ukmd_record_t *rec = np_uhdr_host_config();
+    ASSERT(memcmp(rec->ukmd_ciphertext + NP_UHDR_XTS_HALF_LEN, k2, NP_UHDR_XTS_HALF_LEN) != 0,
+           "K2 is wrapped, not stored in the clear");
+    ASSERT(memcmp(np_uhdr_host_last_mounted_key(), ctx.ukmd, NP_UHDR_UKMD_LEN) == 0,
+           "the mount is given all 64 bytes");
+
+    uint8_t snapshot[NP_UHDR_UKMD_LEN];
+    memcpy(snapshot, ctx.ukmd, NP_UHDR_UKMD_LEN);
+    np_uhdr_key_background(&ctx);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "unlock");
+    ASSERT(memcmp(ctx.ukmd, snapshot, NP_UHDR_UKMD_LEN) == 0, "unlock recovers all 64 bytes");
+    ASSERT(memcmp(np_uhdr_host_last_mounted_key(), snapshot, NP_UHDR_UKMD_LEN) == 0,
+           "unlock mounts all 64 bytes");
+    np_uhdr_key_background(&ctx);
+
+    /* A flipped byte in the K2 half of the ciphertext fails authentication. */
+    np_uhdr_host_config_mut()->ukmd_ciphertext[NP_UHDR_XTS_HALF_LEN + 7U] ^= 0x01U;
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_AUTH,
+           "the K2 half is authenticated");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "nothing left after AUTH");
+}
+
+/* @verifies REQ-EMMC2-06#b */
+static void test_equal_halves_never_minted(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    np_uhdr_host_trng_equal_halves(true);
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_TRNG,
+           "a TRNG draw with K1 == K2 is refused");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "nothing kept");
+    ASSERT(np_uhdr_host_mount_count() == 0U, "nothing mounted");
+    np_uhdr_host_trng_equal_halves(false);
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CONFIG,
+           "no record was written");
+}
+
+/* @verifies REQ-EMMC2-06#b */
+static void test_equal_halves_never_mounted(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "provision");
+    /* Plant a record that wraps a key with K1 == K2: corrupt the live key and
+     * re-wrap it, which only memory corruption could do on a device. */
+    memcpy(ctx.ukmd + NP_UHDR_XTS_HALF_LEN, ctx.ukmd, NP_UHDR_XTS_HALF_LEN);
+    ASSERT(np_uhdr_key_change_credential(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK, "re-wrap");
+    np_uhdr_key_background(&ctx);
+    const uint32_t mounts = np_uhdr_host_mount_count();
+    ASSERT(np_uhdr_key_unlock(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_ERR_CRYPTO,
+           "an authentic key with K1 == K2 is not mounted");
+    ASSERT(np_uhdr_host_mount_count() == mounts, "no mount happened");
+    ASSERT(!ctx.unlocked && buf_is_zero(ctx.ukmd, NP_UHDR_UKMD_LEN), "the key is scrubbed");
+}
+
 int main(void)
 {
     test_record_size();
@@ -399,6 +646,15 @@ int main(void)
     test_aad_binding();
     test_unlock_scrubs_on_early_exit();
     test_nonce_uniqueness();
+    test_attempt_charged_then_cleared();
+    test_charge_failure_refuses_untested();
+    test_backoff_refuses_without_charge();
+    test_backoff_doubles_and_caps();
+    test_backoff_survives_reboot();
+    test_unreadable_count_refuses();
+    test_ukmd_is_full_xts_key();
+    test_equal_halves_never_minted();
+    test_equal_halves_never_mounted();
 
     if (g_fail_count == 0) {
         printf("PASS: all np_uhdr_key tests\n");

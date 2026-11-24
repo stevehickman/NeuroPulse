@@ -106,6 +106,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue (NP-SW-CI-001 §6.19). This workflow holds a required context, and a required context that does
+  # not report on the queue's merge-group commit holds every queued pull request forever. scripts/check-ci-scope.ts
+  # (correspondence C) fails the tree if this trigger is missing from a workflow that holds one.
+  merge_group:
   workflow_dispatch:
 
 # Least privilege. Required for actions/checkout, which hard-fails without it
@@ -234,7 +238,6 @@ jobs:
       # against is the DELETION of a caller in a view file. A guard that cannot
       # see the edit that breaks it is not a guard.
       NP_SCOPE_CONSENT: |
-        app/ios/**
         app/android/**
         common/core/**
         app/NeurOneUI/**
@@ -338,7 +341,6 @@ jobs:
       # exactly, not docs/**, because it is the only one the gate opens.
       NP_SCOPE_CONSUMABLES: |
         docs/reference/commercial-model.md
-        app/ios/**
         app/android/**
         common/core/**
         firmware/**
@@ -425,13 +427,11 @@ jobs:
         .github/actions/**
         .github/toolchain.json
         scripts/check-toolchain-pins.ts
-      # The release-pin gate (privacy review Finding 9). It reads the two SHDR uploaders that hold the SPKI pin
-      # lists, and the two build files that call it with --release: the edit that breaks it is a pin list, the gate
+      # The release-pin gate (privacy review Finding 9). It reads the SHDR uploader that holds the SPKI pin
+      # lists, and the build file that call it with --release: the edit that breaks it is a pin list, the gate
       # or the build wiring.
       NP_SCOPE_RELEASEPINS: |
-        app/ios/NeurOne/Data/SHDRUploader.swift
         common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt
-        app/ios/project.yml
         app/android/app/build.gradle.kts
         scripts/check-release-pins.ts
         .github/workflows/tooling-ci.yml
@@ -585,8 +585,7 @@ jobs:
           assert scope.python.paths    true  editscripts/fix_risk_table.py
           assert scope.python.paths    true  generate_privacy_report.py
           assert scope.python.paths    false app/web/src/main.ts
-          assert scope.consent.paths   true  app/ios/NeurOne/Consent/ConsentStore.swift
-          assert scope.consent.paths   true  app/ios/NeurOne/Views/ConsentDashboardView.swift
+          assert scope.consent.paths   true  common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
           assert scope.consent.paths   true  app/NeurOneUI/shared/src/commonMain/kotlin/life/neurone/shared/ui/ConsentDashboardScreen.kt
           assert scope.consent.paths   false simulator/js/ui.js
           assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
@@ -626,7 +625,6 @@ jobs:
           # sides it compares; a firmware file is the edit that flips a declared
           # absence; any other document is outside what it opens.
           assert scope.consumables.paths true  docs/reference/commercial-model.md
-          assert scope.consumables.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
           assert scope.consumables.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt
           assert scope.consumables.paths true  firmware/hub_control/src/np_session_log.c
           assert scope.consumables.paths false docs/reference/modality-stack.md
@@ -654,7 +652,7 @@ jobs:
           # reader would land, a firmware SHDR source is where an upload field
           # is first named, and the schema is the upload's field list; a
           # document is outside it.
-          assert scope.map2shdr.paths true  app/ios/NeurOne/Data/SHDRUploader.swift
+          assert scope.map2shdr.paths true  common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetUploader.kt
           assert scope.map2shdr.paths true  app/web/src/main.ts
           assert scope.map2shdr.paths true  firmware/shdr/src/np_accel_shdr.c
           assert scope.map2shdr.paths true  ci/shdr/shdr_fleet_schema.sql
@@ -670,14 +668,14 @@ jobs:
           assert scope.pbmmodel.paths false firmware/hub_control/include/np_hub_config.h
           assert scope.pbmmodel.paths false hardware/np_socket_map_v1.json
           assert scope.pbmmodel.paths false docs/np_pwrsrc_001.md
-          assert scope.sharedplace.paths true  app/ios/NeurOne/Session/HubDescriptorCompiler.swift
+          assert scope.sharedplace.paths true  common/core/src/commonMain/kotlin/life/neurone/core/session/HubDescriptorCompiler.kt
           assert scope.sharedplace.paths true  common/testdata/hub-descriptor-golden.json
           assert scope.sharedplace.paths true  common/lib/nppsParser.ts
           assert scope.sharedplace.paths true  simulator/src/npps-runtime.ts
           assert scope.sharedplace.paths false docs/np_art_001.md
 
           # The migration key gate. A key can be added in any app, so every app's tree reaches it; the list is the other half.
-          assert scope.migrationkeys.paths true  app/ios/NeurOne/Data/UHDRBackupScheduler.swift
+          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/MigrationFlow.cs
           assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
           assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/NppsCore.cs
           assert scope.migrationkeys.paths true  common/npps/migration-keys.json
@@ -694,11 +692,9 @@ jobs:
           assert scope.toolchainpins.paths false firmware/hub_control/src/np_session_log.c
 
           # The release-pin gate. The two uploaders that hold the pins and the two build files that call it are in.
-          assert scope.releasepins.paths true  app/ios/NeurOne/Data/SHDRUploader.swift
           assert scope.releasepins.paths true  common/core/src/commonMain/kotlin/life/neurone/core/analytics/FleetConfig.kt
-          assert scope.releasepins.paths true  app/ios/project.yml
           assert scope.releasepins.paths true  app/android/app/build.gradle.kts
-          assert scope.releasepins.paths false app/ios/NeurOne/Data/SessionStore.swift
+          assert scope.releasepins.paths false common/core/src/commonMain/kotlin/life/neurone/core/session/SessionHistoryStore.kt
           assert scope.releasepins.paths false docs/np_art_001.md
 
           # The unjustified-choices register gate. The register, a firmware
@@ -709,7 +705,7 @@ jobs:
           assert scope.unjustified.paths true  firmware/hub_control/include/np_hub_config.h
           assert scope.unjustified.paths true  hardware/np_pbm_model.json
           assert scope.unjustified.paths true  scripts/check-unjustified-register.ts
-          assert scope.unjustified.paths true  app/ios/NeurOne/Models/ConsumableInventory.swift
+          assert scope.unjustified.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consumable/ConsumableModels.kt
           assert scope.unjustified.paths false locales/en.json
 
           # The traceability gate: a requirements document, a test file, the
@@ -726,7 +722,7 @@ jobs:
         id: diff
         env:
           NP_EVENT: ${{ github.event_name }}
-          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}
@@ -941,6 +937,12 @@ jobs:
       - name: The expected protection of main is a protection
         run: bun scripts/check-main-ruleset.ts
 
+      # NP-SW-CI-001 §6.20. main-health.yml runs scripts/main-health.ts from the default branch only (it posts a required
+      # status, so a pull request must not be able to change what decides its own), which means a change to the script
+      # is first exercised after it merges. Its decisions are proven here, on the pull request that changes them.
+      - name: Main-health decisions (red, transitions, the merge hold, the alert email)
+        run: bun scripts/main-health.ts --self-test
+
   doc-naming:
     name: document filenames match their serials (NP-CONV-001 §4.0)
     runs-on: ubuntu-latest
@@ -951,7 +953,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           # Two commits: on a pull_request run HEAD is the merge of the PR into its base, and the revision-scheme guard
-          # below compares HEAD with HEAD^1 (the base tip), which is exactly the PR's own change.
+          # below compares HEAD with HEAD^1 (the base tip), which is exactly the PR's own change. A merge_group run with
+          # the queue's MERGE method has the same shape (NP-SW-CI-001 §6.19).
           fetch-depth: 2
 
       - name: Set up Bun
@@ -1001,8 +1004,11 @@ jobs:
       # Revision numbers are assigned when a change merges, not by its author
       # (docs/revisions/README.md; the decision: docs/human-input/np-qms-dc-001-revision-assignment.md).
       # In mode `hand`, the mode the repository ships in, the guard reads fragments only. In mode `assign-at-merge` it holds
-      # a PR to the scheme. Only for pull requests: on `main` the assign-revisions workflow's own commits change exactly
-      # what the guard forbids a PR to change.
+      # a PR to the scheme. Only for pull requests and the merge queue: on `main` the assign-revisions workflow's own
+      # commits change exactly what the guard forbids a PR to change. In the queue (NP-SW-CI-001 §6.19) HEAD is the
+      # merge-group commit, HEAD^1 the main it lands on plus the pull requests queued ahead, so rule N dry-runs their
+      # fragments before this one's: the re-check a branch that must be up to date used to give. That needs the queue's
+      # merge method to be MERGE; with squash or rebase there is no HEAD^2 and the guard reads fragments only.
       - name: Guard self-test (prove the revision-scheme rules can fail)
         run: bun scripts/check-revision-fragments.ts --self-test
 
@@ -1010,7 +1016,7 @@ jobs:
         run: bun scripts/assign-revisions.ts --self-test
 
       - name: A pull request follows the revision scheme in force
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: bun scripts/check-revision-fragments.ts
 
       # A released set of wavelength rules is never edited, removed or reordered: a session record names the rules it ran
@@ -1021,7 +1027,7 @@ jobs:
         run: bun scripts/check-wavelength-register.ts --self-test
 
       - name: The wavelength-rules register only ever gains rows
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: bun scripts/check-wavelength-register.ts
 
   section-refs:
@@ -1031,7 +1037,7 @@ jobs:
     # and the reason is the rule the other two guards were just fixed against.
     #
     # check-section-refs.ts walks from the repository ROOT, skipping only build
-    # and vendor directories, and reads every `.md .c .h .ts .tsx .swift .js
+    # and vendor directories, and reads every `.md .c .h .ts .tsx .js
     # .npps .kt .cs .yml` it finds. Its declared population IS the tracked tree.
     # Any enumerated list is therefore narrower than what it scans, which is
     # precisely the defect fixed above in two other places — and it had already

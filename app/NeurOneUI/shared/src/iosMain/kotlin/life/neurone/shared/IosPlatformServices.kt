@@ -53,7 +53,7 @@ class IosPlatformServices(
     override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
         IosHttpTransport(pinnedHost = relayHost, pins = pins.toSet())
 
-    /** The hub's record, one file per helmet in Documents (REQ-SHDR-01, REQ-SHDR-08 (e)). */
+    /** The hub's record, one file per helmet in Documents (REQ-SHDR-01, REQ-SHDR-08 (f)). */
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging by lazy {
         val documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).first() as String
         IosShdrStaging(documents)

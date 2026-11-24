@@ -48,9 +48,11 @@ B np_app_clock_agreement_tests
 B np_app_link_agreement_tests
 B np_bootloader_app_image_tests
 B np_bootloader_dfu_block_tests
+B np_bootloader_sanitize_tests
 B np_bootloader_flexram_tests
 B np_bootloader_mem_tests
 B np_bootloader_rollback_tests
+B np_bootloader_rpmb_tests
 B np_cfg_store_tests
 B np_chan_decl_tests
 B np_consumables_tests
@@ -100,9 +102,11 @@ B np_stim_xcheck_tests
 B np_stim_xcheck_nonfinite_tests
 B np_transport_tests
 B np_uhdr_key_tests
+B np_uhdr_profile_tests
 B np_zone_announce_tests
 B np_zone_notify_tests
 B np_session_fitting_tests
 B np_session_pause_tests
 B np_pause_limit_tests
+B np_status_led_tests
 B np_ramp_plan_tests

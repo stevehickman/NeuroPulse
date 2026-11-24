@@ -15,7 +15,7 @@
  *   proto_sign <hex>   play the SIGNING SERVICE: sign an unsigned blob (zeroed signature slot) with the TEST protocol key; emits proto_signed
  *   proto_feed <hex>   write these bytes of the framed stream to the transport, as one BLE write or one CDC read would
  *   proto_pump         one pass of task_protocol_rx: take a complete blob, if any, hash it, np_runner_load it, report the verdict
- *   proto_serial <hex> set the TEST device serial the replay guard compares with (32 bytes; all zero by default, UC-137)
+ *   proto_serial <hex> set the TEST device serial the replay guard compares with (32 bytes; 0x5a in every byte by default, UC-137)
  *   proto_boot admit|refuse  the boot decision: whether the device's config partition mounted and sessions are admitted
  *
  * The signing key is a TEST key whose seed is below (REQ-SIMFW-08); signing for the real service stays in Rust (CLAUDE.md §22) and is not
@@ -81,14 +81,19 @@ static void np_runner_init_once(void)
     }
 }
 
-/* The device serial the TEST device reports: all zero, which is what the app's compiler writes into the header when it has no device
- * serial (the golden descriptors, common/testdata/hub-descriptor-golden.json), so a protocol compiled without one passes the
- * replay guard, and a protocol for another serial does not (proto_serial changes it).  UC-137. */
+/* The device serial the TEST device reports: 0x5a in every byte.  Not all zero: the hub's replay guard fails closed (REQ-FWHUB-90,
+ * OI-PRIV-31 (NP-PRIV-ANALYSIS-004)), so a helmet whose serial is all zero refuses every protocol, and all zero is also what the app's
+ * compiler writes when it has no serial.  A client stamps this serial into the header before signing, as the app stamps the
+ * DEVICE_SERIAL it reads at link (the golden descriptors carry none: the bridge tests and np_sim_hub_run_tests stamp it).  A protocol
+ * for another serial is refused, and proto_serial changes it (all zero shows an unprovisioned helmet).  UC-137. */
+#define NP_SIM_TEST_SERIAL_BYTE 0x5AU
 static uint8_t g_serial[NP_GATT_DEVICE_SERIAL_LEN];
+static bool    g_serial_set;
 
 np_hub_status_t np_sim_proto_serial(uint8_t *buf, size_t len)
 {
     if (buf == NULL || len < NP_GATT_DEVICE_SERIAL_LEN) { return NP_HUB_ERR_INVALID_ARG; }
+    if (!g_serial_set) { memset(g_serial, NP_SIM_TEST_SERIAL_BYTE, sizeof g_serial); g_serial_set = true; }
     memcpy(buf, g_serial, NP_GATT_DEVICE_SERIAL_LEN);
     return NP_HUB_OK;
 }
@@ -163,6 +168,7 @@ bool np_simh_proto_line(const char *cmd, char *a)
         int n = (a != NULL) ? unhex(a, tmp, sizeof tmp) : -1;
         if (n != (int)NP_GATT_DEVICE_SERIAL_LEN) { bad(cmd, "needs the device serial as hex, whole"); return true; }
         memcpy(g_serial, tmp, sizeof g_serial);
+        g_serial_set = true;
         np_sim_emit("{\"ev\":\"result\",\"cmd\":\"proto_serial\",\"code\":0}");
         return true;
     }

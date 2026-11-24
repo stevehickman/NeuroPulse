@@ -3,7 +3,7 @@ package life.neurone.core.analytics
 import java.io.File
 
 /**
- * The hub's SHDR records as files in the app's own [folder], one per helmet (`shdr_staging-<key>.bin`, `REQ-SHDR-08` (e)), for the
+ * The hub's SHDR records as files in the app's own [folder], one per helmet (`shdr_staging-<key>.bin`, `REQ-SHDR-08` (f)), for the
  * hosts that run on the JVM. The key is the warranty owner's store's salted hash for the helmet, never its identifier, so a file
  * name says nothing about which helmet it is to anyone without the sealed salt. Nothing staged reads as null.
  *

@@ -39,7 +39,7 @@ class DesktopPlatformServices(
     override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
         JdkHttpTransport(pinnedHttpClient(pins))
 
-    /** Where the hub's SHDR record waits, one file per helmet, beside the app's data (REQ-SHDR-01, REQ-SHDR-08 (e)). */
+    /** Where the hub's SHDR record waits, one file per helmet, beside the app's data (REQ-SHDR-01, REQ-SHDR-08 (f)). */
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging =
         life.neurone.core.analytics.FileShdrStaging(desktopDataDirectory)
 

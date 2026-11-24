@@ -15,7 +15,7 @@ updated: 2026-07-02
 
 ## Problem
 
-NeurOne has a launch-track iOS app (94 Swift files, ~25k lines, ISA at `app/ios/ISA.md`, 146/164 ISCs verified) but no Android app. Android is required for market coverage at T1 launch; the June 2026 code review explicitly noted "Android app code is not present in this repo," and the i18n architecture (canonical JSON → platform adapters) was designed with an Android XML extension point that has no consumer. Every privacy invariant locked in CLAUDE.md (UHDR/SHDR separation, two consent subjects, engagement_tier coarsening, sessionDay timestamp coarsening, prohibited analytics keys, opaque warranty token) must exist on Android with byte-for-byte parity or the platform becomes a privacy regression vector.
+NeurOne has a launch-track iOS app (94 Swift files, ~25k lines, ISA at `docs/superseded/np_app_isa_001.md`, 146/164 ISCs verified) but no Android app. Android is required for market coverage at T1 launch; the June 2026 code review explicitly noted "Android app code is not present in this repo," and the i18n architecture (canonical JSON → platform adapters) was designed with an Android XML extension point that has no consumer. Every privacy invariant locked in CLAUDE.md (UHDR/SHDR separation, two consent subjects, engagement_tier coarsening, sessionDay timestamp coarsening, prohibited analytics keys, opaque warranty token) must exist on Android with byte-for-byte parity or the platform becomes a privacy regression vector.
 
 ## Vision
 

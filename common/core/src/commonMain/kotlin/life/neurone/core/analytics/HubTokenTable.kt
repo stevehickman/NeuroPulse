@@ -93,7 +93,7 @@ class HubTokenTable(
     /**
      * The key of this helmet's line, `SHA-256(salt ‖ identifier)` in hex, or `null` when the table has no salt yet (nothing was
      * ever kept). It names the helmet without naming its identifier, so the caller may use it where the table's own value cannot
-     * go: the name of the helmet's staged SHDR file (`REQ-SHDR-08` (e)). It makes no salt: a key that a later salt would change
+     * go: the name of the helmet's staged SHDR file (`REQ-SHDR-08` (f)). It makes no salt: a key that a later salt would change
      * would name nothing.
      */
     fun keyOf(hub: String): String? = migrated().salt?.let { keyFor(it, hub) }

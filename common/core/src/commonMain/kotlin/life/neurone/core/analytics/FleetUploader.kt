@@ -27,6 +27,9 @@ interface DeviceTokenStore {
 
     /** Keep the hub-provisioned token for this helmet, in place of whatever was kept. */
     fun saveHubToken(hub: String, token: String)
+
+    /** Forget whatever token is kept for this helmet: its previous owner's, at a change of custody (`REQ-SHDR-09` (d)). */
+    fun forget(hub: String)
 }
 
 /**
@@ -58,6 +61,8 @@ class SealedDeviceTokenStore(
 
     override fun saveHubToken(hub: String, token: String) = table.save(hub, HUB_PREFIX + token)
 
+    override fun forget(hub: String) = table.remove(hub)
+
     private companion object {
         /**
          * Marks a line whose token the hub provisioned. A token is hex, so it never starts with this. A hub token kept by an earlier
@@ -68,7 +73,7 @@ class SealedDeviceTokenStore(
 }
 
 /**
- * Where the hub's SHDR record waits for the app to upload it: one record per helmet, in the app's own folder (`REQ-SHDR-08` (e)).
+ * Where the hub's SHDR record waits for the app to upload it: one record per helmet, in the app's own folder (`REQ-SHDR-08` (f)).
  *
  * Every call names the helmet by [helmetKey], the warranty owner's store's salted hash for it ([WarrantyOwnerStore]): 64 lowercase
  * hex digits, never the helmet's identifier (`REQ-SHDR-05` (d)). A record is read only under the key it was staged under, so one
@@ -114,8 +119,14 @@ class FleetUploader(
     @Volatile
     private var hubIdentifier: String? = null
 
+    // A token the hub delivered for a helmet whose warranty owner has not consented on this install: held in memory for that
+    // helmet's link only, never stored (`REQ-SHDR-08` (e); `OI-PRIV-33` (NP-PRIV-ANALYSIS-004)).
+    @Volatile
+    private var heldHubToken: Pair<String, String>? = null
+
     /** The helmet the link is to, or `null` after a disconnect. Set by the wiring from the GATT manager. */
     fun setHubIdentifier(hub: String?) {
+        if (hub != hubIdentifier) heldHubToken = null
         hubIdentifier = hub
     }
 
@@ -132,10 +143,18 @@ class FleetUploader(
      * OI-BLE-01: swap in the hub-provisioned TRNG warranty token (exactly 32 bytes) for [hub], by default the connected helmet, read
      * once. The wiring passes the helmet the GATT link named when the token arrived, so the token is kept for the helmet that sent it.
      *
-     * A hub token different from the hub token already kept for this helmet is what a factory reset or a change of owner produces
+     * A hub token different from the hub token already stored for this helmet is what a factory reset or a change of owner produces
      * (`NP-FW-EMMC-002` §A.6), so it is a change of custody (`REQ-SHDR-09` (d)): the previous owner's consent, enrolment, epoch and
-     * the helmet's staged record are forgotten ([WarrantyAnalyticsGate.endCustody]) before the new token is kept. The same token
-     * again changes nothing, and a hub token over an interim one is the ordinary upgrade.
+     * the helmet's staged record are forgotten ([WarrantyAnalyticsGate.endCustody]) first, with the previous owner's token, so a
+     * later delivery of the new token is not taken for another change of custody. The same token again changes nothing,
+     * and a hub token over an interim one is the ordinary upgrade.
+     *
+     * The hub serves its token to any paired phone, not only the warranty owner's (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004)), and the
+     * token is what links the helmet's fleet records to its warranty registration. So it is stored only for a helmet whose warranty
+     * owner has consented on this install (`REQ-SHDR-08` (e)). Otherwise it is held for this link only, and stored by the first
+     * upload after the consent opens; a disconnect or another helmet drops it. A phone that never uploads for the helmet, a patient's
+     * on a clinic helmet, keeps no copy of the owner's token. After a change of custody the helmet reads as never asked, so the new
+     * owner's token is held, not stored, until that owner consents.
      */
     fun upgradeDeviceToken(hubToken: ByteArray, hub: String? = hubIdentifier) {
         if (hubToken.size != 32) return
@@ -143,14 +162,30 @@ class FleetUploader(
         val incoming = hubToken.toHex()
         val kept = tokenStore.loadHubToken(hub)
         if (kept == incoming) return
-        if (kept != null) warrantyGate.endCustody(hub)
-        tokenStore.saveHubToken(hub, incoming)
+        if (kept != null) {
+            warrantyGate.endCustody(hub)
+            tokenStore.forget(hub)
+        }
+        if (warrantyGate.isOpen(hub)) {
+            heldHubToken = null
+            tokenStore.saveHubToken(hub, incoming)
+        } else {
+            heldHubToken = hub to incoming
+        }
+    }
+
+    /** A token held for this helmet's link is stored, now that its consent is open. Called only after the gate was checked. */
+    private fun storeHeldToken(hub: String) {
+        val held = heldHubToken ?: return
+        if (held.first != hub) return
+        tokenStore.saveHubToken(hub, held.second)
+        heldHubToken = null
     }
 
     /**
      * Upload the SHDR record staged for [hub], by default the connected helmet; true only when the fleet service itself took it, and
      * then that helmet's staged record is deleted. The helmet is read once and that one value names the consent asked for, the
-     * token sent and the record read (`REQ-SHDR-08` (e)), so a reconnect to another helmet midway cannot mix them. Nothing is read
+     * token sent and the record read (`REQ-SHDR-08` (f)), so a reconnect to another helmet midway cannot mix them. Nothing is read
      * unless that helmet's warranty owner has consented.
      */
     suspend fun uploadStaged(hub: String? = hubIdentifier): Boolean {
@@ -173,6 +208,7 @@ class FleetUploader(
     private suspend fun uploadFor(hub: String?, shdrPayload: ByteArray): Boolean {
         // The consent asked for is this helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
         if (hub == null || !warrantyGate.isOpen(hub)) return false
+        storeHeldToken(hub)
         val token = tokenFor(hub)
         if (gatewayKeyConfigHex.isEmpty()) return false
         val sealed = try {

@@ -47,7 +47,7 @@ class WarrantyOwnerStore(
     randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
     sha256: (ByteArray) -> ByteArray = Digests::sha256,
     /**
-     * Where the hub's SHDR record waits for upload, one record per helmet (`REQ-SHDR-08` (e)); `null` on a host with no hub path
+     * Where the hub's SHDR record waits for upload, one record per helmet (`REQ-SHDR-08` (f)); `null` on a host with no hub path
      * that stages one. The record is the helmet's, under its owner's consent, so it is kept with that owner's decisions: it is
      * named by this store's key for the helmet, read only for that helmet, and deleted when the owner revokes or custody ends.
      */
@@ -86,7 +86,7 @@ class WarrantyOwnerStore(
 
     /**
      * The SHDR record staged for this helmet, or `null`. Only the file named by this helmet's key is read, so one helmet's record
-     * is never read for another (`REQ-SHDR-08` (e)). With no record kept for any helmet there is no salt, and nothing is read.
+     * is never read for another (`REQ-SHDR-08` (f)). With no record kept for any helmet there is no salt, and nothing is read.
      */
     fun staged(hub: String): ByteArray? {
         val key = table.keyOf(hub) ?: return null

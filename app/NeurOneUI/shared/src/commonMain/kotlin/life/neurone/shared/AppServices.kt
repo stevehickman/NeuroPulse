@@ -38,7 +38,6 @@ import life.neurone.core.migration.LINK_ROUTE
 import life.neurone.core.migration.MemoryObjectStore
 import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
-import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.models.SessionState
 import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPWavelengthRulesStore
@@ -407,9 +406,14 @@ class AppServices(
 
     val limitsStore = NPLimitsStore(keyValueStore, lock = presenceLock).also { limits ->
         // Per-user cardiac scope (NP-SW-FAULTMSG-001): the active individual profile names the person on
-        // the device. Until a profile is chosen the device keeps assuming whoever it last knew.
-        gattManager.activeUserTag = ActiveUserTag.from(limits.activeProfileId)
-        limits.onActiveProfileChanged = { gattManager.activeUserTag = ActiveUserTag.from(it) }
+        // the device, by a tag worked out per helmet (REQ-FAULTMSG-01). Until a profile is chosen the device
+        // keeps assuming whoever it last knew.
+        fun userOf(id: String?) = id?.let { pid ->
+            limits.profiles.firstOrNull { it.id == pid }?.activeUserTag?.let { NeurOneGattManager.ActiveUser(pid, it) }
+        }
+        gattManager.recordTagMigration = { profileId, tag -> limits.recordTagMigration(profileId, tag) }
+        gattManager.activeUser = userOf(limits.activeProfileId)
+        limits.onActiveProfileChanged = { gattManager.activeUser = userOf(it) }
     }
 
     /**
@@ -485,7 +489,7 @@ class AppServices(
         scope.launch {
             // One attempt per notification of 0x01 (a repeat is a retry the hub asked for); attempts never overlap, as this collects in turn.
             gattManager.shdrUploadSignal.collect {
-                // One reading of the helmet names the consent, the token and the staged record (`REQ-SHDR-08` (e)).
+                // One reading of the helmet names the consent, the token and the staged record (`REQ-SHDR-08` (f)).
                 val hub = gattManager.hubIdentifier.value
                 kotlinx.coroutines.withContext(Dispatchers.Default) { uploader.uploadStaged(hub) }
             }

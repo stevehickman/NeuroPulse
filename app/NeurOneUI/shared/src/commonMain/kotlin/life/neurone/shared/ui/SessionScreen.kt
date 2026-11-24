@@ -71,6 +71,8 @@ fun SessionScreen(
     progress: SessionProgress? = null,
     onPause: () -> Unit = {},
     onResume: () -> Unit = {},
+    // False while the helmet's detector holds the session: its only second step is Stop (REQ-FWHUB-67, REQ-FWHUB-69).
+    resumeOffered: Boolean = true,
     cervicalPadAlert: CervicalPadStatus? = null,
     onAcknowledgeCervicalPadAlert: () -> Unit = {},
     cervicalFaultStatus: CervicalFaultStatus? = null,
@@ -124,7 +126,7 @@ fun SessionScreen(
                 if (progress != null) {
                     ProgressCard(progress)
                     Spacer(Modifier.height(16.dp))
-                    SessionControls(progress, onPause = onPause, onResume = onResume)
+                    SessionControls(progress, onPause = onPause, onResume = onResume, resumeOffered = resumeOffered)
                     Spacer(Modifier.height(16.dp))
                 }
                 LiveMetricsGrid(session)
@@ -451,7 +453,7 @@ private fun ProgressCard(progress: SessionProgress) {
  * where the helmet's own checks allow it.
  */
 @Composable
-private fun SessionControls(progress: SessionProgress, onPause: () -> Unit, onResume: () -> Unit) {
+private fun SessionControls(progress: SessionProgress, onPause: () -> Unit, onResume: () -> Unit, resumeOffered: Boolean) {
     val rampNote = when (progress.rampPhase) {
         RampPhase.DOWN -> stringResource(Res.string.session_ramp_down)
         RampPhase.HELD -> stringResource(Res.string.session_ramp_held)
@@ -473,11 +475,13 @@ private fun SessionControls(progress: SessionProgress, onPause: () -> Unit, onRe
                 Spacer(Modifier.height(8.dp))
             }
             if (progress.isPaused) {
-                OutlinedButton(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(Res.string.session_resume_button))
+                if (resumeOffered) {
+                    OutlinedButton(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(Res.string.session_resume_button))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(Res.string.session_resume_note), style = MaterialTheme.typography.bodySmall)
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(Res.string.session_resume_note), style = MaterialTheme.typography.bodySmall)
             } else {
                 OutlinedButton(
                     onClick = onPause,

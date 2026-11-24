@@ -47,13 +47,13 @@ class WarrantyAnalyticsGate(private val records: WarrantyOwnerStore) {
     fun revoke(hub: String?) {
         if (hub == null) return
         records.update(hub) { it.copy(fleetConsent = false, enrolled = false) }
-        // A record staged under the consent now revoked is never sent, by a later grant or by anyone else (`REQ-SHDR-08` (f)).
+        // A record staged under the consent now revoked is never sent, by a later grant or by anyone else (`REQ-SHDR-08` (g)).
         records.clearStaged(hub)
     }
 
     /**
      * The SHDR record staged for this helmet, only while this helmet's owner has consented; `null` otherwise. The helmet is the
-     * one the caller names, once, so the consent and the record are this one helmet's (`REQ-SHDR-08` (e)).
+     * one the caller names, once, so the consent and the record are this one helmet's (`REQ-SHDR-08` (f)).
      */
     fun stagedRecord(hub: String?): ByteArray? = if (hub != null && isOpen(hub)) records.staged(hub) else null
 

@@ -212,8 +212,9 @@ void np_pbm_session_build_shdr_summary(const np_pbm_session_ctx_t *ctx,
 
     memset(out, 0, sizeof(*out));
     out->active_socket_count = ctx->active_socket_count;
-    out->duration_s          = ctx->record.duration_s;
-    out->abort_reason        = (uint8_t)ctx->record.abort_reason;
+    /* No duration_s and no abort_reason (OI-PRIV-40, NP-PRIV-ANALYSIS-004):
+     * session duration is UHDR ("session timestamps and duration", CLAUDE.md
+     * §5.1).  Both stay in ctx->record, the UHDR session record. */
     out->fault_reason        = (uint8_t)fault_reason;
     out->thermal_event_count = ctx->ch_c_throttled || ctx->ch_b_throttled ? 1U : 0U;
 
