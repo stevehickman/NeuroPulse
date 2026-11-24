@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 210
+**Revision:** 211
 **Date:** 2026-11-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -902,3 +902,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 208 | 2026-11-21 | NeurOne Software Engineering | **§6.3 new SWR-MG-33 and SWR-MG-34 (the core composes, signs, verifies and orders the superseded notice, built in `current_device.rs`); SWR-MG-33: a migration or restore asks the research consents again and is not finished until they are answered, then makes the device current for the person, subscribes it if needed and publishes a signed superseded notice, queued when offline; the current-device key is a carried item (the principal, 2026-11-20 and 2026-11-21, OI-PRIV-68). Not built.** |
 | 209 | 2026-11-23 | NeurOne Firmware Engineering | **§5.2.2 REQ-SW02-15: the floor's store is the eMMC's RPMB (the principal, 2026-11-23), and a blank or wrong-key RPMB refuses every image as an unreadable floor does; the store is not built (OI-PRIV-32 (NP-PRIV-ANALYSIS-004)).** |
 | 210 | 2026-11-24 | NeurOne Firmware Engineering | **§5.1.1: REQ-SW01-06, the fault-latch report is the latch projected onto the device-class bits with the count of their transitions, and no slot, so an impedance-only transition reports exactly as none does (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
+| 211 | 2026-11-24 | NeurOne Software Engineering | **§6.3 `SWR-SS-05`: a pause, like a resume, is refused on a link that is not encrypted. `SWR-SS-09`: a hold the helmet's detector made is ended only by Stop; the app offers no Resume for it (the principal, 2026-11-23, `OI-PRIV-24` Q1, Q2).** |
