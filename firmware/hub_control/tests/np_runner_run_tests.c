@@ -284,8 +284,8 @@ static np_chan_decl_t           g_unused_decl;
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;
+    memset(buf, 0x5A, len);             /* a provisioned serial; blob_begin stamps the same bytes (the guard fails closed, REQ-FWHUB-90) */
+    return NP_HUB_OK;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
@@ -527,6 +527,7 @@ static void blob_begin(blob_t *b, uint32_t duration_ms)
     memcpy(b->buf + 0, &magic, 4);
     memcpy(b->buf + 4, &version, 2);
     memcpy(b->buf + 24, &compiled_at, 4);
+    memset(b->buf + 28, 0x5A, NP_GATT_DEVICE_SERIAL_LEN);   /* device_serial: the stub HAL's */
     memcpy(b->buf + 60, &duration_ms, 4);
     b->buf[64] = 1U;                            /* hardware_version; the rules stamp (68..106) is zero: not stated */
     b->len = 107U;
