@@ -57,7 +57,7 @@ set(BOOTLOADER_SOURCES
     src/np_rollback_store_rpmb.c  # the floor in the RPMB (REQ-SW02-15, -16)
     # Three seams, unbuilt, each failing so the floor is unreadable and every
     # image is refused (fail closed) until it is built:
-    src/np_rpmb_key_unbuilt.c     # RPMB key source: the OI-PRIV-32 factory-key change
+    src/np_rpmb_key_unbuilt.c     # RPMB key source: undecided (REQ-RPMBK-01, docs/human-input/oi-priv-32-rpmb-key-source.md)
     src/np_rpmb_mac_unbuilt.c     # HMAC-SHA256: OI-SW02-01 (CLAUDE.md §22 decision)
     src/np_entropy_unbuilt.c      # TRNG driver: OI-SW02-03
 )
@@ -285,11 +285,14 @@ if(NP_BUILD_TESTS)
     # np_ota.c install paths (Scratch verify, which USB DFU also takes, and the
     # boot trial) and np_signature.c, against a sparse fake eMMC, a fake SNVS
     # selector and a fake floor store defined in the test.  The test key is
-    # force-included as for np_bootloader_app_image_tests.
+    # force-included as for np_bootloader_app_image_tests.  The device build's
+    # RPMB key source (np_rpmb_key_unbuilt.c, REQ-RPMBK-01) is linked as is: it
+    # must fail, and leave no key material behind.
     add_executable(np_bootloader_rollback_tests
         tests/np_bootloader_rollback_tests.c
         src/np_ota.c
         src/np_rollback.c
+        src/np_rpmb_key_unbuilt.c
         src/np_signature.c
         ${NP_BL_MONOCYPHER_SOURCES}
     )
