@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-FAULTMSG-001
-**Revision:** 4
-**Date:** 2026-11-22
+**Revision:** 5
+**Date:** 2026-11-24
 **Status:** DRAFT — **decided by the principal (§9); implemented in the safety MCU, the hub and both apps, not yet verified on hardware.** The hub now builds and publishes CVNS_FAULT_STATUS (§9.6), and since 2026-09-25 the hub's GATT server carries it (`np_gatt_server.c`, GitHub #381); what is still missing is the BLE host stack under that server (two platform seams) and the UHDR storage glue (OI-LOG-05..07 — its littlefs parameters, OI-LFS-05, were decided 2026-09-24 by NP-SOUP-LFS-001 Rev 4 §13.1)
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -424,3 +424,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 4 | 2026-11-22 | NeurOne Software Engineering | **§9.2: adds REQ-FAULTMSG-01 (a per-(profile, helmet) HMAC-SHA-256 active-user tag, keyed by a per-profile secret; reserved values never produced; a pair moves from its old tag only when nothing is outstanding on the helmet, so no cardiac hold is released). States that today's tag is a profile-UUID prefix and UHDR-class. Core built in common/npps-core/src/active_user_tag.rs; app wiring and a Safety ruling on hazard 25-c are open (OI-PRIV-29, NP-PRIV-ANALYSIS-004).** |
+| 5 | 2026-11-24 | NeurOne Software Engineering | **§9.2, §9.3: REQ-FAULTMSG-01 gains (d) CVNS_FAULT_STATUS byte 3 bit 7 marks a validated safety-MCU report (frame version 2; version 1 refused) and (e) a profile's tag state is assigned by the store, kept across edits and reads, and travels with the profile; (c) now also records the move before naming the new tag. The per-helmet tag is named by the shared GATT manager once the helmet's serial is read. The migration rule was accepted by the principal on 2026-11-23 (brief Q2); Q1 (hazard 25-c) stays open.** |
