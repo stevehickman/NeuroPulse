@@ -1,0 +1,142 @@
+name: Main health (red-main alert and merge hold)
+
+# NP-SW-CI-001 §6.20, OI-SWCI-10, OI-SWCI-54 Q5. The `Safety` ruleset does not require a branch to be up to date
+# before it merges, so two pull requests that each pass alone can leave `main` red together (§6.18.1). This workflow
+# is what answers for that, with scripts/main-health.ts:
+#
+#   freeze-status  posts the required commit status NP_STATUS_CONTEXT on every open pull request into main. While
+#                  main is green it is `success`. While main is red it is `success` only on a pull request that is
+#                  already up to date with main, so merging is held until main is green or the pull request that
+#                  fixes it lands. The up-to-date requirement, in force exactly while main is red, without the admin
+#                  token that switching the setting would take.
+#   alert          emails the owner when a workflow on main turns red ([NEURONE MAIN RED], high importance) and when
+#                  it turns green again ([NEURONE MAIN GREEN]). One email per change of colour.
+#
+# Two lists below are kept complete by scripts/check-ci-scope.ts (correspondence F):
+#   * `workflow_run: workflows:` names every workflow that runs on main (push to main, or a schedule), by the
+#     `name:` GitHub reads. YAML ends a plain scalar at ` #`, so crate-release-watch.yml's name is read as
+#     "Crate release watch (spake2, GitHub" and is written that way here.
+#   * NP_GATE_WORKFLOWS names the workflow files that hold every context in ci/required-checks.txt. A red workflow
+#     holds merging only through a required check, so only these hold it; every workflow on main alerts.
+#
+# Why `pull_request_target`, which runs with a write token on pull requests from forks too: this workflow never checks
+# out or runs the pull request's code. It checks out the default branch, runs scripts/main-health.ts from it, and reads
+# the pull request only through the API (its number and head sha). A pull request therefore cannot change what decides
+# its own status, as it could with `pull_request`, where the workflow file and the script would come from the pull
+# request itself.
+
+on:
+  workflow_run:
+    workflows:
+      - Android CI (Gradle)
+      - Assign revisions (docs/revisions/README.md)
+      - Build All / Test All
+      - CodeQL Advanced
+      - Crate release watch (spake2, GitHub
+      - Dependency scan (OSV)
+      - Desktop package (macOS, Windows)
+      - Firmware Cross-Compile (ARM)
+      - Fleet Ingest Infra CI (privacy review Finding 6)
+      - Kotlin iOS CI (Gradle, macOS)
+      - PostHog Infra CI (privacy review Finding 4)
+      - Safety MCU CI (STM32G071, Class C)
+      - SHDR Schema CI Gate (OI-EMMC2-07)
+      - Simulator CI (firmware in the loop, host only)
+      - Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
+      - Warranty No-Join CI Gate (OI-EMMC2-06)
+      - Web App CI (TypeScript + Vitest)
+      - Windows CI (dotnet)
+    types: [completed]
+    branches: [main]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  statuses: write
+
+env:
+  # ⚠ This string is a required-status-check CONTEXT (ci/required-statuses.txt, NP-SW-CI-001 §6.20). Changing it
+  # un-gates the branch SILENTLY: the ruleset keeps waiting on the old string. Change it only together with the ruleset.
+  NP_STATUS_CONTEXT: 'main is green, or this PR is up to date with main'
+  NP_GATE_WORKFLOWS: 'firmware-cross-build.yml safety-mcu-ci.yml simulator-ci.yml tooling-ci.yml'
+
+jobs:
+  freeze-status:
+    name: Post the main-health status
+    runs-on: ubuntu-latest
+    # A workflow_run of a pull request whose head branch is named `main` (a fork's) says nothing about main.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+    # One pending run per pull request, and one for the all-pull-requests sweep. A newer sweep replaces a pending one,
+    # which is right: it reads main's state when it runs. Never cancelled while running.
+    concurrency:
+      group: main-health-status-${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || 'all' }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the default branch (never the pull request)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      - name: Self-test
+        run: bun scripts/main-health.ts --self-test
+
+      - name: Post the status
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NP_PR: ${{ github.event.pull_request.number }}
+          NP_TRIGGER_PATH: ${{ github.event.workflow_run.path }}
+        run: |
+          set -euo pipefail
+          if [ -n "${NP_PR:-}" ]; then
+            bun scripts/main-health.ts --post-status --pr "$NP_PR"
+          else
+            bun scripts/main-health.ts --post-status
+          fi
+
+  alert:
+    name: Email the owner when main changes colour
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule"]'), github.event.workflow_run.event)
+    # No concurrency group: each run decides the transition of its own triggering run, so none may be dropped.
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      - name: Self-test
+        run: bun scripts/main-health.ts --self-test
+
+      # The recipient and the sending account are secrets, not literals: the repository is public. Setting them up is
+      # NP-SW-CI-001 §6.20.3. Unset, a change of colour fails this job loudly rather than passing in silence.
+      - name: Email on a change of colour
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NP_ALERT_SMTP_USER: ${{ secrets.NP_ALERT_SMTP_USER }}
+          NP_ALERT_SMTP_PASSWORD: ${{ secrets.NP_ALERT_SMTP_PASSWORD }}
+          NP_ALERT_TO: ${{ secrets.NP_ALERT_TO }}
+          NP_ALERT_SMTP_URL: ${{ secrets.NP_ALERT_SMTP_URL }}
+        run: bun scripts/main-health.ts --alert

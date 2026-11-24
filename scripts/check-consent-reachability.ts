@@ -52,26 +52,24 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consent-reachability.ts --self-test
- * CI-Scans: every public ConsentStore method on iOS and Android, and its callers
- * CI-Scan-Paths: app/ios/** app/android/** app/NeurOneUI/** common/core/**
+ * CI-Scans: every public ConsentStore method in the shared Kotlin core, and its callers
+ * CI-Scan-Paths: app/android/** app/NeurOneUI/** common/core/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-type Platform = "ios" | "android";
+type Platform = "android";
 
 const STORE: Record<Platform, string> = {
-  ios: "app/ios/NeurOne/Consent/ConsentStore.swift",
   android: "common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt",
 };
 // Android's screens live in two trees: its own app and the shared Compose UI every platform builds (app/NeurOneUI).
-const SOURCE_ROOTS: Record<Platform, string[]> = { ios: ["app/ios"], android: ["app/android", "app/NeurOneUI", "common/core"] };
-const EXT: Record<Platform, string> = { ios: ".swift", android: ".kt" };
+const SOURCE_ROOTS: Record<Platform, string[]> = { android: ["app/android", "app/NeurOneUI", "common/core"] };
+const EXT: Record<Platform, string> = { android: ".kt" };
 
 /** Declaration syntax for `func name(` / `fun name(` at one indent level. */
 const DEFN: Record<Platform, RegExp> = {
-  ios: /^\s{4}(?:public\s+)?func\s+(\w+)\s*\(/gm,
   android: /^\s{4}(?:public\s+)?fun\s+(\w+)\s*\(/gm,
 };
 
@@ -116,7 +114,6 @@ const SURFACE: Record<string, Reach> = {
   addExpansionRequest: {
     kind: "ingest",
     via: {
-      ios: "app/ios/NeurOne/Consent/ClinicianPortalChannel.swift",
       android: "common/core/src/commonMain/kotlin/life/neurone/core/consent/ClinicianPortalChannel.kt",
     },
     note:
@@ -153,7 +150,6 @@ const SURFACE: Record<string, Reach> = {
   exportWithdrawals: {
     kind: "ingest",
     via: {
-      ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
       android: "common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
     },
     note: "SWR-MG-04: the withdrawal records go into a bundle through the migration item, not a control the user operates",
@@ -161,7 +157,6 @@ const SURFACE: Record<string, Reach> = {
   applyWithdrawals: {
     kind: "ingest",
     via: {
-      ios: "app/ios/NeurOne/Session/ConsentMigrationItem.swift",
       android: "common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt",
     },
     note: "SWR-MG-04: a restore applies a later withdrawal through the migration item. It can only switch a grant off; the later-time comparison is the core's (applyWithdrawal)",
@@ -169,9 +164,8 @@ const SURFACE: Record<string, Reach> = {
   grantResearchAnalytics: {
     kind: "ui",
     note:
-      "REQ-CONSENT-26: the one place that opens the research analytics gate. Compose calls it from the Settings switch after the " +
-      "disclosure is confirmed (ResearchAnalyticsSection); the Swift app calls it from Done, whatever was chosen (NP-PRIV-ANALYSIS-006 F-01, " +
-      "not repaired there because that app is being retired)",
+      "REQ-CONSENT-27: the one place that opens the research analytics gate. Compose calls it from the Settings switch after the " +
+      "disclosure is confirmed (ResearchAnalyticsSection)",
   },
   revokeResearchAnalytics: {
     kind: "internal",
@@ -246,7 +240,7 @@ function callerFiles(root: string, p: Platform): string[] {
     const rel = f.slice(root.length + 1);
     if (rel === STORE[p]) continue;
     // Test sources prove a method works; they do not prove anything reaches it.
-    if (/(^|\/)(test|tests|\w+Test)\//i.test(rel) || /Tests?\.(swift|kt)$/.test(rel)) continue;
+    if (/(^|\/)(test|tests|\w+Test)\//i.test(rel) || /Tests?\.kt$/.test(rel)) continue;
     out.push(rel);
   }
   return out;
@@ -271,20 +265,10 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
   const waivers: string[] = [];
 
   const defined: Record<Platform, string[]> = {
-    ios: definedMethods(root, "ios"),
     android: definedMethods(root, "android"),
   };
 
-  // 1. Surface parity. §6.0 makes the consent model cross-platform.
-  for (const [a, b] of [["ios", "android"], ["android", "ios"]] as const) {
-    for (const m of defined[a]) {
-      if (!defined[b].includes(m)) {
-        violations.push(`${m}: defined on ${a} but not on ${b} — the consent surface has diverged`);
-      }
-    }
-  }
-
-  const all = [...new Set([...defined.ios, ...defined.android])].sort();
+  const all = [...defined.android].sort();
 
   // 2. Declaration completeness, both directions.
   for (const m of all) {
@@ -303,11 +287,9 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
 
   // 3. The declarations must hold.
   const callers: Record<Platform, { rel: string; text: string }[]> = {
-    ios: callerFiles(root, "ios").map((rel) => ({ rel, text: readFileSync(join(root, rel), "utf8") })),
     android: callerFiles(root, "android").map((rel) => ({ rel, text: readFileSync(join(root, rel), "utf8") })),
   };
   const storeText: Record<Platform, string> = {
-    ios: readFileSync(join(root, STORE.ios), "utf8"),
     android: readFileSync(join(root, STORE.android), "utf8"),
   };
 
@@ -319,7 +301,7 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
     if (!d) continue;
 
     if (d.kind === "ui") {
-      for (const p of ["ios", "android"] as const) {
+      for (const p of ["android"] as const) {
         if (!defined[p].includes(m)) continue;
         const waivedOI = d.waived?.[p];
         const found = externalCallers(m, p);
@@ -346,7 +328,7 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
     }
 
     if (d.kind === "internal") {
-      for (const p of ["ios", "android"] as const) {
+      for (const p of ["android"] as const) {
         if (!defined[p].includes(m)) continue;
         // Its own definition line is not a call; require a call elsewhere in the store.
         const calls = (storeText[p].match(new RegExp(`\\b${m}\\s*\\(`, "g")) ?? []).length;
@@ -371,7 +353,7 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
     }
 
     if (d.kind === "ingest") {
-      for (const p of ["ios", "android"] as const) {
+      for (const p of ["android"] as const) {
         if (!defined[p].includes(m)) continue;
         const via = d.via[p];
         if (!via) {
@@ -396,7 +378,7 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
       }
       // Same rule as a waiver, for the same reason: a declaration that the path does not exist
       // has to fail once it does, or it rots into a lie the gate is vouching for.
-      for (const p of ["ios", "android"] as const) {
+      for (const p of ["android"] as const) {
         if (!defined[p].includes(m)) continue;
         const found = externalCallers(m, p);
         if (found.length > 0) {
@@ -413,7 +395,7 @@ function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
     violations,
     waivers,
     methods: all,
-    callerFileCount: callers.ios.length + callers.android.length,
+    callerFileCount: callers.android.length,
   };
 }
 
@@ -422,7 +404,6 @@ if (process.argv.includes("--self-test")) {
   const box = mkdtempSync(join(tmpdir(), "np-consentreach-"));
 
   const build = (
-    iosStore: string,
     androidStore: string,
     extra: Record<string, string> = {},
   ): string => {
@@ -431,7 +412,6 @@ if (process.argv.includes("--self-test")) {
       mkdirSync(join(root, rel.split("/").slice(0, -1).join("/")), { recursive: true });
       writeFileSync(join(root, rel), body);
     };
-    put(STORE.ios, iosStore);
     put(STORE.android, androidStore);
     for (const [rel, body] of Object.entries(extra)) put(rel, body);
     return root;
@@ -441,7 +421,6 @@ if (process.argv.includes("--self-test")) {
   // reports every other entry as stale. Those are expected here and filtered out.
   const relevant = (v: string[]) => v.filter((x) => !x.includes("stale entry"));
 
-  const iosFn = (n: string, body = "") => `    func ${n}() {\n${body}    }\n`;
   const ktFn = (n: string, body = "") => `    fun ${n}() {\n${body}    }\n`;
 
   const failures: string[] = [];
@@ -465,32 +444,27 @@ if (process.argv.includes("--self-test")) {
     withdrawFromStudy: { kind: "ui", waived: { android: "OI-EXAMPLE-01" } },
   };
 
-  // A ui method with a caller on the unwaived platform, waived on the other.
+  // A ui method with no caller, waived under an open item.
   expect(
-    "ui method with an iOS caller and an Android waiver is clean",
-    build(iosFn("withdrawFromStudy"), ktFn("withdrawFromStudy"), {
-      "app/ios/NeurOne/Views/V.swift": "store.withdrawFromStudy()\n",
-    }),
+    "ui method with no caller and a waiver is clean",
+    build(ktFn("withdrawFromStudy")),
     null,
     WAIVED,
   );
 
-  // Every ui method is enforced on BOTH platforms now that no waiver is in force —
+  // Every ui method is enforced now that no waiver is in force —
   // the state OI-CONSENT-01 closing put the table into.
   expect(
-    "with no waiver, the same fixture is caught on Android",
-    build(iosFn("withdrawFromStudy"), ktFn("withdrawFromStudy"), {
-      "app/ios/NeurOne/Views/V.swift": "store.withdrawFromStudy()\n",
-    }),
+    "with no waiver, the same fixture is caught",
+    build(ktFn("withdrawFromStudy")),
     "this is the CLAUDE.md Rev 37 shape",
   );
 
   // The Rev 37 defect itself: defined, tested, and unreachable.
   expect(
-    "ui method with no caller on an unwaived platform is caught",
-    build(iosFn("updateResearchConsent"), ktFn("updateResearchConsent"), {
-      "app/ios/NeurOne/Views/V.swift": "// nothing calls it\n",
-      "app/android/app/src/main/kotlin/S.kt": "store.updateResearchConsent()\n",
+    "ui method with no caller is caught",
+    build(ktFn("updateResearchConsent"), {
+      "app/android/app/src/main/kotlin/S.kt": "// nothing calls it\n",
     }),
     "this is the CLAUDE.md Rev 37 shape",
   );
@@ -498,24 +472,16 @@ if (process.argv.includes("--self-test")) {
   // A test-only caller must not satisfy reachability — the whole point.
   expect(
     "a test-only caller does not count as reachable",
-    build(iosFn("updateResearchConsent"), ktFn("updateResearchConsent"), {
-      "app/ios/NeurOneTests/ConsentStoreTests.swift": "store.updateResearchConsent()\n",
-      "app/android/app/src/main/kotlin/S.kt": "store.updateResearchConsent()\n",
+    build(ktFn("updateResearchConsent"), {
+      "app/android/app/src/test/kotlin/ConsentStoreTests.kt": "store.updateResearchConsent()\n",
     }),
     "this is the CLAUDE.md Rev 37 shape",
-  );
-
-  // Surface parity.
-  expect(
-    "a method on one platform only is caught",
-    build(iosFn("withdrawFromStudy"), ktFn("somethingElse")),
-    "the consent surface has diverged",
   );
 
   // An undeclared method must force a decision.
   expect(
     "an undeclared method is caught",
-    build(iosFn("brandNewConsentMethod"), ktFn("brandNewConsentMethod")),
+    build(ktFn("brandNewConsentMethod")),
     "defined but not declared in SURFACE",
   );
 
@@ -524,8 +490,7 @@ if (process.argv.includes("--self-test")) {
   // dashboard landed — it is not optional cleanup, the gate fails until they go.
   expect(
     "a waiver with a live caller is caught",
-    build(iosFn("withdrawFromStudy"), ktFn("withdrawFromStudy"), {
-      "app/ios/NeurOne/Views/V.swift": "store.withdrawFromStudy()\n",
+    build(ktFn("withdrawFromStudy"), {
       "app/android/app/src/main/kotlin/S.kt": "store.withdrawFromStudy()\n",
     }),
     "the gap it records is closed",
@@ -536,15 +501,14 @@ if (process.argv.includes("--self-test")) {
   const INGEST: Record<string, Reach> = {
     addExpansionRequest: {
       kind: "ingest",
-      via: { ios: "app/ios/NeurOne/Consent/Sync.swift", android: "common/core/Sync.kt" },
+      via: { android: "common/core/Sync.kt" },
       note: "fixture",
     },
   };
 
   expect(
     "ingest whose named path calls it is clean",
-    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
-      "app/ios/NeurOne/Consent/Sync.swift": "store.addExpansionRequest(r)\n",
+    build(ktFn("addExpansionRequest"), {
       "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
     }),
     null,
@@ -555,9 +519,8 @@ if (process.argv.includes("--self-test")) {
   // does not do what it claims, which is exactly the shape this gate exists to catch.
   expect(
     "ingest whose named path does not call it is caught",
-    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
-      "app/ios/NeurOne/Consent/Sync.swift": "// nothing\n",
-      "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
+    build(ktFn("addExpansionRequest"), {
+      "common/core/Sync.kt": "// nothing\n",
     }),
     "but that file does not call it",
     INGEST,
@@ -565,9 +528,7 @@ if (process.argv.includes("--self-test")) {
 
   expect(
     "ingest naming a path that does not exist is caught",
-    build(iosFn("addExpansionRequest"), ktFn("addExpansionRequest"), {
-      "common/core/Sync.kt": "store.addExpansionRequest(r)\n",
-    }),
+    build(ktFn("addExpansionRequest")),
     "which does not exist",
     INGEST,
   );
@@ -576,16 +537,16 @@ if (process.argv.includes("--self-test")) {
   // other way of saying "nothing reaches this yet".
   expect(
     "pending with a live caller is caught",
-    build(iosFn("ingestStudyDescriptor"), ktFn("ingestStudyDescriptor"), {
-      "app/ios/NeurOne/Consent/Sync.swift": "store.ingestStudyDescriptor(d)\n",
+    build(ktFn("ingestStudyDescriptor"), {
+      "common/core/Sync.kt": "store.ingestStudyDescriptor(d)\n",
     }),
     "the gap it records is closed",
   );
 
   expect(
     "pending with only a test caller stays clean",
-    build(iosFn("ingestStudyDescriptor"), ktFn("ingestStudyDescriptor"), {
-      "app/ios/NeurOneTests/ConsentStoreTests.swift": "store.ingestStudyDescriptor(d)\n",
+    build(ktFn("ingestStudyDescriptor"), {
+      "app/android/app/src/test/kotlin/ConsentStoreTests.kt": "store.ingestStudyDescriptor(d)\n",
     }),
     null,
   );
@@ -593,22 +554,17 @@ if (process.argv.includes("--self-test")) {
   // internal: declared reachable from inside the store, and it must be.
   expect(
     "an internal method nothing in the store calls is caught",
-    build(
-      iosFn("revokeResearchAnalytics"),
-      ktFn("revokeResearchAnalytics"),
-    ),
+    build(ktFn("revokeResearchAnalytics")),
     "nothing inside ConsentStore calls it",
   );
   expect(
     "an internal method the store does call is clean",
     build(
-      iosFn("revokeResearchAnalytics") + iosFn("withdrawBlanketResearchConsent", "        revokeResearchAnalytics()\n"),
       ktFn("revokeResearchAnalytics") + ktFn("withdrawBlanketResearchConsent", "        revokeResearchAnalytics()\n"),
       {
         // withdrawBlanketResearchConsent is declared `ui` with no waiver, so
-        // this fixture must give it a caller on BOTH platforms or it trips that
-        // rule instead of exercising the internal one.
-        "app/ios/NeurOne/Views/V.swift": "store.withdrawBlanketResearchConsent()\n",
+        // this fixture must give it a caller or it trips that rule instead of
+        // exercising the internal one.
         "app/android/app/src/main/kotlin/S.kt": "store.withdrawBlanketResearchConsent()\n",
       },
     ),
@@ -622,7 +578,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  14 case(s): the Rev 37 shape, test-only callers, parity, undeclared, stale waivers,");
+  console.log("  13 case(s): the Rev 37 shape, test-only callers, undeclared, stale waivers,");
   console.log("  waiver enforcement, internal reachability, ingest-path existence and use, and");
   console.log("  pending-outliving-its-gap all proven to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
@@ -638,7 +594,7 @@ if (result.methods.length === 0) {
 }
 
 console.log(
-  `scanned: ${result.methods.length} consent method(s) across 2 platform(s), ` +
+  `scanned: ${result.methods.length} consent method(s) in the shared Kotlin core, ` +
     `${result.callerFileCount} candidate caller file(s)`,
 );
 

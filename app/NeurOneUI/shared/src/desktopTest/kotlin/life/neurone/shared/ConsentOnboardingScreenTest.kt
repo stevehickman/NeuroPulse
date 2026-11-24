@@ -97,7 +97,7 @@ class ConsentOnboardingScreenTest {
     private fun androidx.compose.ui.test.ComposeUiTest.toggleResults() = onAllNodes(isToggleable()).onFirst().performClick()
     private fun androidx.compose.ui.test.ComposeUiTest.toggleBlanket() = onAllNodes(isToggleable()).onLast().performClick()
 
-    // @verifies REQ-CONSENT-25
+    // @verifies REQ-CONSENT-26
     @Test
     fun skipOnAFirstRun_recordsNothing_soTheStoreStaysNeverAsked() = runComposeUiTest {
         var completed = 0
@@ -116,7 +116,7 @@ class ConsentOnboardingScreenTest {
         assertFalse(store.researchConsent.blanketConsentGranted, "a toggle turned on and then skipped is not a grant")
     }
 
-    // @verifies REQ-CONSENT-25
+    // @verifies REQ-CONSENT-26
     @Test
     fun skipFromResearchPreferences_keepsTheEarlierChoices_andRecordsNoWithdrawal() = runComposeUiTest {
         val store = store(blanket = true)

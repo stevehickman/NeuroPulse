@@ -334,14 +334,15 @@ F-12 to F-16 follow these.
 ## 8. Repairs made after the analysis
 
 > **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
-> requirement row and tests. The SwiftUI parts are not changed: that app is being retired (pull request #946).
+> requirement row and tests. The SwiftUI parts were not changed: that app was removed by pull request #946, which closes F-01, F-02,
+> F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
-| F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | The SwiftUI limits screen (`Helmet <serial>`); sets saved earlier keep their name until saved again |
-| F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-26` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-62`. The three new strings are English in every locale until translated, and are marked for legal review |
-| F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-25` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | The SwiftUI Skip, and F-01 (SwiftUI Done turns analytics on) |
-| F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | The SwiftUI manager; the iOS connect-to-first-peripheral point |
+| F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | Sets saved earlier keep their name until saved again |
+| F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-27` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-76`. The three new strings are English in every locale until translated, and are marked for legal review |
+| F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-26` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
+| F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | — |
 
 ## 7. Not reviewed
 

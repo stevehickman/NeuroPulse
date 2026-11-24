@@ -88,7 +88,7 @@ class ConsentStore(
         const val EXPANSIONS_KEY = "np.consent.clinician-expansions"
         const val INVITATIONS_KEY = "np.consent.study-invitations"
         const val STUDY_WITHDRAWALS_KEY = "np.consent.study-withdrawals"
-        /** The mark of the last time research analytics was turned off after being on (`REQ-CONSENT-26` (b)); per install, as the analytics ID is. */
+        /** The mark of the last time research analytics was turned off after being on (`REQ-CONSENT-27` (b)); per install, as the analytics ID is. */
         const val RESEARCH_ANALYTICS_WITHDRAWN_KEY = "np.consent.research-analytics-withdrawn"
 
         /** Stored records that could not be read, as found (`REQ-CONSENT-20`). Never moved in a migration. */
@@ -117,8 +117,8 @@ class ConsentStore(
         private set
 
     /**
-     * Studies the user withdrew from, and when (a [WithdrawalMark]). UHDR-class and kept apart from [studyParticipations], which
-     * is SHDR-class. A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put the user back in
+     * Studies the user withdrew from, and when (a [WithdrawalMark]). UHDR-class like [studyParticipations] (`OI-PRIV-07`: the whole
+     * audit trail is UHDR) and kept apart from it. A withdrawal stays here for good, so a restore or a re-presented descriptor cannot put the user back in
      * a study they left (`SWR-MG-04`).
      */
     var studyWithdrawals: Map<String, String> = emptyMap()
@@ -487,18 +487,18 @@ class ConsentStore(
         onPortalIdentityWithdrawn()
     }
 
-    /** Whether research analytics is on: the person turned it on and has not turned it off since (`REQ-CONSENT-26`). */
+    /** Whether research analytics is on: the person turned it on and has not turned it off since (`REQ-CONSENT-27`). */
     val researchAnalyticsGranted: Boolean get() = store.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY)
 
     /**
      * The mark of the last time research analytics was turned off after being on (a day and a count, `WithdrawalMark`), or null
-     * if it never was. Only the store writes it, so "never asked" (null) and "said stop" stay distinguishable (`REQ-CONSENT-26` (b),
+     * if it never was. Only the store writes it, so "never asked" (null) and "said stop" stay distinguishable (`REQ-CONSENT-27` (b),
      * `REQ-CONSENT-04`). It is kept when analytics is turned on again, as the other withdrawal marks are.
      */
     val researchAnalyticsWithdrawnAt: String? get() = store.getString(RESEARCH_ANALYTICS_WITHDRAWN_KEY)
 
     /**
-     * Turn research analytics on, after the person has read what it sends and confirmed (`REQ-CONSENT-26` (a)); the screen shows
+     * Turn research analytics on, after the person has read what it sends and confirmed (`REQ-CONSENT-27` (a)); the screen shows
      * the disclosure, the store records the decision and opens the gate. The one place outside onboarding that opens it.
      */
     fun grantResearchAnalytics() {
@@ -511,7 +511,7 @@ class ConsentStore(
      * tears down the SDK so it cannot collect passively after withdrawal.
      * Does NOT affect WarrantyAnalyticsGate or SHDR fleet uploads.
      *
-     * Turning off analytics that was on records the day (`REQ-CONSENT-26` (b)); a revoke of analytics that was never on records
+     * Turning off analytics that was on records the day (`REQ-CONSENT-27` (b)); a revoke of analytics that was never on records
      * nothing, so a blanket withdrawal by someone who never turned analytics on does not read as "said stop" to analytics.
      */
     fun revokeResearchAnalytics() {
@@ -869,7 +869,7 @@ class ConsentStore(
         save()
     }
 
-    // ── Participation audit (SHDR-class) ─────────────────────────────────
+    // ── Participation audit (UHDR-class, OI-PRIV-07) ─────────────────────────────────
 
     /**
      * Append the §5.3 audit-trail record for a study the device has joined.

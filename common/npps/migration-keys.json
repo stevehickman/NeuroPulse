@@ -26,7 +26,6 @@
     "np.characterisation.enrolled",
     "np.characterisation.consent-epoch",
     "np.characterisation.programme-id",
-    "np.backup.destination",
     "np.backup.folder",
     "np.backup.last-epoch",
     "ble.last-hub-id",

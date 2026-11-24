@@ -62,7 +62,7 @@ class ConsentStoreTests {
         assertEquals(1, backend.resetCount)
     }
 
-    // @verifies REQ-CONSENT-26#a
+    // @verifies REQ-CONSENT-27#a
     @Test
     fun grantingResearchAnalytics_opensTheGate_andConfiguresTheBackend() {
         val kv = InMemoryKeyValueStore()
@@ -74,7 +74,7 @@ class ConsentStoreTests {
         assertTrue(gate.isOpen)
     }
 
-    // @verifies REQ-CONSENT-26#b
+    // @verifies REQ-CONSENT-27#b
     @Test
     fun turningResearchAnalyticsOffAfterOn_recordsTheDay_andNeverAskedRecordsNothing() {
         var day = "2026-11-20"

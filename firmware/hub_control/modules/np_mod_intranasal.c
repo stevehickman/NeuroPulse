@@ -36,15 +36,38 @@ typedef struct {
 
 static np_mod_ins_state_t s_state;
 
+/* True once the authentication failure of the probe now seated has been logged.
+ * Kept outside s_state because init() clears s_state and does not end the
+ * insertion.  Cleared when contact is lost or the sleeve authenticates. */
+static bool s_fail_logged;
+
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_mod_intranasal_detect(uint8_t slot, np_hub_mod_type_t *type_out)
 {
     (void)slot;
     /* Probe detected by pogo-pin contact AND optical code authentication. */
-    if (np_mod_ins_hal_auth_check() && np_mod_ins_hal_pd_contact()) {
+    const bool auth    = np_mod_ins_hal_auth_check();
+    const bool contact = np_mod_ins_hal_pd_contact();
+    if (auth && contact) {
+        s_fail_logged = false;
         *type_out = NP_MOD_INTRANASAL;
         return NP_HUB_OK;
+    }
+
+    /* REQ-NASAL-16 (b), OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 3: a seated probe
+     * whose sleeve does not authenticate is the failure the SHDR record exists
+     * for.  The registry calls init() only after detect() succeeds, so init()'s
+     * "fail" was unreachable and no failure ever reached SHDR.  It is logged here,
+     * once per insertion: detect() repeats on every idle rescan (NP-FW-HUB-001
+     * D-30), and a record per poll would be twice a second. */
+    if (contact) {
+        if (!s_fail_logged) {
+            np_log_shdr_zone_auth(NP_HUB_SLOT_INTRANASAL, NP_MOD_INTRANASAL, false);
+            s_fail_logged = true;
+        }
+    } else {
+        s_fail_logged = false;
     }
     return NP_HUB_ERR_NOT_PRESENT;
 }
@@ -57,9 +80,14 @@ np_hub_status_t np_mod_intranasal_init(uint8_t slot)
     memset(&s_state, 0, sizeof(s_state));
     s_state.authenticated = np_mod_ins_hal_auth_check();
 
-    /* Write SHDR auth log (SHDR: accessory authentication pass/fail). */
+    /* Write SHDR auth log (SHDR: accessory authentication pass/fail).  A sleeve
+     * that authenticated in detect() and not here is the same insertion's
+     * failure, so detect() does not log it a second time. */
     np_log_shdr_zone_auth(NP_HUB_SLOT_INTRANASAL, NP_MOD_INTRANASAL,
                            s_state.authenticated);
+    if (!s_state.authenticated) {
+        s_fail_logged = true;
+    }
 
     return s_state.authenticated ? NP_HUB_OK : NP_HUB_ERR_NOT_PRESENT;
 }

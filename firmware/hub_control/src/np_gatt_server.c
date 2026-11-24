@@ -15,6 +15,7 @@
 #include "np_hub_config.h"
 #include "np_cardiac_sens.h"
 #include "np_pause_limit.h"
+#include "np_status_led.h"
 #include "np_session_hold.h"
 #include "np_ppx_config.h"
 #include "np_safety_spi.h"
@@ -142,8 +143,10 @@ static const np_gatt_char_t TABLE[] = {
     { NP_GATT_SESSION_STOP_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_stop_on_write },
 
-    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  NOT encrypted, for the reason of the
-     * stop write above: a panic must never wait on a key. */
+    /* SWR-SS-05: pause (0x01) or resume (0x02) the session; SWR-SS-09: panic (0x03).  The row is NOT encrypted, for the
+     * reason of the stop write above: a panic must never wait on a key.  Pause and resume are a pair and both need an
+     * encrypted link: np_gatt_on_write refuses either on a link that is not (REQ-FWHUB-81 (e), OI-PRIV-24
+     * (NP-PRIV-ANALYSIS-004); the principal, 2026-11-23). */
     { NP_GATT_SESSION_PAUSE_ID, NP_GATT_PROP_WRITE,
       0u, 1u, NULL, np_session_pause_on_write },
 
@@ -180,6 +183,11 @@ static const np_gatt_char_t TABLE[] = {
      * hub loads a session from it, so the link must be encrypted. */
     { NP_GATT_PROTOCOL_UPLOAD_ID, NP_GATT_PROP_WRITE | NP_GATT_PROP_STREAM | NP_GATT_PROP_ENC,
       0u, 0u, NULL, write_protocol_upload },
+
+    /* REQ-FWHUB-86, OI-PRIV-37 (NP-PRIV-ANALYSIS-004): stealth mode, bit 0.  Encrypted: whether the wearer hides the
+     * indicators is a fact about the person (CLAUDE.md section 5.1, section 23).  A fault shows regardless. */
+    { NP_GATT_STEALTH_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
+      (uint8_t)NP_GATT_STEALTH_LEN, (uint8_t)NP_GATT_STEALTH_LEN, np_status_led_read, np_status_led_write },
 
     /* REQ-FWHUB-71: the detector's two clinician switches (read: flags and evidence level; write: flags). */
     { NP_GATT_PPX_CONFIG_ID, NP_GATT_PROP_READ | NP_GATT_PROP_WRITE | NP_GATT_PROP_ENC,
@@ -289,6 +297,30 @@ np_att_status_t np_gatt_on_write(uint16_t id, const uint8_t *data, size_t len)
     const bool stream = (c->props & NP_GATT_PROP_STREAM) != 0U;
     if (data == NULL || (stream ? (len == 0U || len > NP_GATT_STREAM_WRITE_MAX) : (len != c->write_len))) {
         return NP_ATT_INVALID_VALUE_LENGTH;
+    }
+    /* REQ-FWHUB-81 (e), OI-PRIV-24 (NP-PRIV-ANALYSIS-004): the pause row is open so that a panic never waits on a key.  A
+     * resume restarts stimulation, which that reason does not cover; and a pause is the first half of a pause and resume, so
+     * it needs the same pairing as its resume (the principal, 2026-11-23: a person who pauses means to resume, or they would
+     * stop).  On a link that is not encrypted either is refused here, before it reaches a handler, and whatever the session
+     * is in or held for: a refusal that depended on it would tell a stranger in range about the wearer's session, a
+     * detector halt included (CLAUDE.md §5.1 rule 2). */
+    if (id == NP_GATT_SESSION_PAUSE_ID && !s_link_encrypted &&
+        (data[0] == NP_SESSION_RESUME_VALUE || data[0] == NP_SESSION_PAUSE_VALUE)) {
+        return NP_ATT_INSUFFICIENT_ENCRYPTION;
+    }
+    /* REQ-FWHUB-81 (f), OI-PRIV-72: on a link that is not encrypted, a well-formed stop or panic is acted on as always but
+     * answered OK whatever came of it.  Its refusal codes say whether a session is running (0x80): a fact about the wearer,
+     * given to anyone in range who never paired (CLAUDE.md §5.1 rule 2).  A malformed one is refused as before; that answer depends
+     * only on the bytes sent.  On an encrypted link the app gets the exact answer. */
+    if (!s_link_encrypted && (id == NP_GATT_SESSION_STOP_ID || id == NP_GATT_SESSION_PAUSE_ID)) {
+        const bool well_formed = (id == NP_GATT_SESSION_STOP_ID)
+            ? (data[0] == NP_SESSION_STOP_VALUE)
+            : (data[0] == NP_SESSION_PANIC_VALUE);
+        if (!well_formed) {
+            return NP_ATT_APP_REFUSED;
+        }
+        (void)c->write(data, len);
+        return NP_ATT_OK;
     }
     const np_hub_status_t rc = c->write(data, len);
     if (rc == NP_HUB_OK) {

@@ -34,9 +34,91 @@ text: **…**
   fails it if it does, or if a controlled document changes with no section naming it.
 - A **new** document starts at its first revision by hand, with its DHF index row.
 
+### The decision log entry: `## LOG`
+
+A PR that records a decision does not append to `docs/status/completed-decisions.md`. It adds the entry to its fragment:
+
+```
+## LOG
+text: **{date} — `OI-X-01` CLOSED: what was decided (who; where it is recorded).** The rest of the entry, on one line.
+```
+
+- One `text:` line per entry, written as the log's `- ` item would be, without the `- ` (a leading `- ` is dropped). An
+  entry may hold a `|`. `{date}` becomes the date assigned (the fragment's `date:`, else the merge date), and the
+  revision tokens above work here too.
+- The section takes no `author:` (git records the PR's author on the commit that appends it).
+- A fragment may hold **only** a `## LOG` section, for a decision that changes no controlled document. It then bumps
+  nothing, not even the DHF.
+- `check-revision-fragments` rule K fails a PR that adds a `- ` entry to the log by hand. The log's header (the lines
+  that are not entries) may still be edited in the PR.
+
+Why: the log is append-only and every entry goes at its end, so any two PRs in flight both changed its last line and the
+second to merge conflicted there.
+
+### CLAUDE.md: `## CLAUDE.md`
+
+CLAUDE.md has no `**Document:**` serial, but its `**Revision:** N (current)`, its row in the `NP-DHF-001` index and its
+history (`docs/reference/claude-md-revision-history.md`, newest first) collided the same way. A PR that changes CLAUDE.md
+leaves all three alone and adds the history entry to its fragment:
+
+```
+## DHF
+author: NeurOne Quality
+text: **CLAUDE.md Rev {CLAUDE.md from → to}: what changed, for the DHF history.**
+## CLAUDE.md
+text: **Rev {CLAUDE.md to} ({date}) — §N: the change in one sentence. No other locked decision changed.**
+text: **What changed.** One paragraph per `text:` line.
+text: **Why.** …
+```
+
+- The first `text:` must start `**Rev {CLAUDE.md to} ({date}) — `. Each `text:` is one paragraph and may hold a `|`. No
+  `author:`.
+- A `## DHF` section is required with it, because CLAUDE.md's DHF index row changes.
+- At merge the workflow sets CLAUDE.md's revision to the next number, sets its DHF row and inserts the entry at the top of
+  the history's "Current revision" section. `{CLAUDE.md to}` works in any `text:` of the fragment, the LOG included.
+- `check-revision-fragments` rule L fails a PR that changes CLAUDE.md with no `## CLAUDE.md` section, or that sets the
+  revision line, the DHF row or a `**Rev N (date)` history entry by hand.
+
+### Open items: `## OPEN` (`docs/status/pending-decisions.md`)
+
+The open-items page is edited in place, one item per line, and git refuses two branches' changes to adjacent lines, so
+PRs that closed neighbouring items conflicted. A PR leaves the page as it found it and carries its edit in the fragment:
+
+```
+# edit docs/status/pending-decisions.md as usual, then:
+bun scripts/assign-revisions.ts --convert-open     # moves the edit into the fragment and puts the page back
+bun scripts/assign-revisions.ts --expand-open      # the reverse, to edit again (then --convert-open again)
+```
+
+`--convert-open` writes one `## OPEN <item>` section per changed run of lines. Nobody writes these by hand:
+
+```
+## OPEN OI-PRIV-22
+was: 3fa2c19e0b7d4a61 1          (replace the 1 line whose text hashes to this)
+text: - [x] **`OI-PRIV-22`** … the line as it should read
+## OPEN OI-PRIV-42
+after: 9c0d…  1                  (insert after this line; if another PR changed it,
+before: 51ab… 2                   before these 2 lines instead)
+text: - [ ] **`OI-PRIV-42`** …
+```
+
+- A hunk is found by the text of the lines it replaces, never by line number or by its neighbours, so a PR that changes
+  the next item does not disturb it. A hunk's lines are widened only when they would not occur exactly once.
+- At merge the workflow applies the hunks in place. `check-revision-fragments` rule M fails a PR that edits the page
+  directly, and rule N dry-runs every pending fragment's hunks (other PRs' first, this one's last): a hunk written
+  against an older page, because another PR changed the same item, fails on the PR, which then merges `main`, runs
+  `--expand-open`, redoes the edit and converts again. With `main` requiring a branch to be up to date, N runs again
+  whenever another PR's edit lands first. In the merge queue (`NP-SW-CI-001` §6.19) N also runs on the merge-group
+  commit, after the fragments of the pull requests queued ahead, provided the queue merges by `MERGE`. With `strict`
+  off (`NP-SW-CI-001` §6.20) N does not re-run when another PR lands first: two PRs that edit the same item can both
+  merge, the second's hunk then fails in `assign-revisions` on `main`, which emails the owner, and it is fixed by hand.
+- A fragment may hold only `## OPEN` sections. The page is not a controlled document, so they bump nothing.
+
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named
-document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, and appends its history row (in the linked
-`docs/reference/*-revision-history.md` if there is one); it deletes the fragment and commits, authored by the PR's author
+document's `**Revision:**` and `**Date:**` (current + 1), its DHF index row, appends its history row (in the linked
+`docs/reference/*-revision-history.md` if there is one) appends any `## LOG` entries to the end of
+`docs/status/completed-decisions.md`, applies any `## CLAUDE.md` section and applies any `## OPEN` edits to
+`docs/status/pending-decisions.md`; it deletes the fragment and commits, authored by the PR's author
 and committed by the App `RevNumberFixer`.
 
 A document with **no history table** (no `docs/reference/<serial>-revision-history.md` and no table in the document) is
@@ -58,7 +140,8 @@ hand (`> **Rev 30 (…)**`) it does not touch: replace the number with `{NP-X to
 
 ## Mode `hand`
 
-The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers, and after a `git merge origin/main` that collides,
+The mode the repository shipped in, and the one to return to if the workflow cannot run. Authors write the numbers, append their own entries to
+`completed-decisions.md`, number CLAUDE.md and edit `pending-decisions.md` by hand, and after a `git merge origin/main` that collides,
 `bun scripts/renumber-revisions.ts` moves this branch's numbers past main's.
 
 ## Turning it on (once) — done 2026-11-02
@@ -83,5 +166,8 @@ Turning it off is the reverse edit; fragments already on `main` are still assign
 - **A document's `**Revision:**` is behind its own history** (two hand-numbered changes once set the same line and each added a
   row): the assigner takes the newest history row as the current revision, so the next number is never one the history
   already has, and the `**Revision:**` line jumps to it. Without that the run would stop ("its history already reaches …").
+- **An `## OPEN` hunk does not apply on `main`** (rule N passed, but something changed the page between the check and
+  the merge): the run stops with nothing changed. Expand that edit by hand from the fragment on `main`, or revert the
+  fragment, and run it again.
 - **One fragment that cannot be assigned stops the ones behind it** (the numbers are a counter and the order matters): fix
   the cause and run it again.

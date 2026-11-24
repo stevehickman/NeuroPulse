@@ -92,7 +92,6 @@ jobs:
         scripts/sync-clinician-tiers.ts
         app/NeurOneShared/Resources/clinician-tiers.json
         common/core/src/commonMain/kotlin/life/neurone/core/models/ClinicianUseCaseTier.generated.kt
-        app/ios/NeurOne/Models/ConsentModels.swift
         common/core/src/commonMain/kotlin/life/neurone/core/models/ConsentModels.kt
         scripts/test-lateralization-audit.sh
         # The iOS String Catalog was listed here while it was committed, because
@@ -153,9 +152,9 @@ jobs:
           assert false CLAUDE.md
           assert true  app/web/src/main.ts
           # A canonical locale edit must reach this job: it is what the web build
-          # generates its locale files from. iOS sources must not.
+          # generates its locale files from. the iOS host's files must not.
           assert true  locales/en.json
-          assert false app/ios/NeurOne/ContentView.swift
+          assert false app/NeurOneUI/iosApp/NeurOneUI/PrivacyInfo.xcprivacy
           # OI-SWCI-25: an edit to this workflow re-runs it.
           assert true  .github/workflows/web-ci.yml
 

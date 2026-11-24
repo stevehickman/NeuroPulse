@@ -1,12 +1,24 @@
 -- NeurOne SHDR Fleet Database Schema
 -- Document: NP-FW-EMMC-002 Rev 2 §G.4, §H.2 / NP-FW-EMMC-001 Rev 1 §7
--- Revision: E
--- Effective date: 2026-08-12
+-- Revision: F
+-- Effective date: 2026-11-21
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
 --
 -- (Schema revisions keep LETTERS. NP-CONV-001 §4.2: the integer-revision rule
 --  binds document revisions; a database schema revision is an on-disk format
 --  identity and renaming it would invalidate the migration record.)
+--
+-- Rev F (2026-11-21): EVERY MONTH ANCHOR IS MONTH-GRANULAR BY CONSTRAINT (OI-PRIV-52,
+--   NP-PRIV-ANALYSIS-005 F2). Thirteen of the 22 month anchors (devices.last_seen_month
+--   and ingest_month in twelve tables) were month-granular only by their DEFAULT,
+--   which applies when an insert leaves the column out. An ingest that wrote
+--   CURRENT_DATE stored the docking day beside warranty_token: the side channel
+--   Rev B removed. Each now carries CONSTRAINT ck_<table>_month, as the other nine
+--   already did. (The review counted twelve; TIME-02, written for this revision,
+--   found emf_shielding_telemetry as well.) ci/test_shdr_schema.py TIME-02 requires the CHECK on every DATE
+--   column except a manufacture date, and TIME-01 now also refuses INTERVAL and a
+--   clock-named column of any type. NO MIGRATION DML, for the reason Rev D gives:
+--   no SHDR records exist anywhere in the programme.
 --
 -- Rev E (2026-08-12): ACCELEROMETER CHARACTERISATION WINDOW. Adds ONE table,
 --   shdr_accel_characterisation, and changes nothing else. §G's prohibition
@@ -185,8 +197,8 @@
 --     the rows it was written to block.
 --   * ci/run_shdr_constraint_tests.sh — LIVE. Executes this schema against a
 --     real PostgreSQL and then runs ci/shdr/shdr_schema_constraint_tests.sql,
---     which proves each constraint rejects what it exists to reject (28
---     reject-cases) and still accepts the valid form (20 accept-cases, so a
+--     which proves each constraint rejects what it exists to reject (46
+--     reject-cases) and still accepts the valid form (36 accept-cases, so a
 --     uniformly hostile constraint cannot pass by refusing everything).
 --   Both are wired into .github/workflows/shdr-schema-ci.yml.
 --
@@ -197,10 +209,13 @@
 --      registration database. Warranty linkage is via opaque warranty_token only.
 --      The warrant_db and shdr_db live in separate cloud projects with no shared
 --      IAM roles. A separate CI test (OI-EMMC2-06) confirms the join fails.
---   4. No sub-day timestamps (TIME-01). SHDR carries no wall clock finer than a
---      month-granular DATE retention anchor (ingest_month / last_seen_month).
+--   4. No sub-day timestamps (TIME-01, TIME-02). SHDR carries no wall clock finer
+--      than a month-granular DATE retention anchor (ingest_month / last_seen_month).
 --      Per-row ordering is an integer counter, never a clock. Enforced by CI:
---      no TIMESTAMP / TIMESTAMPTZ / TIME columns anywhere in the schema.
+--      no TIMESTAMP / TIMESTAMPTZ / TIME / INTERVAL column and no clock-named
+--      column of any type (TIME-01), and every DATE column but a manufacture date
+--      carries CHECK (col = DATE_TRUNC('month', col)::date) (TIME-02, Rev F). A
+--      DEFAULT alone is not enough: it applies only when the insert omits the column.
 --
 -- PERMITTED accelerometer columns per NP-FW-EMMC-002 §G.2:
 --   drop_detected BOOLEAN, maintenance_alert BOOLEAN  — and nothing else.
@@ -255,7 +270,8 @@ CREATE TABLE devices (
     -- still supports active-fleet counting and TTL. No first-seen timestamp:
     -- device age comes from manufacture_date; activation date lives only in the
     -- consented warranty_db (no-join). Replaces created_at + updated_at.
-    last_seen_month         DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    last_seen_month         DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_devices_month CHECK (last_seen_month = DATE_TRUNC('month', last_seen_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -275,7 +291,8 @@ CREATE TABLE firmware_history (
     session_at_install  INTEGER      NOT NULL CHECK (session_at_install >= 0),
 
     -- Month-granular retention anchor only (ordering via session_at_install)
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_firmware_history_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -293,7 +310,8 @@ CREATE TABLE ota_events (
 
     session_at_attempt  INTEGER      NOT NULL CHECK (session_at_attempt >= 0),
     -- Month-granular retention anchor only (ordering via session_at_attempt)
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_ota_events_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ===========================================================================
@@ -865,7 +883,8 @@ CREATE TABLE emf_shielding_telemetry (
     fabric_integrity_ok     BOOLEAN      NOT NULL DEFAULT TRUE,
 
     -- Month-granular retention anchor only (ordering via session_index)
-    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_emf_shielding_telemetry_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1080,7 +1099,8 @@ CREATE TABLE power_telemetry (
     fan_fault               BOOLEAN      NOT NULL DEFAULT FALSE,
 
     -- Month-granular retention anchor only (ordering via session_index)
-    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_power_telemetry_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1125,7 +1145,8 @@ CREATE TABLE accessory_auth_log (
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
 
     -- Month-granular retention anchor only (ordering via session_index)
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_accessory_auth_log_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1144,7 +1165,8 @@ CREATE TABLE calibration_history (
 
     session_at_cal      INTEGER      NOT NULL CHECK (session_at_cal >= 0),
     -- Month-granular retention anchor only (ordering via session_at_cal)
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_calibration_history_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1162,7 +1184,8 @@ CREATE TABLE eeg_impedance_trend (
 
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
     -- Month-granular retention anchor only (ordering via session_index)
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_eeg_impedance_trend_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1208,7 +1231,8 @@ CREATE TABLE shdr_accel_records (
 
     -- Month-granular retention anchor only (ordering via gap_index). The former
     -- per-row created_at wall clock (a docking-time correlator) is removed.
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_shdr_accel_records_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1309,7 +1333,8 @@ CREATE TABLE shdr_accel_characterisation (
     gap_index             INTEGER    NOT NULL CHECK (gap_index >= 0),
 
     -- Month-granular retention anchor only.
-    ingest_month          DATE       NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month          DATE       NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_shdr_accel_characterisation_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1336,7 +1361,8 @@ CREATE TABLE mode_f_telemetry (
     regulatory_cleared      BOOLEAN      NOT NULL DEFAULT FALSE,
 
     -- Month-granular retention anchor only (ordering via mode_f_session_count)
-    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_mode_f_telemetry_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1356,7 +1382,8 @@ CREATE TABLE fault_log (
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
     -- Month-granular retention anchor only (ordering via session_index). Precise
     -- fault event timing, where it exists at all, is UHDR under the user's key.
-    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_fault_log_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------
@@ -1374,7 +1401,8 @@ CREATE TABLE storage_health (
 
     session_index               INTEGER      NOT NULL CHECK (session_index >= 0),
     -- Month-granular retention anchor only (ordering via session_index)
-    ingest_month                DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+    ingest_month                DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date,
+    CONSTRAINT ck_storage_health_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)
 );
 
 -- ---------------------------------------------------------------------------

@@ -95,7 +95,7 @@ fun ConsentOnboardingScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = {
                 // Skip records nothing: a toggle turned on and then skipped is not a decision the person made
-                // (`REQ-CONSENT-25`, NP-PRIV-ANALYSIS-006 F-10). The stored state stays as it was when the screen opened,
+                // (`REQ-CONSENT-26`, NP-PRIV-ANALYSIS-006 F-10). The stored state stays as it was when the screen opened,
                 // so a first run stays "never asked" and Research Preferences keeps the earlier choices.
                 onComplete()
             }) { Text(stringResource(Res.string.consent_skip_button)) }
