@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 51
+**Revision:** 52
 **Date:** 2026-11-24
 **Status:** DRAFT
 **Effective Date:** —
@@ -1229,3 +1229,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 49 | 2026-11-22 | NeurOne Software Engineering | **`OI-SIMFW-73`: the reason that the open writes can only reduce stimulation was false for resume; corrected, with the change that made it true (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004)).** |
 | 50 | 2026-11-21 | NeurOne Firmware Engineering | **`OI-SIMFW-22` and its §20 note cite `REQ-FWHUB-87`, the cervical VNS baseline requirement renumbered from a duplicate `REQ-FWHUB-65` in `NP-FW-HUB-001`.** |
 | 51 | 2026-11-24 | NeurOne Software Engineering | **§22: the warm-reset model keeps the fault latch's bytes through host-only save and restore, since the fault-latch report no longer carries the slot or the raw count (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), UC-132).** |
+| 52 | 2026-11-24 | NeurOne Software Engineering | **§26: the twin's TEST device serial is 0x5a in every byte, no longer all zero, because the hub's guard now fails closed (`REQ-FWHUB-90`). The bridge and scenario tests stamp it into the golden descriptors as the app stamps `DEVICE_SERIAL` (`UC-137`).** |
