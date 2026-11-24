@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 80
+**Revision:** 81
 **Date:** 2026-11-24
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -674,7 +674,7 @@ branch could not report a sleeve that fails; `np_mod_intranasal_detect()` now wr
 once per insertion and not once per poll (D-30). *Residual, not closed by this:* the records still sit
 in order among the session-open records, which carry the count, so their position places an insertion
 between two sessions. Whether the record becomes a lifetime total instead is a question for the
-principal (`docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`). **(Rev {NP-FW-HUB-001 to}:
+principal (`docs/human-input/oi-priv-38-map3-journal-and-insertion-records.md`). **(Rev 81:
 ruled by the principal 2026-11-23. The event stays as it is.** The time of an insertion is not the time of
 use: a clinic fits a helmet for the day, and an accessory may not be used in the first session. The
 zone-announce entry (`np_zone_announce.c`) drops its session count to the same shape.)
