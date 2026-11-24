@@ -75,6 +75,28 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 **Trigger:** User selects "Reset Device" → "Transfer or Sell Device" in the app's device management settings.  
 **Authentication gate:** Requires current biometric authentication + explicit two-step confirmation ("This will permanently erase all your health data from this device. This cannot be undone." → "Erase Device").
 
+> **Rev {NP-FW-EMMC-002 to} (2026-11-23): ruled by the principal, superseding the trigger and the gate above (`OI-PRIV-27`
+> (NP-PRIV-ANALYSIS-004), GitHub #955; `docs/human-input/oi-priv-27-factory-reset-command.md` §8).** A factory reset
+> is per helmet: it erases the whole UHDR, SHDR and Config partitions, and SANITIZE purges the whole eMMC (§B.3). Helmets
+> are shared (§C.8), so it destroys every person's UHDR on the helmet. Therefore:
+> - **Only the warranty owner may start a factory reset.** No user can, present or not.
+> - **Every attempt first shows a list of every user who has any data on the helmet**, before any choice and before
+>   anything is erased.
+> - **The warranty owner then chooses which users' data to back up (export).** Each row shows something the owner can
+>   associate with a specific user, and never any of that user's data. **Users current on the helmet start selected;
+>   users who are not current start deselected** (ruled 2026-11-24). Deselecting every user means wipe everything;
+>   there is no other path.
+> - **The backup, if any, is followed by the wipe** (§B.3 R-1 to R-12). The export is §C.8.4's clinic backup of the
+>   selected profiles, so the warranty owner can read none of it.
+>
+> **Confirmed 2026-11-24:** the wipe starts only after every selected export has finished and the owner's app holds
+> it, and a failed export erases nothing; the confirmation names every deselected user; the list is shown even when
+> empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
+> signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
+> owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
+> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
+
 ### B.3 Reset sequence
 
 The reset is orchestrated by the app via a signed reset command sent to the hub, which executes the following sequence in order:
