@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 15
-**Date:** 2026-11-23
+**Revision:** 16
+**Date:** 2026-11-24
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -74,6 +74,28 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 
 **Trigger:** User selects "Reset Device" → "Transfer or Sell Device" in the app's device management settings.  
 **Authentication gate:** Requires current biometric authentication + explicit two-step confirmation ("This will permanently erase all your health data from this device. This cannot be undone." → "Erase Device").
+
+> **Rev 16 (2026-11-23): ruled by the principal, superseding the trigger and the gate above (`OI-PRIV-27`
+> (NP-PRIV-ANALYSIS-004), GitHub #955; `docs/human-input/oi-priv-27-factory-reset-command.md` §8).** A factory reset
+> is per helmet: it erases the whole UHDR, SHDR and Config partitions, and SANITIZE purges the whole eMMC (§B.3). Helmets
+> are shared (§C.8), so it destroys every person's UHDR on the helmet. Therefore:
+> - **Only the warranty owner may start a factory reset.** No user can, present or not.
+> - **Every attempt first shows a list of every user who has any data on the helmet**, before any choice and before
+>   anything is erased.
+> - **The warranty owner then chooses which users' data to back up (export).** Each row shows something the owner can
+>   associate with a specific user, and never any of that user's data. **Users current on the helmet start selected;
+>   users who are not current start deselected** (ruled 2026-11-24). Deselecting every user means wipe everything;
+>   there is no other path.
+> - **The backup, if any, is followed by the wipe** (§B.3 R-1 to R-12). The export is §C.8.4's clinic backup of the
+>   selected profiles, so the warranty owner can read none of it.
+>
+> **Confirmed 2026-11-24:** the wipe starts only after every selected export has finished and the owner's app holds
+> it, and a failed export erases nothing; the confirmation names every deselected user; the list is shown even when
+> empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
+> signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
+> owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
+> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
 
 ### B.3 Reset sequence
 
@@ -1277,6 +1299,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 13 | 2026-11-23 | **§C.2: the callout records the rulings of 2026-11-23. New §C.8: the design they fix (keys, wraps, the recovery code, per-file sealing, hub-mediated access, clinic export and import, a person moving to their own helmet) and what stays open in OI-PRIV-35, OI-EMMC2-02 and OI-SIMFW-71. §C.1 to §C.7 still describe what is built. No requirement or code changed (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 | 14 | 2026-11-23 | **New §C.8.6 and REQ-EMMC2-02 to -05: the first increment of §C.8, the per-person key store (np_uhdr_profile.c), is built and host-tested: one Config record per profile, a device-bound unlock wrap and a portable recovery wrap, a helmet-generated 128-bit recovery code handed out once, credential-free export with no unlock wrap, import into an empty slot as dormant, re-binding by recovery code, deletion, and the §C.7 attempt limit shared. Four new seams (SW-02 count 123 to 127). §C.8.5 records the profile cap (8, PROVISIONAL, UC-204) and the per-profile attempt-limit question. File sealing, the file export and the mount change are not built (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 | 15 | 2026-11-23 | **§C.2: the UKMD is 64 random bytes, K1 ‖ K2, following `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 (the 32 bytes printed here contradicted it with no recorded decision); new `REQ-EMMC2-06` (the whole key is wrapped, recovered and mounted; K1 = K2 is refused at provisioning and at unlock). §C.3: `ukmd_ciphertext[64]`, `reserved[52]`, record still 192 bytes, now printed as the code defines it (`OI-UHDRK-08`). §C.4 steps 4 and 5 and §C.5 step 8 follow. The Rev 12 note's Argon2id question stays open, and EMMC-UHDR-06's AES-256-from-AES-128 clause is flagged for the `OI-EMMC2-02` reviewer (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
+| 16 | 2026-11-24 | **§B.2: a callout records the principal's ruling (2026-11-23, `OI-PRIV-27` (NP-PRIV-ANALYSIS-004)): only the warranty owner may start a factory reset, which wipes every person's UHDR on a shared helmet; every attempt first lists every user with data on the helmet; each row is associable with a user and shows none of their data; users current on the helmet start selected for export and the rest deselected (2026-11-24), none selected wiping everything; the export (§C.8.4) is followed by the wipe (§B.3), and a failed export erases nothing; the command is a signed reset blob on the upload path. It supersedes §B.2's user trigger and gate. Not built; built with §C.8.** |
 
 Open items created by this document:
 
