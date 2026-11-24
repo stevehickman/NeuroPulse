@@ -5,7 +5,7 @@
 //         session history, consumables, NPPS engine). Buildable and unit-testable without
 //         the Android SDK.
 // :app  — Android application shell (Compose UI, BLE, Keystore, uploads).
-//         Requires the Android SDK; mirrors app/ios/NeurOne module layout.
+//         Requires the Android SDK; mirrors the module layout of the retired app/ios (see git history).
 
 pluginManagement {
     repositories {

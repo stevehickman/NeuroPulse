@@ -37,7 +37,8 @@ int np_test_port_a;
 int np_test_port_b;
 
 extern int np_sim_safety_main(void);        /* np_safety_main.c's main(), renamed by the build */
-extern void np_fault_latch_commit(const np_safety_state_t *state);     /* np_safety_main.c declares it the same way; no header does */
+extern uint8_t np_fault_latch_get_status(void);   /* np_fault_latch.c; no header declares the raw accessors */
+extern uint8_t np_fault_latch_get_slot(void);
 
 /* ── The part's silicon: OTP and flash, shared with forked children ──────────────────────────────────────────────────── */
 typedef struct {
@@ -50,9 +51,7 @@ typedef struct {
      * The MCU's latch is a file-scope static, so it dies with the process; this is what the model of the part keeps of it when the
      * independent watchdog resets the MCU, and a power-on reset (np_sim_safety_power_on_reset) forgets it. */
     bool     latch_kept;
-    uint8_t  latch_status;
-    uint8_t  latch_slot;
-    uint32_t latch_count;   /* 32-bit like the firmware's fault count (OI-UINT16-01) */
+    uint8_t  latch[NP_FAULT_LATCH_BYTES];   /* the latch's bytes, as the part's retained SRAM keeps them */
 } silicon_t;
 
 static silicon_t *g_si;
@@ -363,32 +362,22 @@ static void step_one(void)
 }
 
 /* The independent watchdog's reset is a warm reset: the part keeps the fault latch (np_fault_latch.c) and clears everything else.
- * What it keeps is read through the firmware's own report, which is the one place the latch's reportable fields are marshalled
- * (the tick is device-internal and is not kept). */
+ * What it keeps is the latch's bytes, through the firmware's host-only save (np_fault_latch_host_save), as the part's top-of-SRAM
+ * section would.  It used to read the latch through np_fault_latch_build_report(), which since OI-PRIV-40 (NP-PRIV-ANALYSIS-004)
+ * carries only the device-class projection, not the slot or the raw count. */
 static void keep_latch(void)
 {
-    np_fault_latch_report_t rep;
-    np_fault_latch_build_report(&rep);
     if (g_si == NULL) { return; }
-    g_si->latch_status = rep.status;
-    g_si->latch_slot = rep.slot;
-    g_si->latch_count = rep.count;
-    g_si->latch_kept = (rep.count > 0U);
+    np_fault_latch_host_save(g_si->latch);
+    g_si->latch_kept = (np_fault_latch_host_raw_count() > 0U);
 }
 
-/* The next MCU in this silicon starts from the latch the last one left: the latch is written back through the firmware's own
- * commit, so its magic, status, slot and count are what the part's retained memory would hold.  Consecutive commits alternate
- * their status, so each is a transition and the count lands on the kept value. */
+/* The next MCU in this silicon starts from the latch the last one left: the bytes are written back before it starts, so its
+ * magic, status, slot, counts and tick are what the part's retained memory would hold. */
 static void restore_latch(void)
 {
     if (g_si == NULL || !g_si->latch_kept) { return; }
-    np_safety_state_t s;
-    memset(&s, 0, sizeof s);
-    for (uint32_t k = 1U; k <= g_si->latch_count; k++) {
-        if (k == g_si->latch_count) { s.status = g_si->latch_status; s.fault_slot = g_si->latch_slot; }
-        else                        { s.status = (uint8_t)(g_si->latch_status ^ ((k & 1U) != 0U ? 0x80U : 0x40U)); s.fault_slot = 0U; }
-        np_fault_latch_commit(&s);
-    }
+    np_fault_latch_host_restore(g_si->latch);
 }
 
 void np_sim_safety_power_on_reset(void)
@@ -480,12 +469,10 @@ void np_sim_safety_info(np_sim_safety_info_t *o)
     o->last_reply_status = f.status;
     o->last_reply_granted = (uint16_t)((uint16_t)f.granted_lo | ((uint16_t)f.granted_hi << 8));
     o->last_reply_fault_slot = f.fault_slot;
-    np_fault_latch_report_t rep;
-    np_fault_latch_build_report(&rep);
     o->nv_programs = g_nv_programs;
-    o->latch_status = rep.status;
-    o->latch_slot = rep.slot;
-    o->latch_count = rep.count;
+    o->latch_status = np_fault_latch_get_status();
+    o->latch_slot = np_fault_latch_get_slot();
+    o->latch_count = np_fault_latch_host_raw_count();
 }
 
 /* ── Manufacture: OTP programming and the app's signature ───────────────────────────────────────────────────────────── */

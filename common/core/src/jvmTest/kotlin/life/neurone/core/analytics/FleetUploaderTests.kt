@@ -81,7 +81,7 @@ class FleetUploaderTests {
 
     // @verifies REQ-SHDR-05#c
     @Test fun hubTokenBelongsToItsHelmetOnly() {
-        val up = uploader(FakeTokenStore(), hub = "AA:BB:CC:00:00:01")
+        val up = uploader(FakeTokenStore(), hub = "AA:BB:CC:00:00:01", consented = true)
         up.upgradeDeviceToken(ByteArray(32) { 0x42 })
         val a = up.deviceToken
         up.setHubIdentifier(null)
@@ -104,7 +104,7 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun upgradeAdoptsHubToken() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         val hub = ByteArray(32) { it.toByte() }
         up.upgradeDeviceToken(hub)
         assertEquals(hub.toHex(), store.value)
@@ -114,7 +114,7 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun nullWarrantyTokenDoesNotDowngrade() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x7F }, up)
         val after = store.value
         assertNotNull(after)
@@ -125,11 +125,56 @@ class FleetUploaderTests {
     // @verifies REQ-SHDR-02
     @Test fun shortOrLongHubTokenRejected() {
         val store = FakeTokenStore()
-        val up = uploader(store)
+        val up = uploader(store, consented = true)
         FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x11 }, up)
         val before = store.value
         up.upgradeDeviceToken(ByteArray(31)); up.upgradeDeviceToken(ByteArray(33)); up.upgradeDeviceToken(ByteArray(0))
         assertEquals(before, store.value)
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun hubTokenIsNotStoredWithoutTheHelmetsConsent() {
+        val store = FakeTokenStore()
+        val up = uploader(store, consented = false)
+        up.upgradeDeviceToken(ByteArray(32) { 0x42 })
+        assertTrue(store.byHub.isEmpty(), "a phone with no consent for the helmet keeps no copy of its owner's token")
+        FleetUploadWiring.applyWarrantyToken(ByteArray(32) { 0x43 }, up)
+        assertTrue(store.byHub.isEmpty())
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun heldHubTokenIsStoredByTheFirstUploadAfterConsent() = runBlocking {
+        val store = FakeTokenStore()
+        val gate = WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore()))
+        // No gateway key: the upload stops after the gate and the held token, before any request.
+        val up = FleetUploader(store, gate, never, gatewayKeyConfigHex = "").also { it.setHubIdentifier(HUB) }
+        val hubToken = ByteArray(32) { 0x42 }
+        up.upgradeDeviceToken(hubToken)
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertTrue(store.byHub.isEmpty(), "a closed gate stores nothing")
+        assertTrue(gate.grant(HUB))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertEquals(hubToken.toHex(), store.value, "the hub's token, not an interim one, once the consent is open")
+    }
+
+    // @verifies REQ-SHDR-08#e
+    @Test fun heldHubTokenIsDroppedByADisconnectAndNeverReachesAnotherHelmet() = runBlocking {
+        val store = FakeTokenStore()
+        val other = "AA:BB:CC:00:00:02"
+        val gate = WarrantyAnalyticsGate(WarrantyOwnerStore(InMemoryKeyValueStore()))
+        val up = FleetUploader(store, gate, never, gatewayKeyConfigHex = "").also { it.setHubIdentifier(HUB) }
+        val hubToken = ByteArray(32) { 0x42 }
+        up.upgradeDeviceToken(hubToken)
+        up.setHubIdentifier(null)
+        up.setHubIdentifier(other)
+        assertTrue(gate.grant(other))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertNotEquals(hubToken.toHex(), store.byHub[other], "one helmet's token is not stored for another")
+        up.setHubIdentifier(null)
+        up.setHubIdentifier(HUB)
+        assertTrue(gate.grant(HUB))
+        assertFalse(up.upload(byteArrayOf(1)))
+        assertNotEquals(hubToken.toHex(), store.value, "a disconnect dropped the held token; the hub delivers it again on the next link")
     }
 
     // @verifies REQ-SHDR-01

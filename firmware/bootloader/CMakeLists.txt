@@ -53,7 +53,13 @@ set(BOOTLOADER_SOURCES
     src/np_app_image.c  # OCRAM staging limits from the linker (NP-SW-CI-001 §4.3)
     src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
     src/np_rollback.c   # anti-rollback floor check (REQ-SW02-15, OI-PRIV-32)
-    src/np_rollback_store_unbuilt.c  # floor store not chosen: refuses every image (OI-PRIV-32)
+    src/np_rpmb.c       # eMMC RPMB frame protocol (REQ-SW02-16, OI-PRIV-32)
+    src/np_rollback_store_rpmb.c  # the floor in the RPMB (REQ-SW02-15, -16)
+    # Three seams, unbuilt, each failing so the floor is unreadable and every
+    # image is refused (fail closed) until it is built:
+    src/np_rpmb_key_unbuilt.c     # RPMB key source: the OI-PRIV-32 factory-key change
+    src/np_rpmb_mac_unbuilt.c     # HMAC-SHA256: OI-SW02-01 (CLAUDE.md §22 decision)
+    src/np_entropy_unbuilt.c      # TRNG driver: OI-SW02-03
 )
 
 # Monocypher 4.0.2 — Ed25519 verify for np_signature.c (NP-SW-CI-001
@@ -249,6 +255,11 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_bootloader_dfu_block_tests PRIVATE include)
     target_compile_options(np_bootloader_dfu_block_tests PRIVATE -std=c11 -Wall -Wextra -O0 -g)
 
+    # OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7): the eMMC SANITIZE sequence, pure (np_emmc_sanitize.h).
+    add_executable(np_bootloader_sanitize_tests tests/np_bootloader_sanitize_tests.c)
+    target_include_directories(np_bootloader_sanitize_tests PRIVATE include)
+    target_compile_options(np_bootloader_sanitize_tests PRIVATE -std=c11 -Wall -Wextra -Werror -O0 -g)
+
     # OI-SWCI-15 adds np_signature.c (which the post-copy gate calls) and
     # Monocypher, which is both np_signature.c's verifier and the test's signer.
     # The test key is force-included so np_signature.c verifies against a key
@@ -289,4 +300,22 @@ if(NP_BUILD_TESTS)
         ${NP_BL_MONOCYPHER})
     target_compile_options(np_bootloader_rollback_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
+
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16: the rollback floor on the
+    # eMMC's RPMB.  The REAL np_rpmb.c (frame protocol), np_rollback_store_rpmb.c
+    # and np_rollback.c, against a fake RPMB device, a fake key and a fake
+    # entropy source in the test.  The MAC is an HMAC the test builds on
+    # np_signature.c's SHA-256 and checks against RFC 4231 first.
+    add_executable(np_bootloader_rpmb_tests
+        tests/np_bootloader_rpmb_tests.c
+        src/np_rpmb.c
+        src/np_rollback_store_rpmb.c
+        src/np_rollback.c
+        src/np_signature.c
+        ${NP_BL_MONOCYPHER_SOURCES}
+    )
+    target_include_directories(np_bootloader_rpmb_tests PRIVATE include
+        ${NP_BL_MONOCYPHER})
+    target_compile_options(np_bootloader_rpmb_tests PRIVATE
+        -std=c11 -Wall -Wextra -Werror -O0 -g)
 endif()

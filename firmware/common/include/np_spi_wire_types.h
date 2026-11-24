@@ -538,8 +538,13 @@ typedef char _np_spi_imp_report_fits_check[
 /*
  * Tells the safety MCU which person is using the device, so that a cervical VNS
  * cardiac cutoff is held for THAT person and nobody else (principal decision,
- * 2026-09-22).  The tag is opaque: a random 32-bit value the app derives from
- * its individual profile, carrying no name or identity.  The MCU persists the
+ * 2026-09-22).  The tag is opaque to the MCU, but it is NOT random: the apps
+ * send the first four bytes of the profile UUID, so the same person shows the
+ * same tag on every helmet and it joins to the profile id.  It is UHDR-class
+ * (OI-PRIV-29, NP-PRIV-ANALYSIS-004; REQ-FAULTMSG-01 replaces it with a
+ * per-(profile, helmet) HMAC, common/npps-core active_user_tag.rs, not yet
+ * wired into the apps).  The MCU treats it as an opaque value either way and
+ * never interprets it.  The MCU persists the
  * current tag in flash (np_nv_state.c), so the same user is assumed across
  * sessions and power cycles until the app says otherwise — including in Mode 3.
  *

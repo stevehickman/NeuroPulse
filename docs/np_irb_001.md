@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-IRB-001
-**Revision:** 2
-**Date:** 2026-08-16
+**Revision:** 3
+**Date:** 2026-11-21
 **Status:** DRAFT
 **Effective Date:** N/A (effective on IRB/REB approval or exemption determination)
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -75,7 +75,7 @@ Full technical detail lives in NP-FW-ANON-001 and CLAUDE.md §5.3; this section 
 
 - All anonymization occurs **on-device**, before any data leaves the device. NeurOne infrastructure never holds the biometric-derived UHDR decryption key and cannot access raw UHDR at any point, including for research.
 - Each study receives a signed study descriptor (approved element list, k≥10, l≥3 l-diversity, ε≤1.0 differential privacy per NP-FW-ANON-001) before any device processes it.
-- Extracts are transmitted keyed to study ID and device ID only — no persistent per-user identifier, no linkage table.
+- Extracts are transmitted keyed to study ID only — no device identifier, no linkage table (CLAUDE.md §5.3 step 4; `OI-PRIV-67`). **Exception, under review (`OI-PRIV-70`):** a study that declares tracking over time in its signed descriptor sends an identifier unique to the person and the study, so that study's extracts are coded and not de-identified. The exemption argument below does not yet cover such a study; the IRB adviser is asked (`docs/human-input/oi-priv-70-tracking-declaration.md`).
 - This architecture is the basis for the 45 CFR §46.104(d)(4) exemption application in Type B studies: the data is de-identified *before* the researcher (or NeurOne) ever receives it, not de-identified afterward by a party who once held identifiable data.
 
 ---
@@ -91,7 +91,7 @@ Full technical detail lives in NP-FW-ANON-001 and CLAUDE.md §5.3; this section 
 
 ## 7. Data Security
 
-- **Type B:** Per NP-FW-EMMC-001 §15 (research anonymization Scratch workspace) and NP-FW-EMMC-002 §D (Scratch partition encryption) — per-task AES-256-CTR key, SRAM-only, zeroed on completion, eMMC SANITIZE post-run. Extract transmission is TLS-encrypted; NeurOne research infrastructure stores extracts keyed to study ID + device ID only.
+- **Type B:** Per NP-FW-EMMC-001 §15 (research anonymization Scratch workspace) and NP-FW-EMMC-002 §D (Scratch partition encryption) — per-task AES-256-CTR key, SRAM-only, zeroed on completion, eMMC SANITIZE post-run. Extract transmission is TLS-encrypted; NeurOne research infrastructure stores extracts keyed to study ID only.
 - **Type A:** Any video/audio recording or force-gauge data from the eject-lever study is stored per the study site's own IRB-approved data security plan (not a NeurOne UHDR/SHDR data flow at all — it's traditional human-subjects research data, held by the study site or a CEO-as-PI sponsor-investigator record, per the standard investigator data-security obligations under 45 CFR Part 46).
 
 ---
@@ -123,3 +123,11 @@ Full technical detail lives in NP-FW-ANON-001 and CLAUDE.md §5.3; this section 
 ## 10. Change Control
 
 Each per-study protocol instance derived from this template is version-controlled separately (e.g., as an IRB/REB submission artifact, not necessarily in this repository). This template document is updated when the underlying consent mechanism, anonymization architecture, or pathway selection changes — each such change is a significant change under NP-QMS-DC-001.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 3 | 2026-11-21 | NeurOne Software Engineering | **§5 and the Type B row: NeurOne research infrastructure stores extracts keyed to study ID only, with no device identifier (OI-PRIV-67); a study that declares tracking sends an identifier unique to the person and the study, so its extracts are coded and the exemption argument does not yet cover it, under review by the IRB adviser (OI-PRIV-70).** |
