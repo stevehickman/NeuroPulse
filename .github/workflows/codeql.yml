@@ -68,7 +68,6 @@ jobs:
     outputs:
       actions: ${{ steps.scope.outputs.actions }}
       cpp: ${{ steps.scope.outputs.cpp }}
-      csharp: ${{ steps.scope.outputs.csharp }}
       java: ${{ steps.scope.outputs.java }}
       js: ${{ steps.scope.outputs.js }}
       python: ${{ steps.scope.outputs.python }}
@@ -86,12 +85,6 @@ jobs:
         scripts/ci-changed-scope.sh
       NP_SCOPE_CPP: |
         firmware/**
-        .github/workflows/codeql.yml
-        .github/toolchain.json
-        .github/actions/setup-toolchain/**
-        scripts/ci-changed-scope.sh
-      NP_SCOPE_CSHARP: |
-        app/windows/**
         .github/workflows/codeql.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
@@ -142,7 +135,6 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$NP_SCOPE_ACTIONS" > scope.actions.paths
           printf '%s\n' "$NP_SCOPE_CPP"     > scope.cpp.paths
-          printf '%s\n' "$NP_SCOPE_CSHARP"  > scope.csharp.paths
           printf '%s\n' "$NP_SCOPE_JAVA"    > scope.java.paths
           printf '%s\n' "$NP_SCOPE_JS"      > scope.js.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"  > scope.python.paths
@@ -152,7 +144,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.actions.paths scope.cpp.paths scope.csharp.paths scope.java.paths scope.js.paths scope.python.paths; do
+          for f in scope.actions.paths scope.cpp.paths scope.java.paths scope.js.paths scope.python.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -170,7 +162,7 @@ jobs:
             echo "ok: $1 · $3 → $got"
           }
           # The case this job exists for: a docs-only change analyses nothing.
-          for l in actions cpp csharp java js python; do
+          for l in actions cpp java js python; do
             assert scope.$l.paths false docs/np_sw_ci_001.md
             assert scope.$l.paths false CLAUDE.md
             assert scope.$l.paths true  .github/workflows/codeql.yml
@@ -188,8 +180,6 @@ jobs:
           assert scope.python.paths  true  ci/test_shdr_schema.py
           assert scope.python.paths  true  editscripts/fix_risk_table.py
           assert scope.python.paths  false app/web/src/main.ts
-          assert scope.csharp.paths  true  app/windows/NeurOne/Protocol/ExternalBrowser.cs
-          assert scope.csharp.paths  false app/android/app/build.gradle.kts
           assert scope.actions.paths true  .github/workflows/web-ci.yml
           assert scope.actions.paths false firmware/safety_mcu/src/np_safety_main.c
 
@@ -235,7 +225,6 @@ jobs:
           }
           emit actions scope.actions.paths
           emit cpp     scope.cpp.paths
-          emit csharp  scope.csharp.paths
           emit java    scope.java.paths
           emit js      scope.js.paths
           emit python  scope.python.paths
@@ -261,11 +250,10 @@ jobs:
           # holds the BLE, consent, and session-data code — worth a real build.
           #
           # CodeQL supports: actions, c-cpp, csharp, go, java-kotlin,
-          # javascript-typescript, python, ruby, rust, swift. (swift is not scanned: the SwiftUI app was retired, OI-UI-KMP-05.) See
+          # javascript-typescript, python, ruby, rust, swift. (swift and csharp are not scanned: the SwiftUI and Windows apps were retired, OI-UI-KMP-05.) See
           # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
           table='actions actions               none
           cpp     c-cpp                 none
-          csharp  csharp                none
           java    java-kotlin           manual
           js      javascript-typescript none
           python  python                none'
@@ -285,7 +273,7 @@ jobs:
     # `== 'true'`, as everywhere else here. This `if:` exists because a matrix
     # cannot be empty (GitHub rejects `include: []`), and a job-level `if:` cannot
     # read `matrix`, so per-language skipping is done by the matrix itself.
-    if: ${{ !cancelled() && (needs.changes.outputs.actions != 'false' || needs.changes.outputs.cpp != 'false' || needs.changes.outputs.csharp != 'false' || needs.changes.outputs.java != 'false' || needs.changes.outputs.js != 'false' || needs.changes.outputs.python != 'false') }}
+    if: ${{ !cancelled() && (needs.changes.outputs.actions != 'false' || needs.changes.outputs.cpp != 'false' || needs.changes.outputs.java != 'false' || needs.changes.outputs.js != 'false' || needs.changes.outputs.python != 'false') }}
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources

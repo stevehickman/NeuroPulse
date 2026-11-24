@@ -3,12 +3,11 @@
  * sync-constants.ts — common/npps/constants.json → the constants every runtime reads.
  *
  * One source (OI-NPPS-CORE-01). A constant is UPPER_SNAKE_CASE and is spelled the same in every language, so
- * `PBM_DEEP_MAX_MW_CM2` is recognisably one thing on the web, in Kotlin, in C# and in Rust. The Rust core takes them at
+ * `PBM_DEEP_MAX_MW_CM2` is recognisably one thing on the web, in Kotlin and in Rust. The Rust core takes them at
  * build time (common/npps-core/build.rs) and has no output to go stale; the rest are written here:
  *
  *   - common/lib/constants.generated.ts                                          (web app, simulator bundle)
  *   - common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
- *   - app/windows/NeurOne/Protocol/NppsConstants.generated.cs
  *   - common/npps-ffi/include/neurone_npps_status.h                              (the C ABI's return codes)
  *
  * It also writes the control bounds, from common/npps/bounds.json: every range the web and Compose apps apply
@@ -29,7 +28,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'common/npps/constants.json';
 
-type Target = 'ts' | 'kotlin' | 'csharp' | 'c' | 'rust';
+type Target = 'ts' | 'kotlin' | 'c' | 'rust';
 interface Constant { name: string; value: number | string; int?: boolean; hex?: number; types?: Partial<Record<Target, string>>; cName?: string; hub?: boolean; required?: boolean; note?: string }
 interface Group { name: string; rust?: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
 const groups = (JSON.parse(readFileSync(join(ROOT, SOURCE), 'utf8')) as { groups: Group[] }).groups;
@@ -62,8 +61,8 @@ function literal(c: Constant, g?: Group): string {
 
 /** The language's type for a constant: its whole numbers default to the usual integer, the rest to a double. */
 function type(g: Group, target: Target, c: Constant): string {
-  const defaults: Partial<Record<Target, [string, string]>> = { kotlin: ['Int', 'Double'], csharp: ['int', 'double'] };
-  if (typeof c.value === 'string') return { kotlin: 'String', csharp: 'string' }[target as 'kotlin' | 'csharp'];
+  const defaults: Partial<Record<Target, [string, string]>> = { kotlin: ['Int', 'Double'] };
+  if (typeof c.value === 'string') return { kotlin: 'String' }[target as 'kotlin'];
   const [whole, fraction] = defaults[target]!;
   return c.int ? (c.types?.[target] ?? g.intTypes?.[target] ?? whole) : fraction;
 }
@@ -95,17 +94,16 @@ function uuidOf(g: Group, c: Constant): string {
 
 /** A group with a `uuidBase` also gets its UUID strings, in a sibling container (GattIds -> GattUuidStrings). The web strings are
  *  lower case, as Web Bluetooth requires; the others keep the base's case, which their UUID parsers ignore. */
-function uuidTable(g: Group, target: 'ts' | 'kotlin' | 'csharp'): string {
+function uuidTable(g: Group, target: 'ts' | 'kotlin'): string {
   if (!g.uuidBase) return '';
   const name = g.name.replace(/Ids$/, 'UuidStrings');
-  const slashes = target === 'ts' || target === 'kotlin' ? '//' : '///';
+  const slashes = '//';
   const rows = g.constants.map(c => {
     const uuid = target === 'ts' ? uuidOf(g, c).toLowerCase() : uuidOf(g, c);
     const indent = target === 'ts' ? '  ' : '    ';
     const decl = {
       ts: `${c.name}: "${uuid}",`,
       kotlin: `const val ${c.name}: String = "${uuid}"`,
-      csharp: `public const string ${c.name} = "${uuid}";`,
     }[target];
     return `${comment(c.note, slashes, indent, 100)}${indent}${decl}`;
   }).join('\n');
@@ -113,7 +111,6 @@ function uuidTable(g: Group, target: 'ts' | 'kotlin' | 'csharp'): string {
   const open = {
     ts: `export const ${name} = {`,
     kotlin: `object ${name} {`,
-    csharp: `static class ${name}\n{`,
   }[target];
   // The characteristics an app must find: one list, built from the names above, for the apps that read it.
   const required = g.constants.filter(c => c.required).map(c => c.name);
@@ -135,14 +132,6 @@ function kotlin(): string {
     return `${comment(g.note, '//', '', 118)}object ${g.name} {\n${rows}\n}\n${uuidTable(g, 'kotlin')}`;
   }).join('\n');
   return `package life.neurone.core.protocol\n\n// ${BANNER}\n\n${body}`;
-}
-
-function csharp(): string {
-  const body = forTarget('csharp').map(g => {
-    const rows = g.constants.map(c => `${comment(c.note, '///', '    ', 100)}    public const ${type(g, 'csharp', c)} ${c.name} = ${literal(c, g)};`).join('\n');
-    return `${comment(g.note, '///', '', 118)}static class ${g.name}\n{\n${rows}\n}\n${uuidTable(g, 'csharp')}`;
-  }).join('\n');
-  return `// ${BANNER}\n\nnamespace NeurOne.Protocol;\n\n${body}`;
 }
 
 // A C block comment: an opener, one ` * ` line per wrapped line of text, then a closer. Empty when there is no text.
@@ -320,7 +309,6 @@ const BOUNDS_BANNER = `GENERATED by scripts/sync-constants.ts from ${BOUNDS_SOUR
 const OUTPUTS: Array<[string, string]> = [
   ['common/lib/constants.generated.ts', ts()],
   ['common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt', kotlin()],
-  ['app/windows/NeurOne/Protocol/NppsConstants.generated.cs', csharp()],
   ['common/npps-ffi/include/neurone_npps_status.h', c()],
   ['firmware/common/include/np_app_wire_constants.h', cGatt()],
   ['common/lib/bounds.generated.ts', boundsTs()],
