@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 7
-**Date:** 2026-11-21  
+**Revision:** 8
+**Date:** 2026-11-22  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -140,7 +140,7 @@ The phone must use the gateway's real key, and nobody on the path may be able to
 
 2. **Server:** provision an HTTPS server (nginx, Caddy, or a cloud API gateway). Minimum spec for T1 at 10,000 devices: 2 vCPU, 4 GB RAM, 500 GB block storage.
 
-3. **Database:** append-only store keyed by `(device_token, session_timestamp)`. ClickHouse works well for fleet telemetry at scale; PostgreSQL is sufficient for < 50,000 devices.
+3. **Database:** PostgreSQL, loaded from `ci/shdr/shdr_fleet_schema.sql` as it stands (checked by `shdr-schema-ci.yml`). **Not keyed by a timestamp:** SHDR holds no time finer than a month (`REQ-SHDR-11`). Rows are keyed by a random UUID (`gen_random_uuid()`), never a sequence, and ordered only by per-device counters (`session_index`, `gap_index`); every date is the first of a month, the manufacture dates included. **Run it with `track_commit_timestamp = off`** (the PostgreSQL default), so the server records no commit time per row (`OI-PRIV-53`). A different engine (ClickHouse, say) does not carry the schema's CHECKs and is not a drop-in: it would need the same constraints shown to hold. *Corrected 2026-11-22: this item said "keyed by `(device_token, session_timestamp)`", which put a per-session clock beside the token.* What the database still records on its own, the insert order in each row's `xmin` and `ctid`, is `OI-PRIV-76`.
 
 4. **Upload gate:** the app uploads only when `warrantyConsentGranted == true` (user accepted warranty consent at first run) and the hub reports USB-C power source. The fleet server should enforce that a token was seen before (i.e. registered during warranty onboarding) and reject unknown tokens to prevent blind data injection.
 
@@ -439,3 +439,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 7 | 2026-11-21 | NeurOne Software Engineering | **§3.3a: the fleet edge's logs delete every request header, and the edge removes nine client-address headers before the ingest service, not two (`OI-PRIV-51`, `REQ-SHDR-06`).** |
+| 8 | 2026-11-22 | NeurOne Software Engineering | **§3.4: the fleet store is the SHDR schema as it stands, keyed by a random UUID and never by a timestamp (the item said `(device_token, session_timestamp)`), run with `track_commit_timestamp = off`; `OI-PRIV-53`, `OI-PRIV-76`.** |
