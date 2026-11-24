@@ -1,6 +1,7 @@
 -- NeurOne SHDR Fleet Schema — LIVE CONSTRAINT TESTS
 -- Document: NP-FW-EMMC-002 Rev 1 §G.4 / schema Rev D
 -- Revision: A — 2026-08-11; TIME-02 cases added 2026-11-21 for schema Rev F (OI-PRIV-52)
+--   and 2026-11-22 for Rev G (manufacture dates, OI-PRIV-58; fixtures moved to the first of a month)
 --
 -- Runs the Rev D schema against a real PostgreSQL and proves each integrity
 -- constraint REJECTS the data it exists to reject. Loading a DDL without error
@@ -71,8 +72,8 @@ $fn$ LANGUAGE plpgsql;
 \set uidB 'AABBCCDDEEFF0022'
 
 INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id)
-VALUES (decode(:'hexA','hex'), 'NP-T1-HOME-STD', 'RevC', '2026-01-15', 'FAC01'),
-       (decode(:'hexB','hex'), 'NP-T1-HOME-STD', 'RevC', '2026-01-15', 'FAC01');
+VALUES (decode(:'hexA','hex'), 'NP-T1-HOME-STD', 'RevC', '2026-01-01', 'FAC01'),
+       (decode(:'hexB','hex'), 'NP-T1-HOME-STD', 'RevC', '2026-01-01', 'FAC01');
 
 \o /dev/null
 
@@ -146,23 +147,23 @@ SELECT must_accept('month-truncated last_seen_month accepted',
 SELECT must_accept('module_life partial for device A accepted',
   format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date,
             module_session_count, module_mate_cycles_observed, distinct_socket_count)
-          VALUES (%L, %L, %L, DATE ''2026-01-02'', 100, 4, 2)',
+          VALUES (%L, %L, %L, DATE ''2026-01-01'', 100, 4, 2)',
          decode(:'hexA','hex'), decode(:'uidA','hex'), 'T1-A-PBM-BASE'));
 
 SELECT must_accept('module_life partial for device B, SAME module, accepted (the partition is what makes each row single-writer)',
   format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date,
             module_session_count, module_mate_cycles_observed, distinct_socket_count)
-          VALUES (%L, %L, %L, DATE ''2026-01-02'', 40, 2, 1)',
+          VALUES (%L, %L, %L, DATE ''2026-01-01'', 40, 2, 1)',
          decode(:'hexB','hex'), decode(:'uidA','hex'), 'T1-A-PBM-BASE'));
 
 SELECT must_reject('duplicate (device, module) partial rejected',
   format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date)
-          VALUES (%L, %L, %L, DATE ''2026-01-02'')',
+          VALUES (%L, %L, %L, DATE ''2026-01-01'')',
          decode(:'hexA','hex'), decode(:'uidA','hex'), 'T1-A-PBM-BASE'));
 
 SELECT must_reject('all-zero module_uid rejected in module_life (would become a fake module accumulating every empty socket in the fleet)',
   format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date)
-          VALUES (%L, %L, %L, DATE ''2026-01-02'')',
+          VALUES (%L, %L, %L, DATE ''2026-01-01'')',
          decode(:'hexA','hex'), decode('0000000000000000','hex'), 'T1-A-PBM-BASE'));
 
 -- THE central invariant: accumulators are grow-only. A "+=" writer or an
@@ -437,10 +438,10 @@ SELECT must_accept('a quiet gap with an empty histogram is accepted',
 -- given an explicit day-precise date (refused) and the first of that month (the
 -- accept control, so a refusal cannot be for some other reason).
 SELECT must_reject('devices: day-granular last_seen_month rejected',
-  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-15'', ''FAC01'', DATE ''2026-08-11'')',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-01'', ''FAC01'', DATE ''2026-08-11'')',
          decode('33333333333333333333333333333333333333333333333333333333333333CC','hex')));
 SELECT must_accept('devices: month-truncated last_seen_month accepted',
-  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-15'', ''FAC01'', DATE ''2026-08-01'')',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id, last_seen_month) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-01'', ''FAC01'', DATE ''2026-08-01'')',
          decode('44444444444444444444444444444444444444444444444444444444444444DD','hex')));
 
 SELECT must_reject('firmware_history: day-granular ingest_month rejected',
@@ -516,6 +517,22 @@ SELECT must_accept('storage_health: month-truncated ingest_month accepted',
   format('INSERT INTO storage_health (warranty_token, pre_eol_info, wear_indicator_slc, littlefs_block_utilisation, session_index, ingest_month) VALUES (%L, 1, 10, 0.25, 1, DATE ''2026-08-01'')', decode(:'hexA','hex')));
 
 -- ===========================================================================
+-- TIME-02, schema Rev G (OI-PRIV-58) — the manufacture dates refuse a day too
+-- ===========================================================================
+SELECT must_reject('devices: day-granular manufacture_date rejected',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-15'', ''FAC01'')',
+         decode('55555555555555555555555555555555555555555555555555555555555555EE','hex')));
+SELECT must_accept('devices: month-truncated manufacture_date accepted',
+  format('INSERT INTO devices (warranty_token, device_model, hw_revision, manufacture_date, factory_id) VALUES (%L, ''NP-T1-HOME-STD'', ''RevC'', ''2026-01-01'', ''FAC01'')',
+         decode('66666666666666666666666666666666666666666666666666666666666666FF','hex')));
+SELECT must_reject('module_life: day-granular module_manufacture_date rejected',
+  format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date) VALUES (%L, %L, ''PBM_HEX'', DATE ''2026-01-15'')',
+         decode(:'hexA','hex'), decode('AABBCCDDEEFF0098','hex')));
+SELECT must_accept('module_life: month-truncated module_manufacture_date accepted',
+  format('INSERT INTO module_life (warranty_token, module_uid, module_part_type, module_manufacture_date) VALUES (%L, %L, ''PBM_HEX'', DATE ''2026-01-01'')',
+         decode(:'hexA','hex'), decode('AABBCCDDEEFF0099','hex')));
+
+-- ===========================================================================
 -- Referential integrity + the no-join boundary
 -- ===========================================================================
 SELECT must_reject('telemetry for an unknown warranty_token rejected',
@@ -527,7 +544,7 @@ SELECT must_reject('telemetry for an unknown warranty_token rejected',
 -- ===========================================================================
 \o
 \echo ''
-\echo 'NeurOne SHDR Rev F - live constraint tests (real PostgreSQL)'
+\echo 'NeurOne SHDR Rev G - live constraint tests (real PostgreSQL)'
 \echo ''
 
 SELECT CASE WHEN passed THEN '  PASS  ' ELSE '  FAIL  ' END || rpad(kind, 8) || name ||

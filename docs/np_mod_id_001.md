@@ -510,7 +510,7 @@ verified against the live catalog of the Rev 4 schema:
 |---|---|
 | Columns matching `user\|patient\|subject\|person\|tag\|session_id\|episode\|visit\|operator\|wearer` | **none** |
 | Columns of type `timestamp`/`time`/`interval` | **none** |
-| `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts) |
+| `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts, month-truncated since SHDR schema Rev G, `OI-PRIV-58`; calendar age is counted in months) |
 
 A duty row is therefore `(warranty_token, session_index, socket_number,
 module_ref, duty)` — a device, an **ordinal**, a position, and a number. On any
