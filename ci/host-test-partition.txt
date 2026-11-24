@@ -104,6 +104,7 @@ B np_stim_xcheck_nonfinite_tests
 B np_transport_tests
 B np_uhdr_key_tests
 B np_uhdr_profile_tests
+B np_uhdr_seal_tests
 B np_zone_announce_tests
 B np_zone_notify_tests
 B np_session_fitting_tests

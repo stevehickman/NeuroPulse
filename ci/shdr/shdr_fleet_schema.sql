@@ -1375,7 +1375,7 @@ CREATE TABLE fault_log (
     id                  BIGSERIAL    PRIMARY KEY,
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
-    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', 'CVNS_HR_CUTOFF', etc.
+    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', 'CVNS_CARDIAC_INTERLOCK_CUTOFF', etc. ('CVNS_CARDIAC_INTERLOCK_CUTOFF' names no cause: OI-PRIV-41 Q2)
     fault_source        VARCHAR(16)  NOT NULL CHECK (fault_source IN ('SAFETY_MCU', 'MAIN_PROC', 'APP')),
     fault_cleared       BOOLEAN      NOT NULL DEFAULT FALSE,
 

@@ -248,7 +248,9 @@ env:
   # 66 → 67: np_status_led_tests (NP-FW-HUB-001 §5.5a, OI-PRIV-37 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-85, REQ-FWHUB-86).
   # 67 → 68: np_uhdr_profile_tests (OI-PRIV-34 (NP-PRIV-ANALYSIS-004), NP-FW-EMMC-002 §C.8, REQ-EMMC2-02..05).
   # 68 → 69: np_bootloader_rpmb_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16).
-  NP_CLASS_B_TEST_COUNT: '70'
+  # 69 → 70: np_uhdr_seal_tests (OI-PRIV-34 (NP-PRIV-ANALYSIS-004), NP-FW-EMMC-002 §C.8.7, REQ-EMMC2-07).
+  # 70 → 71: np_module_usage_tests (REQ-FWHUB-93, per-module running totals; OI-CVNS-04).
+  NP_CLASS_B_TEST_COUNT: '71'
 
 # Cancel superseded runs when new commits land on the same PR. Only pull_request
 # runs are cancelled: a run on the default branch is never cancelled by a later merge.
