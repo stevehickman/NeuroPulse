@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 22
-**Date:** 2026-11-23
+**Revision:** 23
+**Date:** 2026-11-24
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -317,7 +317,7 @@ Before Rev 6, every interlock fault set `cutoff_occurred`, and the event HR was 
 
 > **Rev 21 (2026-11-21), `OI-PRIV-23` (NP-PRIV-ANALYSIS-004 H3, GitHub #951):** the summary is three flags. Through the previous revision it also listed electrode configuration, frequency, current, duration and each electrode's impedance in kΩ, under the heading "device metrics only". Every one of those is UHDR (§8.2 of this document; `data-architecture-detail.md` §5.1). Joined by session count to the SHDR cutoff events, it would have made a per-session table of neck-stimulation dose against cardiac response, keyed to the warranty token. The values stay in the UHDR record (§4.5). The struct also carried `abort_reason` here, and `fault_reason` in the code; the code's field is the one kept.
 >
-> **Rev {NP-FW-CVNS-001 to} (2026-11-23), `OI-PRIV-40` (NP-PRIV-ANALYSIS-004, GitHub #968):** the summary is two flags. The impedance pass flag is removed from the struct, not zeroed, because the principal ruled the in-session impedance check UHDR (`data-architecture-detail.md` §5.1, "In-session electrode impedance check"). For the same reason the fault reason never names the impedance check: `NP_CVNS_FAULT_IMPEDANCE` is written as `NP_CVNS_FAULT_SAFETY_MCU` (`np_cvns_shdr_fault_reason()`), a value other faults also produce.
+> **Rev 23 (2026-11-23), `OI-PRIV-40` (NP-PRIV-ANALYSIS-004, GitHub #968):** the summary is two flags. The impedance pass flag is removed from the struct, not zeroed, because the principal ruled the in-session impedance check UHDR (`data-architecture-detail.md` §5.1, "In-session electrode impedance check"). For the same reason the fault reason never names the impedance check: `NP_CVNS_FAULT_IMPEDANCE` is written as `NP_CVNS_FAULT_SAFETY_MCU` (`np_cvns_shdr_fault_reason()`), a value other faults also produce.
 
 Written to the SHDR partition. Device condition only:
 
@@ -650,7 +650,7 @@ STAGE_FAULT                       STAGE_RAMP_DOWN → STAGE_COMPLETE
 | Session duration (s) | UHDR | User biology |
 | Stimulation parameters (freq, current, pulse width) | UHDR | Linked to a specific user session |
 | Cutoff occurred flag (0/1 only, no HR values) | SHDR | Device safety event — no user biology |
-| Electrode impedance pass/fail (boolean) | ~~SHDR~~ **UHDR** (the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)); not in the SHDR summary since Rev {NP-FW-CVNS-001 to} (`REQ-CVNS-15`) | Measured through the wearer in session, so it cannot tell a device fault from placement; `data-architecture-detail.md` §5.1. Device condition comes from a device-only test (`NP-FW-HUB-001` `OI-FWHUB-36`) |
+| Electrode impedance pass/fail (boolean) | ~~SHDR~~ **UHDR** (the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)); not in the SHDR summary since Rev 23 (`REQ-CVNS-15`) | Measured through the wearer in session, so it cannot tell a device fault from placement; `data-architecture-detail.md` §5.1. Device condition comes from a device-only test (`NP-FW-HUB-001` `OI-FWHUB-36`) |
 | Safety MCU fault log (session ordinal + reason; **no offset**, no HR) | SHDR | Device event log. **Rev 3:** the `cutoff_offset_ms` field was removed — it duplicated the *Time-of-cutoff offset* row above, which this same table already classifies UHDR, at finer resolution. Fault event timing is UHDR (§5.6). |
 | Session count increment | SHDR | Unsigned integer |
 
@@ -828,7 +828,7 @@ Consistent with NP-FW-EMMC-001 Rev 2 §12 (33-element classification table; was 
 | Electrode impedance (raw) | UHDR | Raw measurement linked to a user session |
 | Cutoff flag (boolean only) | SHDR | Device safety event; no user biology in the flag itself |
 | Time-of-cutoff offset (s after stim onset) | UHDR | Latency from stim onset to the wearer's HR deviating past the cutoff threshold — an autonomic response latency, i.e. user biology. Carried in the UHDR session record as `cutoff_time_offset_s` (§4.5) and **nowhere in SHDR** (§5.6, Rev 3) |
-| Electrode impedance pass/fail | ~~SHDR~~ **UHDR** (2026-11-23, as above; not written since Rev {NP-FW-CVNS-001 to}) | Measured through the wearer in session |
+| Electrode impedance pass/fail | ~~SHDR~~ **UHDR** (2026-11-23, as above; not written since Rev 23) | Measured through the wearer in session |
 | Safety MCU fault log | SHDR | Device event log; no HR values **and no event timing** (§5.6) |
 | Session count increment | SHDR | Unsigned integer; no timestamps |
 
@@ -1255,3 +1255,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 20 | 2026-11-21 | NeurOne Quality | **§14 OI-CVNS-04: note added that it must not be closed by wiring `np_cvns_shdr_summary_t` as it stands, because the struct carries raw per-electrode impedance and stimulation parameters, which §5.1 classes as UHDR (OI-PRIV-23, GitHub #951, NP-PRIV-ANALYSIS-004 H3). No requirement or design changed.** |
 | 21 | 2026-11-21 | NeurOne Firmware Engineering | **§4.6: np_cvns_shdr_summary_t is three one-byte flags (impedance check passed, cutoff occurred, fault reason) and no longer lists electrode configuration, frequency, current, duration or per-electrode kΩ, which are UHDR (§8.2; data-architecture-detail.md §5.1). REQ-CVNS-15 added, verified by host tests and a _Static_assert. §14 OI-CVNS-04 re-worded to name the three-flag struct (OI-PRIV-23 (NP-PRIV-ANALYSIS-004), GitHub #951, H3). The write is still a stub; nothing had reached SHDR. IEC 62304 SW-02 Class B: np_cvns_types.h and np_cvns_session.c change; no Class C code, constant, limit or interlock behaviour changes.** |
 | 22 | 2026-11-23 | NeurOne Firmware Engineering | **§8.2: the electrode impedance pass/fail rows are UHDR (the principal, 2026-11-23). REQ-CVNS-15: note that (a) becomes two flags when the firmware change lands.** |
+| 23 | 2026-11-24 | NeurOne Firmware Engineering | **§4.6, §8.2, §14: the SHDR session summary is two flags, the impedance pass flag removed; REQ-CVNS-15 (a) to two flags and new (c), the fault reason never names the impedance check (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
