@@ -419,6 +419,12 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                         s(format!("{} Hz", num_string(m))), "@maxBinauralBeatsHz", msg("VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ", vec![n(b), n(m)]));
                 }
             }
+            // An isochronic pulse rate of zero is no pulse at all, so it is refused (the principal, 2026-11-24,
+            // OI-NPPS-AUDIO-01; np_npps_ref_001 `isochronic_hz`: "Above 0"). A binaural beat of 0 Hz is allowed.
+            if let Some(b) = p["isochronicTonesHz"].as_f64().filter(|b| *b <= 0.0) {
+                out.push(Error, k, "isochronicTonesHz", "VALIDATE_PARAM_ISOCHRONIC_TONE", s(format!("{} Hz", num_string(b))),
+                    s("> 0 Hz".to_string()), "hardware", msg("VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_2", vec![n(b), n(0.0)]));
+            }
             if let (Some(m), Some(b)) = (lim(l, "maxIsochronicTonesHz"), p["isochronicTonesHz"].as_f64()) {
                 if b > m {
                     out.push(Error, k, "isochronicTonesHz", "VALIDATE_PARAM_ISOCHRONIC_TONE", s(format!("{} Hz", num_string(b))),

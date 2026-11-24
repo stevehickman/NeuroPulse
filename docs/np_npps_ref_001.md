@@ -789,7 +789,7 @@ Over-ear planar magnetic + bone conduction.
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
 | `binaural_hz` | `binaural_beats_hz` | number (optional) | 0 or above: **0 Hz is allowed** and is a steady tone, the same frequency in both ears, not an error (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`). The former 0.5–100 was a default with no source (`UC-082`); the documented bound is carrier plus beat at most 1,000 Hz (`REQ-AUDIO-25`). The descriptor carries up to 4,294,967.295 Hz (32 bits of mHz) and the compiler refuses above it |
-| `isochronic_hz` | `isochronic_tones_hz` | number (optional) | Above 0, with the same 1,000 Hz tone bound and 32-bit wire as `binaural_hz` |
+| `isochronic_hz` | `isochronic_tones_hz` | number (optional) | Above 0: **0 Hz is refused** by the validator and the compiler, because a pulse rate of zero is no pulse (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`). Same 1,000 Hz tone bound and 32-bit wire as `binaural_hz` |
 | `noise` | `noise_type` | string (optional) | `pink` `brown` `none` |
 | `carrier_hz` | `carrier_hz` | number | Hz of carrier tone for binaural beats. Whole Hz, at most 65535; above it the compiler refuses. For a binaural or isochronic block the carrier, and the carrier plus the beat or pulse rate, are at most 1000 Hz (`REQ-AUDIO-25`): the validator reports it and the compiler and the hub refuse it |
 | `volume` | `volume_db` | number, `dB` | **Required.** Sound pressure level at the ear, dB SPL (§4.1b). Absolute, never relative to a component. Ceiling **85 dB SPL**: a protocol above it is refused by the compiler, not reduced (`NP-HW-AUDIO-001` `REQ-AUDIO-19`) |
