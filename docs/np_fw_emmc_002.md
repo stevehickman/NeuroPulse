@@ -420,10 +420,11 @@ that; it is in the reviewer's scope (brief §3).
 | The single `ukmd.rec` record (§C.3) is replaced by one record per profile | This section, when built |
 | The XTS key length (32 bytes for AES-256-XTS) | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004), for the helmet store key |
 | The KDF and its cost | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
-| The failed-unlock limit (§C.7, `REQ-EMMC2-01`): profile unlock and rebind are charged to the same helmet-wide count (`REQ-EMMC2-05`). Whether it should count per profile record instead is open: per profile, one person's wrong guesses would not lock out the others, but an attacker would get the free attempts once per profile | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) |
-| The wrap and file-sealing constructions, and the sealed-to-profile write for Mode 3 | `OI-EMMC2-02`, the cryptography review, whose scope now includes this section |
+| The failed-unlock limit for profiles: **per profile**, decided by the principal on 2026-11-24 (an attacker gets the free attempts once per profile but does not know how many profiles hold data). Built in §C.8.7's change: the count is in each profile's record (`REQ-EMMC2-05`) | Decided |
+| The wrap and file-sealing constructions (§C.8.6, §C.8.7) | `OI-EMMC2-02`, the cryptography review, whose scope now includes this section |
+| How a Mode 3 session's UHDR is kept when no profile is open | The principal (raised 2026-11-24, `OI-PRIV-34` (NP-PRIV-ANALYSIS-004)); then `OI-EMMC2-02` for any construction |
 | The size buckets | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), with the file export |
-| The maximum number of profiles per helmet: `NP_UHDR_PROFILE_MAX` = 8, **PROVISIONAL** (UC-204) | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) |
+| The maximum number of profiles per helmet: `NP_UHDR_PROFILE_MAX` = **24**, the principal, 2026-11-24. Profiles are loaded from the app as needed, so the most a helmet holds at once is a clinic day's patients, assumed at most 24 sessions a day (UC-204, `ASSUMED`). Each profile costs one 216-byte Config record and 8 bytes of RAM | Decided; the assumption is UC-204 |
 | Who may request an export (the warranty owner's pairing role) | `OI-SIMFW-71` Q8 |
 | The partition layout clauses of `NP-FW-EMMC-001` | An ECR, since that document is a `.docx` (`OI-CONV-04`) |
 
@@ -435,7 +436,7 @@ that; it is in the reviewer's scope (brief §3).
 > size buckets, the helmet store key and the change to the UHDR mount, and the Mode 3 write (§C.8.3). Until
 > those land, UHDR files are still written under the §C.3 key, and nothing calls this module.
 
-**What it does.** One Config record per profile (`np_uhdr_profile_record_t`, 212 bytes, at most
+**What it does.** One Config record per profile (`np_uhdr_profile_record_t`, 216 bytes since §C.8.7's change, at most
 `NP_UHDR_PROFILE_MAX` slots), holding the profile id, wrap 1 and wrap 2 of §C.8.2. `create` generates the
 profile key, the id and the recovery code from the TRNG, writes both wraps and hands the code out once.
 `unlock` opens wrap 1. `rebind` opens wrap 2 with the recovery code and writes a fresh wrap 1 under this
@@ -460,7 +461,48 @@ id travels in every export, so it names one person across helmets: UHDR-class (`
 | `REQ-EMMC2-02` | Each person on a helmet has their own profile key: (a) a profile is created only in an empty slot, with its own random key, id and recovery code, and an occupied slot is never overwritten; (b) a profile's key opens only with that profile's credential, and changing the credential keeps the key and wrap 2; (c) the recovery code is handed out once and appears nowhere in the stored record, and a create that fails hands out no code; (d) deleting a profile destroys its record, after which neither its credential nor its recovery code opens anything. *Fails without it:* on a shared helmet one person reads another's UHDR, or a person's key is overwritten and their record lost. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q1, Q3b); `CLAUDE.md` §5.1 (UHDR is the person's; an erase is not a weakening) |
 | `REQ-EMMC2-03` | A profile's unlock wrap is bound to its helmet: (a) a record copied to another helmet does not open with the right credential; (b) an export carries no byte of wrap 1, its salt or its parameters, and exporting leaves the helmet's own record live; (c) wrap 1 authenticates the profile id, the salt and the KDF parameters, and parameters below the floor are refused before any KDF runs. *Fails without it:* an eMMC image or a clinic's export can be attacked offline with the credential's small key space, or a rolled-back record weakens the KDF. | `NP-FW-EMMC-002` §C.2 (privacy review Findings 1 and 2); `CLAUDE.md` §5.1 (protection only goes up) |
 | `REQ-EMMC2-04` | A profile can be backed up and moved without access to it: (a) an export needs no credential, and an imported profile does not open with any credential; (b) an export imports only into an empty slot, only as DORMANT, and an export carrying any wrap-1 byte, a LIVE state or a malformed header is refused; (c) the recovery code opens a profile's key and binds it to this helmet under a new credential, so the person's files stay readable; (d) a wrong recovery code, or a wrap 2 moved onto another profile's record, opens nothing and leaves the record dormant. *Fails without it:* a clinic cannot replace a helmet, a person cannot move to their own helmet, or whoever holds an export reads it. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q2, the added warranty-owner requirement, Q3b); `CLAUDE.md` §6.0 (`REQ-SHDR-10`) |
-| `REQ-EMMC2-05` | Profile unlock and rebind are rate-limited as the §C.7 unlock is: (a) each attempt that reaches a KDF is charged to the same persisted count before the secret is tested, a success clears it, the back-off refuses both without running a KDF or charging, and an attempt whose charge cannot be persisted is refused untested; (b) an unlock of a dormant profile is refused without running the KDF and without being charged. *Fails without it:* the per-person path becomes a way round the guessing limit `REQ-EMMC2-01` sets. | `REQ-EMMC2-01`; `CLAUDE.md` §5.1 (protection only goes up) |
+| `REQ-EMMC2-05` | Profile unlock and rebind are rate-limited per profile (the principal, 2026-11-24): (a) each attempt that reaches a KDF is charged to that profile's own persisted count before the secret is tested, and to no other profile's and not to the helmet-wide count; a success clears it; once the count passes the free attempts, the §C.7 back-off, measured from that profile's last charged attempt in this boot, refuses both without running a KDF or charging; a power cycle restarts the wait and keeps the count; and an attempt whose charge cannot be persisted is refused untested; (b) an unlock of a dormant profile is refused without running the KDF and without being charged; (c) an export carries no count and an import stores a zero count, and neither helps a guesser, because a re-imported profile takes no credential until its recovery code re-binds it. *Fails without it:* the per-person path becomes a way round the guessing limit `REQ-EMMC2-01` sets, or one person's wrong guesses lock every other person on the helmet out of their own record. | `REQ-EMMC2-01`; the principal, 2026-11-24 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004): the limit is per user); `CLAUDE.md` §5.1 (protection only goes up) |
+
+#### C.8.7 Built: per-file sealing (increment 2)
+
+> **Rev {NP-FW-EMMC-002 to} (2026-11-24).** Sealing a UHDR file under its owner's profile key is built and
+> host-tested as a buffer library: `firmware/uhdr_key/src/np_uhdr_seal.c` (`np_uhdr_seal.h`), tests in
+> `np_uhdr_seal_tests`. **It has no caller yet.** The log backend starts sealing in increment 3, with the
+> helmet store key and the change to the UHDR mount, because a sealed write needs an open profile and nothing
+> on the helmet opens one yet. **Not built:** that wiring, the file export and import with their size
+> buckets, and the Mode 3 write (§C.8.3, still open).
+
+**Format.** A sealed file is a 32-byte clear header (magic, format, the file's random 16-byte id, the chunk
+size) followed by chunks. On the medium each chunk is `NP_UHDR_SEAL_BLOCK_BYTES` (512), one log staging block
+(`NP_LOG_STAGE_BYTES`, `np_log_backend.h`), so a staged write is exactly one sealed chunk. Its plaintext,
+`NP_UHDR_SEAL_CHUNK_PT_BYTES`, is derived: the block less the 16-byte tag (496). The two constants are tied by a
+compile-time check when the backend starts sealing (increment 3). Every chunk but the last is full; the last is
+shorter, possibly only a tag, and carries a final flag.
+
+**Keys and binding.** Each file has its own key, `FK = file_kdf(PK, profile id, file id)`, so the chunk
+index can serve as the nonce and never repeats under one key. Each chunk is AES-256-GCM with nonce = the chunk
+index and AAD = header ‖ chunk index ‖ final flag. A changed, reordered, dropped, duplicated or appended chunk
+fails. A file cut after any chunk is refused because no final chunk is read. A file opened under another
+profile, or given another file's header, derives another key and opens nothing. The construction (GCM chunks
+with a final flag, in the manner of the STREAM construction) and the file KDF are the reviewer's
+(`OI-EMMC2-02`).
+
+**Names.** A file's name is the hex of its random id. It carries no session count, no profile id and no time
+(§C.8.3; compare `OI-PRIV-41` (NP-PRIV-ANALYSIS-004), the shared counter). The clear header does not carry
+the owner's profile id either.
+
+**Seam.** One: `np_uhdr_hal_file_kdf` (`OI-UHDRK-14`), trap-defined on target until the CAAM KDF is wired. The
+SW-02 seam count goes 127 → 128; it is `absent` in the twin.
+
+**Changed with this increment (the principal, 2026-11-24).** The failed-attempt limit for profiles is now
+**per profile**: each record carries its own count (`failed_attempts`, not authenticated, zero in every export), the
+back-off is the §C.7 schedule measured from that profile's last charged attempt, and the record grows from 212 to
+216 bytes (`REQ-EMMC2-05`, rewritten). The profile cap is now **24** (UC-204). Nothing was deployed, so the record
+format number is unchanged.
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-07` | Each UHDR file is sealed on its own under its owner's profile: (a) a file is sealed under a key derived from its owner's open profile key and its own random id, its owner reads it back exactly, and another profile, another file's header, or a closed profile opens nothing and writes nothing; (b) every chunk authenticates the header, its own position and whether it is the last, so a changed, reordered, dropped, duplicated or appended chunk, or a changed or malformed header, is refused; (c) a file without its final chunk is refused, and a shortened chunk cannot pose as the final one; (d) a file's name is derived from its random id only, and neither the name nor the clear header carries the owner's profile id, a session count or a time; (e) the file key is zeroed when a writer finishes, aborts or fails and when a reader finishes or fails, and a failed writer or reader accepts nothing more. *Fails without it:* on a shared helmet one person's files open under another's key, a stored file is altered or cut without detection, or a file's name or header tells whose it is or when it was made. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q1, Q2: a key per person over per-file sealing); `NP-FW-EMMC-002` §C.8.3; `CLAUDE.md` §5.1 (UHDR is the person's; protection only goes up) |
 
 ---
 

@@ -126,6 +126,7 @@ PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
     (r"recovery",         "recovery code, salt or key (per-person key material)"),
     (r"rec_salt",         "recovery-wrap salt (per-person key material)"),
     (r"\bw[12]_",         "profile key wrap (per-person key material)"),
+    (r"file_key",         "sealed-file key (per-person key material, §C.8.7)"),
 ]
 
 # Column TYPES that must never appear anywhere in the SHDR schema.
