@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** 7
-**Date:** 2026-11-21  
+**Revision:** 8
+**Date:** 2026-11-22  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -439,3 +439,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 7 | 2026-11-21 | NeurOne Software Engineering | **§3.3a: the fleet edge's logs delete every request header, and the edge removes nine client-address headers before the ingest service, not two (`OI-PRIV-51`, `REQ-SHDR-06`).** |
+| 8 | 2026-11-22 | NeurOne Software Engineering | **§3.4: the fleet store is the SHDR schema as it stands, keyed by a random UUID and never by a timestamp (the item said `(device_token, session_timestamp)`), run with `track_commit_timestamp = off`; `OI-PRIV-53`, `OI-PRIV-76`.** |

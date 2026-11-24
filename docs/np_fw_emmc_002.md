@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 17
-**Date:** 2026-11-24
+**Revision:** 18
+**Date:** 2026-11-22
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -1343,6 +1343,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 15 | 2026-11-23 | **§C.2: the UKMD is 64 random bytes, K1 ‖ K2, following `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 (the 32 bytes printed here contradicted it with no recorded decision); new `REQ-EMMC2-06` (the whole key is wrapped, recovered and mounted; K1 = K2 is refused at provisioning and at unlock). §C.3: `ukmd_ciphertext[64]`, `reserved[52]`, record still 192 bytes, now printed as the code defines it (`OI-UHDRK-08`). §C.4 steps 4 and 5 and §C.5 step 8 follow. The Rev 12 note's Argon2id question stays open, and EMMC-UHDR-06's AES-256-from-AES-128 clause is flagged for the `OI-EMMC2-02` reviewer (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 16 | 2026-11-24 | **§B.2: a callout records the principal's ruling (2026-11-23, `OI-PRIV-27` (NP-PRIV-ANALYSIS-004)): only the warranty owner may start a factory reset, which wipes every person's UHDR on a shared helmet; every attempt first lists every user with data on the helmet; each row is associable with a user and shows none of their data; users current on the helmet start selected for export and the rest deselected (2026-11-24), none selected wiping everything; the export (§C.8.4) is followed by the wipe (§B.3), and a failed export erases nothing; the command is a signed reset blob on the upload path. It supersedes §B.2's user trigger and gate. Not built; built with §C.8.** |
 | 17 | 2026-11-24 | **New §C.8.7 and REQ-EMMC2-07: increment 2 of §C.8, per-file sealing (np_uhdr_seal.c), is built and host-tested as a buffer library with no caller yet: a 32-byte clear header with a random file id, 512-byte chunks (one log staging block, 496 bytes of plaintext), a per-file key derived from the profile key and the file id, AES-256-GCM per chunk with the index as nonce and a final flag in the AAD, refusal of any changed, reordered, dropped, duplicated, appended or truncated chunk, and names from the random id only. One new seam (file KDF, SW-02 count 127 to 128). §C.8.5 records the Mode 3 question as the principal's. With the principal's rulings of 2026-11-24, the profile attempt limit becomes per profile (REQ-EMMC2-05 rewritten; the record grows to 216 bytes) and the profile cap becomes 24 (UC-204, ASSUMED). The backend wiring, the mount change and the file export are increment 3 (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
 
 Open items created by this document:
 
