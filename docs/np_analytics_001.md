@@ -434,9 +434,10 @@ What the app sends and expects:
 | | |
 |---|---|
 | Request | `POST https://<analytics host>/np/erase`, `Content-Type: application/json`, body `{"distinct_id": "<the old ID>"}` and nothing else. No account, device name, token or consent record, and no `Authorization` header: the ID is a random value only the phone and PostHog know, so presenting it is the proof the request is the owner's. |
-| `200`–`299` | Accepted. Erasing an ID PostHog does not hold must also answer `2xx`: the call is idempotent. The app drops the ID from its queue. |
+| `200` | Deleted. Erasing an ID PostHog does not hold must also answer `200`: the call is idempotent. The app drops the ID from its queue. |
+| `202` | Queued at the relay for a batched delete that has not run yet (`OI-PRIV-48`). **The app keeps the ID**, asks about it again at its next drain, and goes on to the next queued ID. In a device erase or clear, where nothing can keep the ID, a `202` counts as accepted. |
 | `4xx` other than `408` and `429` | Refused. **The app keeps the ID** and asks again at its next launch (it goes on to the next queued ID in the same drain). The queue holds the only copy, and a `401`, `403` or `404` is what a misdeployed relay or a proxy in front of it answers, so no refusal drops an ID (`OI-PRIV-08` (2), `REQ-SW03-19` (b)). The app queues only IDs of the shape the relay accepts, so a `400` from the relay itself is not expected. |
-| `408`, `429`, `5xx`, no answer | Try later. The app keeps the ID and asks again at its next launch; the rest of the queue waits. |
+| `408`, `429`, `5xx`, any other status (another `2xx` included), no answer | Try later. The app keeps the ID and asks again at its next launch; the rest of the queue waits. |
 
 What the relay does:
 
@@ -445,13 +446,13 @@ What the relay does:
 - **Keeps nothing.** Neither the source address (Caddy strips it, the relay logs none) nor the ID is written anywhere; the only record is four counters (erased, refused, limited, failed) printed at shutdown.
 - **Finishes within the policy's 30 days** only if the mutation runs; a ClickHouse mutation is asynchronous and the relay answers `200` when the store accepts it, not when the rows are gone.
 
-**Decided, not built: a `202` for "queued"** (`OI-PRIV-48`, the principal 2026-11-24; GitHub #971). Today every accepted ID runs its own `ALTER … DELETE` at once, and any request, malformed or not, spends the one rate-limit bucket. The relay is to change in three ways:
+**Decided: a `202` for "queued"** (`OI-PRIV-48`, the principal 2026-11-24; GitHub #971). **The app half is built** (the table above, `REQ-SW03-19` (b), (d), (e)); **the relay half is not**. Today every accepted ID runs its own `ALTER … DELETE` at once, and any request, malformed or not, spends the one rate-limit bucket. The relay is to change in three ways:
 
 - **Validate before the rate limit.** A malformed request is refused before it takes a token, so refused requests cannot starve real withdrawals.
 - **Queue and batch.** An accepted ID is queued durably and answered **`202`**. The queue is deleted in batches (`distinct_id IN (…)`, or a lightweight `DELETE` where the pinned ClickHouse version has one), on a schedule still to be chosen. `200` keeps its meaning, "deleted, or there were none", and is given only once the ID's deletion has been carried out.
 - **The queue holds pending IDs only.** An ID leaves the queue when its batch completes, and the relay keeps no list of erased IDs: that list is what erasure exists to remove. How the app's next ask for a queued ID is answered `200` (a re-ask, or a status call) is for the build.
 
-**Order of release:** the app treats `202` as "keep the ID and go on to the next" and drops an ID only on `200`, and that app change ships **before** any relay answers `202`. Today's app drops on any `2xx` (`REQ-SW03-19` (b)), so a `202` sent to it would drop an ID the store still holds. `REQ-SW03-19` (b) and `REQ-SW03-22` (a) change with the build.
+**Order of release:** the app treats `202` as "keep the ID and go on to the next" and drops an ID only on `200`, and that app change ships **before** any relay answers `202`: an app released before it drops on any `2xx`, so a `202` sent to it would drop an ID the store still holds. `REQ-SW03-22` (a) changes with the relay half.
 
 **Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm erase-relay python /app/erase_relay.py --self-check`. It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
 
