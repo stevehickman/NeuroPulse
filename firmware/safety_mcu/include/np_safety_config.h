@@ -371,6 +371,7 @@
 
 /* ── Fault latch (SW01-M08) ─────────────────────────────────────────────── */
 #define NP_FAULT_LATCH_MAGIC    0xDEADBEF0UL  /* sentinel for latch validity; changed from 0xDEADBEEF with the 32-bit count layout (OI-UINT16-01) */
+#define NP_FAULT_LATCH_BYTES    64U           /* the .fault_latch section: the latch struct is asserted to this size */
 
 /* ── Session signature (SW01-M07) ───────────────────────────────────────── */
 /* Manufacturing root public key (OTP): NP_ED25519_PUBKEY_SIZE bytes.         */
