@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-ACC-PRIORITY-001
-**Revision:** 5
-**Date:** 2026-10-21
+**Revision:** 6
+**Date:** 2026-11-24
 **Status:** DRAFT — awaiting principal + product sign-off. Ranks nothing that is locked; sets no price.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -415,3 +415,11 @@ decision recorded in `NP-HW-FITOVER-001` §1, and resolved *in favour of the cla
 already holding*. That is the outcome worth noting when weighing §3: the flagged judgement was
 carrying the right answer, and closing the question changed nothing in §5 except the grounds it
 stands on.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 6 | 2026-11-24 | NeurOne Systems Engineering | **§5 rank 1: Gate cell now reads UNRESOLVED (OI-ACC-10). HOPE missed its primary endpoint and never tested a tactile channel. Rank unchanged (§3.3). §7: records that the read-out went as the section foresaw, and the boss is retained. §8: OI-ACC-10 raised (what evidence releases the pad).** |

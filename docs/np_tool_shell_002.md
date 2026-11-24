@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-TOOL-SHELL-002
-**Revision:** 1
-**Date:** 2026-09-25
+**Revision:** 2
+**Date:** 2026-11-24
 **Status:** DRAFT
 **Effective Date:** — (opens for sign-off when `MECH-1` delivers the §3 geometry)
 **Author:** NeurOne Systems Engineering
@@ -461,3 +461,4 @@ RISK-20 / `OI-RISK4-05` / GitHub #6; `OI-BIBEMF-01`.
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 1 | 2026-09-25 | NeurOne Systems Engineering | **Initial issue (GitHub #331). Supersedes `NP-TOOL-SHELL-001` Rev 3**, under `NP-CONV-001` §4's new-architecture rule (§1.1). Dispositions all four predecessor features (§2): F-01, F-02 and F-03 not carried, and F-04 carried unchanged as S2-F01 with its dangling tether reference restated inline. Records that GitHub #331's *"carry forward the EEG cable channel"* is contradicted by the record. Answers the ~80-socket cover question from `NP-HELMET-GEOM-001` §3.1 and FMEA-G03-02: blanking plugs retained by the socket, with no per-socket anchor post (§4). Registers every `MECH-1` input (§5): six must close before `MECH-1` cuts, and one, **the layer-closed interlock's missing electrical owner**, is new (OI-TSHELL2-02). Resolves the "L0" station-name collision (§1.4). Records that RISK-20's scope may shrink, not grow (§5.6). Raises OI-TSHELL2-01…08. **Invents no geometry; shell tooling cannot be released from this revision.** |
+| 2 | 2026-11-24 | NeurOne Systems Engineering | **§3 and §3.1: S2-F01 marked INACTIVE (still tooled and inspected), and its marking now waits on OI-ACC-10. §9: FAI-TW-01 runs only if the pad is released. §11: OI-TSHELL2-08 closed under its own rule, because HOPE missed its primary endpoint.** |
