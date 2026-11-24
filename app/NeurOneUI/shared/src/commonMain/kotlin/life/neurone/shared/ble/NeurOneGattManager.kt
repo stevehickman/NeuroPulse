@@ -702,8 +702,8 @@ class NeurOneGattManager(
      * A write to a characteristic that demands an encrypted link, made only once the encrypted-only serial read has succeeded on
      * this link (OI-PRIV-17, CLAUDE.md §23): a peer that only advertises the service receives none of them. False, with nothing
      * written, before that. **Never used for stopping stimulation** (stop, pause, panic, resume): those are not held behind a
-     * read, and a refused one is shown by its own refusal event. The hub itself refuses a resume (ATT 0x0F) on a link that is
-     * not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop, pause and panic it never refuses for encryption.
+     * read, and a refused one is shown by its own refusal event. The hub itself refuses a pause or a resume (ATT 0x0F) on a link
+     * that is not encrypted (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); stop and panic it never refuses for encryption.
      */
     private fun writeEncrypted(uuid: UUID, value: ByteArray): Boolean {
         if (!_encryptedReadShown.value) return false
@@ -742,7 +742,9 @@ class NeurOneGattManager(
 
     /**
      * Pause the running session (SWR-SS-05). The hub refuses it during a ramp-up (ATT 0x82) and in any state but running;
-     * the figures that follow in SESSION_PROGRESS say what happened, so the app does not guess.
+     * the figures that follow in SESSION_PROGRESS say what happened, so the app does not guess. Like its resume, it needs an
+     * encrypted link (ATT 0x0F otherwise, `REQ-FWHUB-81` (e)); the session screen offers it only while SESSION_PROGRESS,
+     * itself encrypted, is being read.
      */
     fun requestSessionPause() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x01))
 

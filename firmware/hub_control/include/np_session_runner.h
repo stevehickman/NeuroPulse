@@ -111,6 +111,9 @@ np_session_state_t np_runner_get_state(void);
  * absolute start and stop and the dose delivered is the dose authored.  A pause withdraws every enable request and stops
  * every driven module; a resume re-dispatches exactly what was running, through the ordinary dispatch path and so through
  * every check a fresh command meets, the safety MCU's included.  Nothing is restored past an interlock.
+ *
+ * A session the photoparoxysmal detector holds (NP_HOLD_DETECTOR_DISCHARGE or _BLIND) is not resumed: np_runner_resume
+ * returns NP_HUB_ERR_PPX_HALT and the only second step is a stop (REQ-FWHUB-67, REQ-FWHUB-69; the principal, 2026-11-23).
  */
 np_hub_status_t np_runner_pause(void);
 np_hub_status_t np_runner_resume(void);
