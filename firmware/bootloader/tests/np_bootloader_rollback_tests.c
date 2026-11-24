@@ -9,6 +9,8 @@
  *   - an in-memory SNVS boot selector (np_boot_selector_* below),
  *   - an in-memory rollback-floor store (np_rollback_store_* below), standing
  *     in for the hardware store that has not been chosen.
+ * The device build's RPMB key source (np_rpmb_key_unbuilt.c, REQ-RPMBK-01) is
+ * linked as is and checked to fail closed.
  * Images are signed with Monocypher under the test key in
  * np_bootloader_test_key.h, the np_bootloader_app_image_tests pattern.
  */
@@ -23,6 +25,7 @@
 #include "np_ota.h"
 #include "np_rollback.h"
 #include "np_rollback_store.h"
+#include "np_rpmb_key.h"
 #include "np_signature.h"
 #include "monocypher-ed25519.h"
 
@@ -334,6 +337,20 @@ static void test_floor_is_never_lowered(void)
           "a store that cannot be read is reported at confirmation and the floor is unchanged");
 }
 
+/* @verifies REQ-RPMBK-01#a */
+static void test_rpmb_key_source_fails_closed_and_leaves_no_key(void)
+{
+    uint8_t key[32];
+    memset(key, 0xA5, sizeof key);
+    CHECK(np_rpmb_key_get(key) != NP_OK, "the device build's RPMB key source fails until the source is decided");
+    int clean = 1;
+    for (size_t i = 0U; i < sizeof key; i++) {
+        if (key[i] != 0U) clean = 0;
+    }
+    CHECK(clean, "on failure the key buffer holds no key material (what was there is wiped)");
+    CHECK(np_rpmb_key_get(NULL) != NP_OK, "a null buffer is an error, not a crash");
+}
+
 int main(void)
 {
     setup_key();
@@ -345,6 +362,7 @@ int main(void)
     test_boot_trial_with_unreadable_floor_rolls_back();
     test_floor_rises_at_confirmation_not_at_staging();
     test_floor_is_never_lowered();
+    test_rpmb_key_source_fails_closed_and_leaves_no_key();
     if (g_fail != 0) { printf("FAILED (%d)\n", g_fail); return 1; }
     printf("OK\n");
     return 0;

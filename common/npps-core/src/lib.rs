@@ -34,6 +34,7 @@ pub mod ohttp;
 pub mod parser;
 pub mod primitives;
 pub mod resolve;
+pub mod rpmb_provision;
 pub mod secret_io;
 pub mod sigv4;
 pub mod serialize;
