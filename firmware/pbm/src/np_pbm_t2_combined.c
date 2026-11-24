@@ -38,17 +38,20 @@ static void read_final_1170_dose(np_pbm_t2_ctx_t *ctx)
     }
 }
 
+/* No duration and no abort reason (OI-PRIV-40, NP-PRIV-ANALYSIS-004): session
+ * duration is UHDR ("session timestamps and duration", CLAUDE.md §5.1), and the
+ * old pattern (full duration on completion, 0 on a fault) disclosed the outcome
+ * a second time.  Both stay in the UHDR combined record.  The socket list the
+ * inner summary still carries is not SHDR-writable as shaped (OI-FWHUB-21), so
+ * the write stays omitted. */
 static void write_combined_shdr(const np_pbm_t2_ctx_t *ctx,
-                                 np_pbm_fault_t fault_reason,
-                                 uint32_t duration_s)
+                                 np_pbm_fault_t fault_reason)
 {
     np_t2_combined_shdr_summary_t shdr;
     memset(&shdr, 0, sizeof(shdr));
 
     /* 1064nm device health (inner session summary). */
     shdr.pbm1064_shdr.active_socket_count = ctx->pbm1064.active_socket_count;
-    shdr.pbm1064_shdr.duration_s          = duration_s;
-    shdr.pbm1064_shdr.abort_reason        = (uint8_t)fault_reason;
     shdr.pbm1064_shdr.fault_reason        = (uint8_t)fault_reason;
     for (uint8_t i = 0; i < ctx->pbm1064.active_socket_count; i++) {
         shdr.pbm1064_shdr.sockets[i].socket_id      = ctx->pbm1064.active_socket_id[i];
@@ -65,8 +68,6 @@ static void write_combined_shdr(const np_pbm_t2_ctx_t *ctx,
                                           ctx->combined_record.throttle_events_1170);
     shdr.laser_fault_flag    = (fault_reason != NP_PBM_FAULT_NONE) ? 1U : 0U;
     shdr.sloreta_session_flag = ctx->sloreta_valid ? 1U : 0U;
-    shdr.abort_reason         = (uint8_t)fault_reason;
-    shdr.duration_s           = duration_s;
 
     /* SHDR write — stub: real HAL writes to SHDR LittleFS file. */
     (void)shdr;
@@ -319,8 +320,7 @@ np_pbm_status_t np_pbm_t2_tick(np_pbm_t2_ctx_t *ctx,
         ctx->combined_record.abort_reason     = 0U;
         ctx->combined_record.duration_s       = ctx->pbm1064.desc.hdr.duration_s;
 
-        uint32_t duration_s = ctx->pbm1064.desc.hdr.duration_s;
-        write_combined_shdr(ctx, NP_PBM_FAULT_NONE, duration_s);
+        write_combined_shdr(ctx, NP_PBM_FAULT_NONE);
 
         ctx->stage = NP_T2_STAGE_COMPLETE;
         break;
@@ -331,7 +331,7 @@ np_pbm_status_t np_pbm_t2_tick(np_pbm_t2_ctx_t *ctx,
         laser_1170_shutdown(ctx);
         ctx->combined_record.abort_reason = ctx->pbm1064.record.abort_reason;
         write_combined_shdr(ctx,
-            (np_pbm_fault_t)ctx->pbm1064.record.abort_reason, 0U);
+            (np_pbm_fault_t)ctx->pbm1064.record.abort_reason);
         ctx->stage = NP_T2_STAGE_FAULT;
         break;
 
@@ -426,7 +426,7 @@ np_pbm_status_t np_pbm_t2_abort(np_pbm_t2_ctx_t *ctx,
     laser_1170_shutdown(ctx);
 
     ctx->combined_record.abort_reason = (uint8_t)reason;
-    write_combined_shdr(ctx, reason, 0U);
+    write_combined_shdr(ctx, reason);
 
     ctx->stage = NP_T2_STAGE_FAULT;
 

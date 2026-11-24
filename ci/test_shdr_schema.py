@@ -84,6 +84,11 @@ PROHIBITED_PII_PATTERNS: list[tuple[str, str]] = [
     (r"\buser_id\b",         "user identifier"),
     (r"\bcustomer_id\b",     "customer identifier"),
     (r"\bpatient_id\b",      "patient identifier"),
+    # OI-PRIV-07 (the principal, 2026-11-20): the study audit trail is UHDR; nothing naming a study,
+    # and no research-extract total, may be an SHDR column (data-architecture-detail.md §5.1).
+    (r"study",               "research study identifier or field (OI-PRIV-07: UHDR)"),
+    (r"descriptor",          "study descriptor field (OI-PRIV-07: UHDR)"),
+    (r"extract",             "research extract field (OI-PRIV-07: UHDR)"),
     (r"\bregistrant",        "registrant data"),
     # Substring matches — catch prefixed/suffixed variants like user_email, billing_address
     (r"email",               "email address"),
@@ -112,6 +117,15 @@ PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
     (r"\bhuk\b",          "hardware unique key"),
     (r"\bhw_key\b",       "hardware key material"),
     (r"\bkdf_",           "KDF-derived field"),
+    # Per-person key store, NP-FW-EMMC-002 §C.8 (OI-PRIV-34, NP-PRIV-ANALYSIS-004).
+    # profile_id travels in every export, so it names one person across helmets:
+    # UHDR-class, never SHDR.  The recovery code, its salt and key, and the two
+    # wraps are key material.
+    (r"profile_id",       "per-person profile id (follows the person across helmets)"),
+    (r"profile_key",      "per-person profile key material"),
+    (r"recovery",         "recovery code, salt or key (per-person key material)"),
+    (r"rec_salt",         "recovery-wrap salt (per-person key material)"),
+    (r"\bw[12]_",         "profile key wrap (per-person key material)"),
 ]
 
 # Column TYPES that must never appear anywhere in the SHDR schema.

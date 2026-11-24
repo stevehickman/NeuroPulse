@@ -88,6 +88,7 @@
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
 #   firmware/uhdr_key/        → np_uhdr_key_tests  (NP-FW-EMMC-002 §C)
+#                             → np_uhdr_profile_tests (NP-FW-EMMC-002 §C.8)
 #   firmware/shdr/            → np_accel_shdr_tests (NP-FW-EMMC-002 §G/§H)
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
@@ -284,6 +285,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_uhdr_key_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_uhdr_profile_tests
+        COMMAND np_uhdr_profile_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_accel_shdr_tests
         COMMAND np_accel_shdr_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -369,6 +374,11 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_pause_limit_tests
         COMMAND np_pause_limit_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # REQ-FWHUB-85, REQ-FWHUB-86 (OI-PRIV-37): the status indicators and stealth mode.
+    add_test(NAME np_status_led_tests
+        COMMAND np_status_led_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # SWR-HV-02: the hardware fitting frame written at each session start.
@@ -629,6 +639,19 @@ if(NP_BUILD_TESTS)
     # both install verify paths.  Moves the Class B count 64 -> 65 and the repo total 75 -> 76.
     add_test(NAME np_bootloader_rollback_tests
         COMMAND np_bootloader_rollback_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-PRIV-27 (NP-PRIV-ANALYSIS-004 H7).  The eMMC SANITIZE sequence (np_emmc_sanitize.h).
+    # Moves the Class B count 65 -> 66 and the repo total 76 -> 77.
+    add_test(NAME np_bootloader_sanitize_tests
+        COMMAND np_bootloader_sanitize_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16.  The rollback floor on the
+    # eMMC's RPMB: frame protocol and store against a fake RPMB device.
+    # Moves the Class B count 68 -> 69 and the repo total 79 -> 80.
+    add_test(NAME np_bootloader_rpmb_tests
+        COMMAND np_bootloader_rpmb_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates

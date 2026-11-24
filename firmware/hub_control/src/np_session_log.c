@@ -397,19 +397,16 @@ void np_log_telemetry(const np_telem_record_t *rec)
 
     case NP_MOD_VISUAL: {
         const np_telem_visual_t *v = &rec->data.visual;
-        /* UHDR: eye_open state — reveals user physiology during session. */
+        /* UHDR: eye_open state and the photoparoxysmal halt — both are about the person. The halt is a
+         * byte in every visual record, set or clear, so the record's presence and length never depend on it.
+         * Nothing about the halt goes to SHDR: a record written only when a photoparoxysmal discharge was
+         * detected would publish that neurological event (CLAUDE.md §5.1 rule 2; REQ-FWHUB-88; OI-PRIV-22,
+         * NP-PRIV-ANALYSIS-004). */
+        const uint8_t ppx_halt = v->ppx_halt ? 1U : 0U;
         uhdr_u8(NP_LOG_TAG_UHDR_VISUAL);
         uhdr_write(&rec->session_ms,        sizeof(rec->session_ms));
         uhdr_write(&v->eye_open,            sizeof(v->eye_open));
-        /* SHDR: hall state and ppx_halt — device safety logs only. */
-        if (v->ppx_halt) {
-            shdr_u8(NP_LOG_TAG_SHDR_FAULT);
-            shdr_write(&s_device_session_count, sizeof(s_device_session_count));
-            uint8_t slot = rec->slot;
-            uint8_t code = 0xEEU; /* EEG PPX halt code */
-            shdr_write(&slot, 1U);
-            shdr_write(&code, 1U);
-        }
+        uhdr_write(&ppx_halt,               1U);
         break;
     }
 
@@ -564,9 +561,14 @@ np_hub_status_t np_log_eeg_sample_block(const uint8_t *samples,
 
 void np_log_shdr_zone_auth(uint8_t slot, np_hub_mod_type_t type, bool pass)
 {
+    /* No session count (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 3, REQ-NASAL-16).
+     * The record is written once per insertion of an authenticating accessory,
+     * and the intranasal probe is inserted for every intranasal session, so a
+     * count in each record made a per-session timeline of that modality's use:
+     * the shape the principal's F14 ruling forbids for tiles.  The record is
+     * the same four bytes for every caller and every result. */
     take();
     shdr_u8(NP_LOG_TAG_SHDR_ZONE_AUTH);
-    shdr_write(&s_device_session_count, sizeof(s_device_session_count));
     shdr_write(&slot, 1U);
     uint8_t t = (uint8_t)type;
     shdr_write(&t, 1U);

@@ -65,6 +65,12 @@
  */
 #define NP_GATT_PAUSE_LIMIT_ID 0x001Bu
 /*
+ * READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
+ * the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+ * in hub RAM only; every boot starts with it off (OI-PRIV-37).
+ */
+#define NP_GATT_STEALTH_ID 0x0022u
+/*
  * READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
  * (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
  * REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -132,6 +138,10 @@
  */
 #define NP_GATT_PPX_CONFIG_LEN 2U
 /*
+ * STEALTH: one byte of flags, read and write; bit 0 is stealth on.
+ */
+#define NP_GATT_STEALTH_LEN 1U
+/*
  * PPX_CONFIG write: one byte of flags.
  */
 #define NP_GATT_PPX_CONFIG_WRITE_LEN 1U
@@ -182,9 +192,11 @@
  */
 #define NP_GATT_SESSION_PROGRESS_LEN 22U
 /*
- * Byte 0 of the frame.
+ * Byte 0 of the frame. Version 2 adds FLAG_REPORT_VALID to byte 3 (OI-PRIV-29, NP-PRIV-ANALYSIS-004);
+ * version 1, where a flags byte of 0 could mean either 'nothing outstanding' or 'no valid report', was
+ * never deployed and is refused.
  */
-#define NP_CVFS_WIRE_VERSION 1U
+#define NP_CVFS_WIRE_VERSION 2U
 /*
  * Header bytes before the first record.
  */
@@ -197,6 +209,13 @@
  * Most records one frame carries.
  */
 #define NP_CVFS_MAX_WIRE_RECORDS 4U
+/*
+ * Byte 3, bit 7: the flags below it come from a safety-MCU report the hub validated (magic and
+ * checksum). Clear when the hub has no valid report or has published nothing, so a 0 in bits 0-1 then
+ * means 'unknown', never 'nothing outstanding'. An app moves a person to a new active-user tag only on
+ * a frame with this bit set and bit 1 clear (REQ-FAULTMSG-01 (c)).
+ */
+#define NP_CVFS_FLAG_REPORT_VALID 128U
 /*
  * Byte 0 of every frame.
  */

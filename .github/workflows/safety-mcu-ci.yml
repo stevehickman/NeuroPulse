@@ -70,6 +70,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue (NP-SW-CI-001 §6.19). This workflow holds a required context, and a required context that does
+  # not report on the queue's merge-group commit holds every queued pull request forever. scripts/check-ci-scope.ts
+  # (correspondence C) fails the tree if this trigger is missing from a workflow that holds one.
+  merge_group:
   workflow_dispatch:
 
 # Least privilege.  Required for actions/checkout, which hard-fails without it
@@ -214,7 +218,7 @@ jobs:
         id: diff
         env:
           NP_EVENT: ${{ github.event_name }}
-          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           NP_REF: ${{ github.ref }}

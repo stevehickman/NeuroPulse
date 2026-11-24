@@ -89,7 +89,8 @@ typedef enum {
     NP_ATT_ATTRIBUTE_NOT_FOUND    = 0x0A,
     NP_ATT_INVALID_VALUE_LENGTH   = 0x0D,
     NP_ATT_UNLIKELY_ERROR         = 0x0E,
-    /* The characteristic has NP_GATT_PROP_ENC and the link is not encrypted (Core v5.3 Vol 3 Part F §3.4.1.1). */
+    /* The characteristic has NP_GATT_PROP_ENC and the link is not encrypted, or the write is a pause or a resume on
+     * SESSION_PAUSE and the link is not encrypted (REQ-FWHUB-81 (e)) (Core v5.3 Vol 3 Part F §3.4.1.1). */
     NP_ATT_INSUFFICIENT_ENCRYPTION = 0x0F,
     /* Application error: the hub refused the value (a write outside the state
      * that accepts it, or a value its handler rejects).  The app's

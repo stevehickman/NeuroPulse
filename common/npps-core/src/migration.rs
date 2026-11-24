@@ -629,6 +629,9 @@ pub(crate) fn dispatch(op: &str, req: &Value) -> R<Value> {
     if let Some(answer) = bundle_key::op(op, req) {
         return answer;
     }
+    if let Some(answer) = crate::active_user_tag::op(op, req) {
+        return answer;
+    }
     migration_op(op, req)
 }
 
@@ -668,6 +671,7 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
                 .or_else(|| crate::ohttp::op(other, req))
                 .or_else(|| crate::sigv4::op(other, req))
                 .or_else(|| crate::primitives::op(other, req))
+                .or_else(|| crate::current_device::op(other, req))
                 .unwrap_or_else(|| Err(format!("unknown migration operation '{other}'")))
         }
     })
