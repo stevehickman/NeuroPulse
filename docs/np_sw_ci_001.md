@@ -3840,7 +3840,7 @@ JDK 17, Gradle 8.11.1 and Python 3.11 were each repeated six times, so a bump me
 
 | Piece | What it does |
 |---|---|
-| `.github/toolchain.json` | The one place. Holds `macos`, `java` and its distribution, `gradle`, `bun`, `rust`, `python`, `dotnet` and `armGcc`, each with a note where the reason is not obvious (AGP 8.9.3 needs JDK 17 and Gradle 8.11.1 or later) |
+| `.github/toolchain.json` | The one place. Holds `macos`, `java` and its distribution, `gradle`, `bun`, `rust`, `python` and `armGcc` (the `dotnet` pin went with the Windows project, `OI-UI-KMP-05`), each with a note where the reason is not obvious (AGP 8.9.3 needs JDK 17 and Gradle 8.11.1 or later) |
 | `.github/actions/setup-toolchain` | A composite action. A job asks for a toolchain by flag (`bun: 'true'`, `rust: 'true'`, `rust-targets: '…'`), and the action installs the version in the file. It reads the file from the checked-out workspace, so a checkout step comes first |
 | The Relevance job's `macos` output | `runs-on` cannot read a file, so `desktop-package`, `ios-ci`, `kotlin-ios-ci` and `codeql` read `macos` in their existing Relevance job and pass it on as `needs.changes.outputs.macos`. No extra job |
 | `scripts/check-toolchain-pins.ts` | A gate in `tooling-ci.yml` (`toolchain-pins`). Seven rules: no macOS image in `runs-on` or `os`, no direct setup action, no version key or `rustup` in a workflow, exact pins in the file, no literal version in the action, the `macos` output exists where it is read, and checkout before the action. Its self-test proves each rule can fail |
