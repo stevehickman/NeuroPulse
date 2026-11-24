@@ -31,6 +31,14 @@ np_uhdr_status_t np_uhdr_attempt_gate(uint32_t *failed, uint64_t *now);
  */
 np_uhdr_status_t np_uhdr_attempt_charge(uint32_t failed, uint64_t now);
 
+/*
+ * The §C.7 back-off, for a caller that keeps its own count and reference (the
+ * per-profile limit of §C.8, REQ-EMMC2-05): the wait still owed at uptime
+ * `now` after `failed` failures, the last charged at uptime `ref_ms`.  Same
+ * schedule (NP_UHDR_UNLOCK_*, UC-203) as the helmet-wide limit.
+ */
+uint64_t np_uhdr_backoff_remaining_ms(uint32_t failed, uint64_t ref_ms, uint64_t now);
+
 /* §C.7 step 3: the secret authenticated, so clear the count (best effort). */
 void np_uhdr_attempt_clear(void);
 

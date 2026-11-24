@@ -147,6 +147,7 @@ np_uhdr_hal_attempts_read                   firmware-host  ../uhdr_key/src/np_uh
 np_uhdr_hal_attempts_write                  firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_config_read_ukmd                firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_config_write_ukmd               firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
+np_uhdr_hal_file_kdf                        absent         -                                    none          OI-PRIV-34
 np_uhdr_hal_hw_bind                         firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_mount_uhdr                      firmware-host  ../uhdr_key/src/np_uhdr_key.c  none          -
 np_uhdr_hal_profile_erase                   absent         -                                    none          OI-PRIV-34
