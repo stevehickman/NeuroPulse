@@ -430,21 +430,13 @@ Written to UHDR partition at session end via `end_cb`. Caller commits to eMMC vi
 | `total_charge_ua_s` | Total delivered charge | Dose metric → UHDR |
 | `abort_reason` | 0 = normal | Safety event → UHDR |
 
-#### SHDR (device metrics — NeurOne fleet telemetry)
+#### SHDR: none (Rev {NP-FW-HD-001 to}, `OI-PRIV-75` (NP-PRIV-ANALYSIS-004))
 
-Written to SHDR partition by caller via SHDR storage API (NP-FW-EMMC-001 §7).
+The session writes no SHDR record. It used to keep `np_hd_shdr_summary_t` "for the caller to write to SHDR", with `montage_type`, `center_electrode`, `stim_duration_s`, `anode_current_ua`, `mean_impedance_kohm`, `impedance_check_pass` and `abort_reason`. Every one of those is UHDR. The UHDR table above lists all but the pass flag, and the pass flag is the in-session impedance check's result, which the principal ruled UHDR on 2026-11-23 (`data-architecture-detail.md` §5.1, "In-session electrode impedance check"). None of them describes the device's condition, so the struct was removed rather than reshaped. Nothing read it and no SHDR write used it, so no byte had reached SHDR.
 
-| Field | Content | Classification rationale |
-|-------|---------|--------------------------|
-| `montage_type` | Ring/bilateral/standard | Device config — not user identity |
-| `center_electrode` | Electrode index | Position metric — not user biology |
-| `stim_duration_s` | Session duration | Unsigned counter — no user biology |
-| `anode_current_ua` | Current used | Device operation metric |
-| `mean_impedance_kohm` | Contact quality mean | Electrode health metric |
-| `impedance_check_pass` | Bool | Consumable condition flag |
-| `abort_reason` | 0 = normal | Device fault tracking |
+*Retired with it:* the boundary resolution that ruled the anode electrode index SHDR ("device cap wiring position, not user brain anatomy"). The UHDR table above already classed the same field as the clinical target, and when in doubt the field is UHDR (`CLAUDE.md` §5.1).
 
-Boundary resolution: electrode index (e.g., "F3") indicates device cap wiring position, not user brain anatomy — classified as SHDR per the "does this tell us about the device's condition" test (CLAUDE.md §5.1).
+Device faults from an HD-tDCS session reach SHDR through the hub's fault log (`NP-FW-HUB-001` §6.3), which carries the fault kind and no session data.
 
 ---
 
