@@ -38,7 +38,7 @@
  *                   The row is keyed by the slot and module type, and counts
  *                   whatever accessory was in that port.  A part-level total
  *                   for an accessory needs an identity on the accessory:
- *                   OI-FWHUB-37.
+ *                   OI-FWHUB-38.
  *
  * ── Concurrency ────────────────────────────────────────────────────────────
  * The stored totals are touched only by the boot path and the runner task
