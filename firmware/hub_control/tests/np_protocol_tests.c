@@ -46,16 +46,27 @@ static void check(int cond, const char *name)
 }
 
 /* ── Stubbed dependencies ─────────────────────────────────────────────────────
- * The serial HAL reports NOT_PRESENT so the replay guard is skipped (the parser
- * only compares when the stored serial reads back). The verifier always accepts:
- * these tests are about the command body, and a real signature would have to be
- * recomputed for every mutated fixture, which would test the fixture builder
- * rather than the parser. */
+ * The serial HAL reports a provisioned serial, TEST_SERIAL_BYTE in every byte, and
+ * blob_begin stamps the same bytes into every header, so the replay guard passes
+ * and the other tests are about what they name.  The guard fails closed
+ * (REQ-FWHUB-90), so a stub that could not read a serial would refuse every blob;
+ * test_serial_guard_fails_closed drives g_serial_rc and g_serial_byte to cover
+ * that.  The verifier always accepts: these tests are about the command body, and
+ * a real signature would have to be recomputed for every mutated fixture, which
+ * would test the fixture builder rather than the parser. */
+
+#define TEST_SERIAL_BYTE 0x5AU
+
+static np_hub_status_t g_serial_rc   = NP_HUB_OK;
+static uint8_t         g_serial_byte = TEST_SERIAL_BYTE;
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;
+    if (g_serial_rc != NP_HUB_OK) {
+        return g_serial_rc;
+    }
+    memset(buf, g_serial_byte, len);
+    return NP_HUB_OK;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
@@ -103,6 +114,7 @@ static void blob_begin(blob_t *b, uint16_t version)
     b->buf[7] = 0;                      /* cmd_count — patched by blob_finish */
     const uint32_t compiled_at = 1700000000UL;
     memcpy(b->buf + 24, &compiled_at, 4);
+    memset(b->buf + 28, TEST_SERIAL_BYTE, NP_GATT_DEVICE_SERIAL_LEN);   /* device_serial: the helmet's own */
     const uint32_t duration = 60000UL;
     memcpy(b->buf + 60, &duration, 4);
     b->buf[64] = 1;                     /* hardware_version; 65..67 reserved, zero */
@@ -1114,12 +1126,60 @@ static void test_photic_admit(void)
     check(np_protocol_photic_admit(&d, true) == NP_HUB_OK, "photic: where the policy permits the zone (the detector is the guard, REQ-FWHUB-70) the same protocol loads");
 }
 
+/* ── Device-serial replay guard (REQ-FWHUB-90) ──────────────────────────────────
+ * One valid blob, parsed under each state of the helmet's own serial.  The guard
+ * fails closed: only a readable, non-zero serial equal to the header's admits. */
+
+/* @verifies REQ-FWHUB-90#a,b,c */
+static void test_serial_guard_fails_closed(void)
+{
+    blob_t b;
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    blob_add_cmd(&b, NP_MOD_AUDIO, NP_HUB_SLOT_AUDIO, 0U, 0U, NP_PROTO_TARGET_SLOT, NULL, 0U, NULL, 0U);
+    const size_t len = blob_finish(&b);
+    static np_session_desc_t d;
+
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_OK,
+          "serial guard: the helmet's own serial in the header is admitted");
+
+    /* (a) another helmet's serial */
+    b.buf[28 + 7] ^= 0x01U;
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial guard: one byte of another serial is WRONG_DEVICE");
+    b.buf[28 + 7] ^= 0x01U;
+
+    /* (b) the helmet cannot read its own serial: every failure status refuses */
+    const np_hub_status_t fails[] = { NP_HUB_ERR_NOT_PRESENT, NP_HUB_ERR_STORE_IO,
+                                      NP_HUB_ERR_STORE_INTEGRITY, NP_HUB_ERR_GENERIC };
+    for (size_t i = 0U; i < sizeof fails / sizeof fails[0]; i++) {
+        g_serial_rc = fails[i];
+        check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
+              "serial guard: an unreadable device serial refuses (fails closed), not skips");
+    }
+    g_serial_rc = NP_HUB_OK;
+
+    /* (c) the helmet's serial is all zero: refused, whatever the header says,
+     * including the all-zero header a compiler writes when it has no serial */
+    g_serial_byte = 0x00U;
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial guard: an all-zero device serial refuses a serial-bearing blob");
+    memset(b.buf + 28, 0x00, NP_GATT_DEVICE_SERIAL_LEN);
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial guard: an all-zero device serial refuses a serial-less (all-zero) blob");
+
+    g_serial_byte = TEST_SERIAL_BYTE;
+    memset(b.buf + 28, TEST_SERIAL_BYTE, NP_GATT_DEVICE_SERIAL_LEN);
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_OK,
+          "serial guard: restored, the same blob is admitted again");
+}
+
 int main(void)
 {
     test_wire_layout();
     test_signature_check_arguments();
     test_hardware_version_stamp();
     test_rules_stamp();
+    test_serial_guard_fails_closed();
 
     test_slot_target_roundtrip();
     test_slot_command_has_no_sockets();
