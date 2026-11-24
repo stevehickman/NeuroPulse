@@ -276,6 +276,7 @@ Per FDA Cybersecurity Guidance for medical devices (2023), cybersecurity risks m
 - Unauthorised OTA firmware update (mitigated: Ed25519 verification at bootloader)
 - UHDR data exfiltration (mitigated: biometric-derived AES-256-XTS key, never held by NeurOne)
 - USB-C DFU exploitation (mitigated: Ed25519 gating on DFU path)
+- Stimulation restarted by an unauthorised Bluetooth central (`RISK-HUB-04`, `NP-RISK-004`; partly mitigated: pause and resume need an encrypted link, `REQ-FWHUB-81` (e); and a detector hold is ended only by a stop, `REQ-FWHUB-67`; residual: unauthenticated pairing, `OI-SIMFW-72`; rating pending Risk)
 
 SBOM requirement: Software Bill of Materials required for 510(k) submission. To be generated from firmware build system (planned: NP-SBOM-001, Year 2).
 

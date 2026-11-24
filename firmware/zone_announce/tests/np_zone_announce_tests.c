@@ -112,7 +112,7 @@ static void reset_all(void)
     memset(g_lens, 0, sizeof(g_lens));
 
     (void)np_zone_notify_init(capture_tx, NULL, NP_ZN_ATT_FLOOR_BYTES);
-    (void)np_za_init(on_insert, on_remove, on_shdr, 42u);
+    (void)np_za_init(on_insert, on_remove, on_shdr);
 }
 
 /* Advance the state machine far enough for settle + 3 debounce reads. */

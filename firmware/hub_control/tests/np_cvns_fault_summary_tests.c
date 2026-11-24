@@ -117,8 +117,8 @@ static void test_empty(void)
     size_t  len = 0u;
     reset_world();
     check(np_cvfs_read(f, sizeof f, &len) == NP_HUB_OK && len == 4u &&
-          f[0] == 0x01u && f[1] == 0u && f[2] == 0u && f[3] == 0u,
-          "empty: read before any poll is a valid empty frame");
+          f[0] == NP_CVFS_WIRE_VERSION && f[1] == 0u && f[2] == 0u && f[3] == 0u,
+          "empty: read before any poll is an empty frame whose flags are not marked valid");
     check(np_cvfs_current_user() == 0u, "empty: no user named");
     check(np_cvfs_build_frame(0u, false, 0u, f, NP_CVFS_FRAME_MAX - 1u, &len) == NP_HUB_ERR_INVALID_ARG,
           "empty: short buffer refused");
@@ -130,7 +130,7 @@ static void test_empty(void)
 static void test_golden_frame_matches_app_parser(void)
 {
     static const uint8_t EXPECTED[] = {
-        0x01, 0x02, 0x03, 0x02,
+        0x02, 0x02, 0x03, 0x82,
         41, 0, 0, 0, 2, 0x00, 0, 0,
         42, 0, 0, 0, 1, 0x00, 0, 0,
         43, 0, 0, 0, 4, 0x02, 0, 0,
@@ -147,15 +147,18 @@ static void test_golden_frame_matches_app_parser(void)
           "golden: bytes equal the frame the iOS/Android parsers are tested against");
 }
 
-/* @verifies REQ-FWHUB-55 */
+/* @verifies REQ-FWHUB-55 REQ-FAULTMSG-01#d */
 static void test_flags_and_state(void)
 {
     uint8_t f[NP_CVFS_FRAME_MAX];
     reset_world();
     (void)frame_now(4u, true, 0xFFu, f);
-    check(f[1] == 4u && f[3] == 0x03u, "flags: only bits 0-1 of the NV report reach the wire");
+    check(f[1] == 4u && f[3] == 0x83u, "flags: only bits 0-1 of the NV report reach the wire, with the valid bit");
     (void)frame_now(4u, false, 0x03u, f);
-    check(f[3] == 0u, "flags: no valid NV report -> flags 0");
+    check(f[3] == 0u, "flags: no valid NV report -> flags 0 and the valid bit clear");
+    (void)frame_now(4u, true, 0u, f);
+    check(f[3] == NP_CVFS_FLAG_REPORT_VALID,
+          "flags: a valid report of nothing outstanding sets only the valid bit, so it differs from no report");
     (void)frame_now(9u, true, 0u, f);
     check(f[1] == 0u, "state: an out-of-range state is sent as idle, never as a value the app rejects");
 }
@@ -325,7 +328,7 @@ static void test_notify_only_on_change(void)
     np_cvfs_poll(2u, true, 0u);
     check(g_notifies == 2 && g_notified[1] == 2u, "notify: re-enable state change publishes");
     np_cvfs_poll(2u, true, 0x02u);
-    check(g_notifies == 3 && g_notified[3] == 0x02u, "notify: flag change publishes");
+    check(g_notifies == 3 && g_notified[3] == (0x02u | NP_CVFS_FLAG_REPORT_VALID), "notify: flag change publishes");
     (void)np_cvfs_record_fault(8u, NP_CVNS_FAULT_HR_CHANGE, 0u);
     np_cvfs_poll(2u, true, 0x02u);
     check(g_notifies == 4 && g_notified[2] == 1u, "notify: a new fault publishes");
