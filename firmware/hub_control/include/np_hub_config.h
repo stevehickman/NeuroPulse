@@ -252,11 +252,15 @@
  * The one lifecycle event SHDR receives is the cutoff flag above, chosen by
  * np_cvns_reenable_shdr_code().  A firmware image older than this change may
  * still have written 0xC2–0xC6; fleet ingest must not give them a new meaning. */
-/* OI-CVNS-HUB-11: hub-side and safety-MCU per-electrode impedance measurements
- * disagreed beyond NP_CVNS_IMPEDANCE_CROSSVAL_KOHM.  Device-condition flag only
- * (no kΩ values); no timestamp reaches SHDR, by the unconditional logger rule
- * noted above.  Raw per-electrode kΩ is UHDR and is NEVER written to SHDR.     */
-#define NP_CVNS_SHDR_EV_IMP_CROSSVAL    0xC7U
+/* 0xC7 — RETIRED, never reused (OI-PRIV-40, NP-PRIV-ANALYSIS-004, GitHub #968;
+ * NP-FW-HUB-001 §6.3).  It was NP_CVNS_SHDR_EV_IMP_CROSSVAL, the flag that the
+ * hub-side and safety-MCU per-electrode impedance measurements disagreed
+ * (OI-CVNS-HUB-11).  The principal ruled on 2026-11-23 that the in-session
+ * impedance check, and everything derived from it, is UHDR: it measures through
+ * the wearer and cannot tell a device fault from placement.  The fail-closed
+ * block stays (np_mod_cvns.c cvns_impedance_crossval_fail); nothing about it is
+ * written to SHDR.  A firmware image older than this change may still have
+ * written 0xC7; fleet ingest must not give it a new meaning.                  */
 
 /* ── Commanded-versus-delivered stimulation cross-check (OI-FMEA-09) ──────────
  *

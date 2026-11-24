@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 209
-**Date:** 2026-11-23  
+**Revision:** 210
+**Date:** 2026-11-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -227,6 +227,7 @@ no figure.
 | `REQ-SW01-03` | A cutoff that must outlive a reset (the cardiac cutoff) is held in non-volatile state. A restored cutoff stays latent until the channel is requested, then asserts. Compaction interrupted at any point, a torn snapshot, a snapshot that was never committed, or a store holding only garbage never replaces committed state and fails closed. | A power cycle clears a cardiac cutoff, or a torn write re-enables a channel. | `DI-SAFE-09`; `DI-SAFE-03`; SW01-M05 |
 | `REQ-SW01-04` | The cervical VNS enable is granted only while live R-peak evidence exists: before a baseline, with no R-peaks, with a stale R-peak, or without a fresh hub cross-check report it is withheld, and once granted a stale or disagreeing source cuts it. The cutoff blocks the cervical VNS line only and re-arms on a new request. | Cardiac protection that is silently absent when its sensor is. | `DI-SAFE-03`; `CLAUDE.md` §4.2; SW01-M05 |
 | `REQ-SW01-05` | The OTP records are read verbatim and bounded: a blank key reads as the unprovisioned sentinel, a programmed key passes through, a key whose CRC is missing or wrong is refused (and re-checked at every verify), and the tier record and device UID are read at their offsets with the length clamped. An ADC failsafe value always cuts, and full scale does not. | A corrupt or absent key reaching the signature check, or a failed sensor read that reads as safe. | `DI-SAFE-06`; `REQ-UPG-02`; `DI-SAFE-08` |
+| `REQ-SW01-06` | **(Rev 210) The fault-latch report discloses no in-session impedance result, by bit, slot or count.** (a) Its `status` is the latched status projected onto the device-class bits (FAULT, WATCHDOG, CUTOFF, THERMAL, CHARGE, SIG_PENDING), one mask for every fault. (b) Its `count` counts transitions of those bits only, so a change of the impedance bit, the cardiac bit or the slot alone does not move it, and an impedance-only transition reports exactly as none does. (c) It carries no slot and no time. The control path is unchanged: the heartbeat reply frame still carries the raw status and slot to the hub, and no interlock reads the report. | Once a fault-latch read command is built, the report puts "the electrode contact check failed on channel N" into NeurOne's fleet record keyed to the warranty token; masking the bit alone would read "OK with a slot", which identifies the failure and its channel (`CLAUDE.md` §5.1 rule 2). | `CLAUDE.md` §5.1 rule 2; `data-architecture-detail.md` §5.1 (in-session electrode impedance check → UHDR, the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)); SW01-M08 |
 
 ### 5.2 SW-02 — Main processor firmware modules (Class B)
 
@@ -901,3 +902,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 207 | 2026-11-23 | NeurOne Software Engineering | **§5.2.2: REQ-SW02-14 added: the EDF+ research-extract gate leaves nothing in SHDR (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2).** |
 | 208 | 2026-11-21 | NeurOne Software Engineering | **§6.3 new SWR-MG-33 and SWR-MG-34 (the core composes, signs, verifies and orders the superseded notice, built in `current_device.rs`); SWR-MG-33: a migration or restore asks the research consents again and is not finished until they are answered, then makes the device current for the person, subscribes it if needed and publishes a signed superseded notice, queued when offline; the current-device key is a carried item (the principal, 2026-11-20 and 2026-11-21, OI-PRIV-68). Not built.** |
 | 209 | 2026-11-23 | NeurOne Firmware Engineering | **§5.2.2 REQ-SW02-15: the floor's store is the eMMC's RPMB (the principal, 2026-11-23), and a blank or wrong-key RPMB refuses every image as an unreadable floor does; the store is not built (OI-PRIV-32 (NP-PRIV-ANALYSIS-004)).** |
+| 210 | 2026-11-24 | NeurOne Firmware Engineering | **§5.1.1: REQ-SW01-06, the fault-latch report is the latch projected onto the device-class bits with the count of their transitions, and no slot, so an impedance-only transition reports exactly as none does (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
