@@ -28,13 +28,17 @@ import life.neurone.core.common.UUID
 // choosing a profile recognises it. `notes` is a short label that tells two profiles apart; it is not a record about the
 // person, nothing reads it but the profile list, and it holds at most ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code
 // units. There is no date of birth: no limit or protocol rule ever read one (OI-PRIV-11). `activeUserTag` is what the
-// device is told the person is called (REQ-FAULTMSG-01); the store assigns it, a screen never sets it.
+// device is told the person is called (REQ-FAULTMSG-01); the store assigns it, a screen never sets it. `stealth` is the person's
+// choice to keep the helmet's status indicators dark while they are the active profile (SWR-IND-01, OI-PRIV-37); it is
+// UHDR-class, kept here with the profile and in the person's own backup and migration, and never written to SHDR or analytics.
+// A profile without it (every one made before it existed) reads as false, and false is not written.
 @Serializable
 data class NPIndividualProfile(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val notes: String = "",
     val activeUserTag: ProfileTagState? = null,
+    val stealth: Boolean = false,
 )
 
 /**
@@ -135,6 +139,12 @@ class NPLimitsStore(
     var onActiveProfileChanged: ((String?) -> Unit)? = null
 
     /**
+     * Observes the saved profiles: called after a profile is saved or deleted and after the profiles are read again (an unlock, a
+     * restore). The composition root uses it to send the active profile's stealth choice to the hub (SWR-IND-01).
+     */
+    var onProfilesChanged: (() -> Unit)? = null
+
+    /**
      * Whether the limits and profiles above are what the store holds. False while locked: a locked read answers "absent", which is not
      * "no limits", and a tier built on it would replace the sealed one when it was written, or remove it (`OI-PRIV-19`). While
      * false the limits read as unconfigured; callers that must not run unlimited check this first.
@@ -185,6 +195,7 @@ class NPLimitsStore(
         activeProfileId = null
         announce = true
         load()
+        onProfilesChanged?.invoke()
     }
 
     /** The lock closed: no limit and no profile stays decrypted in this store. */
@@ -206,6 +217,7 @@ class NPLimitsStore(
         val operations = held.toList()
         held.clear()
         operations.forEach { it() }
+        onProfilesChanged?.invoke()
     }
 
     private fun writable(): Boolean = lock == null || lock.isUnlocked
@@ -288,6 +300,7 @@ class NPLimitsStore(
             profiles + profile.copy(activeUserTag = newTagState(legacy = false))
         }
         persistProfiles()
+        onProfilesChanged?.invoke()
         return true
     }
 
@@ -298,6 +311,7 @@ class NPLimitsStore(
         if (activeProfileId == id) activeProfileId = null
         persistProfiles()
         persistTiers()
+        onProfilesChanged?.invoke()
     }
 
     /**
