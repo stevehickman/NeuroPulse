@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 17
-**Date:** 2026-11-22
+**Revision:** 18
+**Date:** 2026-11-25
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -131,3 +131,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 15 | 2026-11-21 | NeurOne Software Engineering | **§6: `OI-PRES-05` is closed: the Swift app was retired instead of given the gate, and `app/ios` is deleted (`OI-UI-KMP-05` PR B, 2026-11-21).** |
 | 16 | 2026-11-22 | NeurOne Software Engineering | **New `REQ-PRES-10`: the passphrase record (Argon2 parameters, salt, wrapped data key) is written only sealed under the host keystore key the device tier uses, stays readable before presence and outside the UHDR tier, and a record in the clear is refused (`OI-PRIV-65` (1)). Increment 5 notes the change.** |
 | 17 | 2026-11-22 | NeurOne Software Engineering | **§4: the core keeps only device-tier keys its allowlist `DEVICE_TIER_RULINGS` names with their ruling; `np.warranty.consent-granted` is retired from the tier in place (no host reads it since #946), so it is UHDR-tier again (`OI-PRIV-66` (3)).** |
+| 18 | 2026-11-25 | NeurOne Software Engineering | **§2, §3, §7: new `REQ-PRES-11` (`OI-PRIV-62`, `NP-PRIV-ANALYSIS-007` H1, H2, M9, M10). (a) The gate's own records (`np.presence.enabled`, `np.presence.passphrase-wrap`) are `hostPlain`: in neither tier and never sealed by the tiered stores (the passphrase record keeps its own device-key seal, `REQ-PRES-10`). (b) On a gate host a protected value sealed under a key other than the device key means the gate is on, and an ungated store over it holds the run in memory. (c) The background timeout is measured on a monotonic clock with the wall clock as a second witness, and a negative elapsed time is expired. (d) Key copies the stores load are wiped, and the re-seal runs once per unlock. §3 records that held writes are memory-only (`OI-PRIV-62` (5), a decision brief).** |

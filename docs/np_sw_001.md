@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 218
-**Date:** 2026-11-22  
+**Revision:** 219
+**Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -921,3 +921,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 216 | 2026-11-25 | NeurOne Software Engineering | **§6.3.4 `SWR-WO-07` (g): an app never names a limits set after the helmet or the person, and a downloaded limits file is named for its level (NP-PRIV-ANALYSIS-006 F-07); §5.3.1 `REQ-SW03-31` (d): firmware commands, calibration commands and the recording request wait for the encrypted serial read (F-11).** |
 | 217 | 2026-11-25 | NeurOne Software Engineering | **REQ-SW03-19 (b), (d), (e): the app drops a queued analytics ID only on the erasure relay's 200; a 202 (queued at the relay, OI-PRIV-48) keeps it and the drain goes on, and counts as accepted in a device erase or clear. REQ-SW03-22 (a) to (f): the erasure relay validates before the rate limit, answers 200 only when the store holds nothing under the ID, queues a held ID on disk before answering 202, and deletes the queue in batches.** |
 | 218 | 2026-11-22 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-35`, an unreadable session history is quarantined before anything can write over it, and `REQ-SW03-06` starts clean without destroying it; §6.3 `SWR-MG-10`: a direct route whose host does not say it is paired is withheld (`OI-PRIV-66` (2), (4)).** |
+| 219 | 2026-11-25 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-16` (a): the sealed set is every listed key except `hostPlain`, the presence gate's own two records (`REQ-PRES-11` (a), `OI-PRIV-62`).** |
