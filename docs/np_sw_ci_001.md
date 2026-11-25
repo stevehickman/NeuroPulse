@@ -4248,7 +4248,8 @@ after it merges, so its self-test runs on the pull request that changes it (`too
 | 1. Merge | #1008 merged |
 | 4. Ruleset | The principal added `main is green, or this PR is up to date with main` to the required status checks and unticked *Require branches to be up to date before merging* |
 | 5. `--live` | One violation, `L5: strict_required_status_checks_policy is false, expected true`. **No `L2`**, so GitHub requires the new status, and **no `L3`**, so GitHub binds it to the App the other contexts are bound to: the status posted with `GITHUB_TOKEN` is attributed to GitHub Actions, which closes §6.20.4 item 5. This revision sets `status_checks.strict` to `false` in `ci/main-ruleset.json`, so the next run is expected to print `OK` |
-| 2, 3, 6 | The sending account's secrets and the mail rule are the principal's, outside the repository; the first red run on `main` is not yet observed |
+| 2. The sending account | **Done (the principal, reported 2026-11-25):** the mail secrets are set on the repository. ~~The sending account's secrets and the mail rule are the principal's, outside the repository~~ |
+| 3, 6 | The mail rule is the principal's, outside the repository, and is not reported; the first red run on `main` (one email, the status turning `failure` on pull requests behind `main`) is not yet observed |
 
 ### 6.21 The five ruleset questions are answered (2026-11-24, `OI-SWCI-54`)
 
