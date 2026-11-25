@@ -86,6 +86,27 @@ class LimitsTiersTest {
         assertEquals(alex.id, store.individualLimits.keys.single())
     }
 
+    // @verifies SWR-WO-07#g
+    @Test
+    fun aSavedSet_isNamedForItsTier_soTheShareFormNamesNoHelmetAndNoPerson() = runComposeUiTest {
+        val store = NPLimitsStore(InMemoryKeyValueStore())
+        val alex = NPIndividualProfile(name = "Alex Example")
+        store.saveProfile(alex)
+        show { LimitsSettingsScreen(store, hubId = "NP-SERIAL-0042", onDone = {}) }
+
+        onNodeWithText(text(Res.string.web_tab_helmet)).performClick()
+        onNodeWithText(text(Res.string.protocol_composer_save)).performScrollTo().performClick()
+        val helmet = store.helmetLimits.getValue("NP-SERIAL-0042")
+        assertEquals(text(Res.string.web_tab_helmet), helmet.name)
+        assertFalse(store.shareLimitsAsNPPS(helmet).contains("NP-SERIAL-0042"), "the shared file names no helmet")
+
+        onNodeWithText(text(Res.string.web_tab_individual)).performClick()
+        onNodeWithText(text(Res.string.protocol_composer_save)).performScrollTo().performClick()
+        val individual = store.individualLimits.getValue(alex.id)
+        assertEquals(text(Res.string.web_tab_individual), individual.name)
+        assertFalse(store.shareLimitsAsNPPS(individual).contains("Alex"), "the shared file names no person")
+    }
+
     // @verifies REQ-NPPS-12
     @Test
     fun enablingASection_andSettingALimit_savesItsBlock_withTheMidpointStart() = runComposeUiTest {

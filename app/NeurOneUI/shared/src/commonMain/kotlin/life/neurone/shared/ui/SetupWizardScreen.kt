@@ -232,6 +232,7 @@ private fun spokenConfirmation(socket: ZoneModuleStatus): String {
 @Composable
 private fun SetupError.text(): String = when (this) {
     SetupError.NotConnected -> stringResource(Res.string.setup_error_not_connected)
+    SetupError.NotPaired -> stringResource(Res.string.hub_not_paired_nothing_sent)
     SetupError.Timeout -> stringResource(Res.string.setup_error_timeout)
     SetupError.CalibrationFailed -> stringResource(Res.string.setup_error_calibration_failed)
     is SetupError.ImpedanceFailed -> stringResource(

@@ -115,6 +115,15 @@
   "REGULATORY_FOOTER": {
     "legal_review_required": true
   },
+  "RESEARCH_ANALYTICS_CONSENT_BODY": {
+    "legal_review_required": true
+  },
+  "RESEARCH_ANALYTICS_CONSENT_CONFIRM": {
+    "legal_review_required": true
+  },
+  "RESEARCH_ANALYTICS_CONSENT_TITLE": {
+    "legal_review_required": true
+  },
   "SETUP_INSTR_SAFETY": {
     "legal_review_required": true
   },

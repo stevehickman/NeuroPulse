@@ -2,6 +2,7 @@ import {
   NPLimitsSet,
   NPLimitSourceMap,
   NPIndividualProfile,
+  LimitLevel,
   profileNotesFit,
   storedProfile,
   resolveLimitsWithSources,
@@ -19,6 +20,27 @@ const STORAGE_KEY_INDIVIDUAL = 'np_individual_limits';
 const STORAGE_KEY_PROFILES = 'np_profiles';
 const STORAGE_KEY_ACTIVE_PROFILE = 'np_active_profile_id';
 const STORAGE_KEY_ACTIVE_HELMET = 'np_active_helmet_id';
+
+/**
+ * A new limits set is named for its level, never after the helmet it is for or the person it belongs to: the name is the
+ * sender's own words in the share form (SWR-WO-07 (d)), so a default that held the serial or a person's name would
+ * travel in every file given to someone else (SWR-WO-07 (g), NP-PRIV-ANALYSIS-006 F-07).
+ */
+const LEVEL_NAMES: Record<LimitLevel, string> = {
+  global: 'Global Limits',
+  helmet: 'Helmet Limits',
+  individual: 'Individual Limits',
+};
+
+export function newLimitsSet(level: LimitLevel): NPLimitsSet {
+  const now = new Date().toISOString();
+  return { id: crypto.randomUUID(), name: LEVEL_NAMES[level], description: '', createdAt: now, modifiedAt: now, level };
+}
+
+/** A downloaded limits file is named for its level, so the filename holds no serial or person whatever the set is called (SWR-WO-07 (g)). */
+export function limitsFileName(limits: NPLimitsSet): string {
+  return `${limits.level}-limits.npps`;
+}
 
 function parseLimitsFromNPPS(text: string): NPLimitsSet | null {
   try {
@@ -211,7 +233,7 @@ class LimitsStore extends EventTarget {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${limits.name.toLowerCase().replace(/\s+/g, '-')}.npps`;
+    a.download = limitsFileName(limits);
     a.click();
     URL.revokeObjectURL(url);
   }

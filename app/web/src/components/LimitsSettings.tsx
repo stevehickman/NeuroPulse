@@ -3,11 +3,10 @@ import { t } from '../../../../common/lib/i18n';
 import {
   NPLimitsSet,
   NPIndividualProfile,
-  LimitLevel,
 } from '../../../../common/types/limits';
 import { shareNPPSLimits } from '../../../../common/lib/nppsSerializer';
 import { parseNPPSLimits } from '../../../../common/lib/nppsParser';
-import { limitsStore } from '../lib/limitsStore';
+import { limitsStore, newLimitsSet } from '../lib/limitsStore';
 import { NPHardwareLimits, ProfileLimits } from '../../../../common/lib/constants.generated';
 import { LIMIT_BOUNDS, limitsOutOfRange } from '../lib/paramBounds';
 import type { ParamBound } from '../lib/paramBounds';
@@ -22,20 +21,6 @@ interface LimitsSettingsProps {
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 type SettingsTab = 'global' | 'helmet' | 'individual';
-
-// ─── Helper: blank limits set ─────────────────────────────────────────────────
-
-function blankLimitsSet(level: LimitLevel, name: string): NPLimitsSet {
-  const now = new Date().toISOString();
-  return {
-    id: crypto.randomUUID(),
-    name,
-    description: '',
-    createdAt: now,
-    modifiedAt: now,
-    level,
-  };
-}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -75,19 +60,19 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
   } | null>(null);
 
   function openGlobalEditor() {
-    setEditingLimits(limitsStore.globalLimits ?? blankLimitsSet('global', 'Global Limits'));
+    setEditingLimits(limitsStore.globalLimits ?? newLimitsSet('global'));
     setEditingContext({ type: 'global' });
   }
 
   function openHelmetEditor(helmetId: string) {
     const existing = limitsStore.helmetLimits.get(helmetId);
-    setEditingLimits(existing ?? blankLimitsSet('helmet', `Helmet ${helmetId}`));
+    setEditingLimits(existing ?? newLimitsSet('helmet'));
     setEditingContext({ type: 'helmet', helmetId });
   }
 
   function openIndividualEditor(profileId: string) {
     const existing = limitsStore.individualLimits.get(profileId);
-    setEditingLimits(existing ?? blankLimitsSet('individual', 'Individual Limits'));
+    setEditingLimits(existing ?? newLimitsSet('individual'));
     setEditingContext({ type: 'individual', profileId });
   }
 
@@ -120,7 +105,7 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
   function handleAddHelmet() {
     const serial = newHelmetSerial.trim();
     if (!serial) return;
-    limitsStore.saveHelmetLimits(blankLimitsSet('helmet', `Helmet ${serial}`), serial);
+    limitsStore.saveHelmetLimits(newLimitsSet('helmet'), serial);
     setShowNewHelmet(false);
     setNewHelmetSerial('');
   }

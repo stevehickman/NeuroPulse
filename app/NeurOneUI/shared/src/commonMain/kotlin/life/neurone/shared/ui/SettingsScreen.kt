@@ -362,27 +362,7 @@ private fun SettingsContent(
 
         Spacer(Modifier.height(24.dp))
 
-        // Research analytics gate
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(stringResource(Res.string.and_ui_research_analytics), Modifier.weight(1f))
-            Switch(
-                checked = app.researchAnalyticsGate.isOpen,
-                onCheckedChange = { on ->
-                    if (!on) {
-                        app.consentStore.revokeResearchAnalytics()
-                    } else {
-                        app.keyValueStore.putBoolean(
-                            life.neurone.core.protocol.PersistedKeys.RESEARCH_ANALYTICS_KEY,
-                            true,
-                        )
-                        app.researchAnalyticsGate.configure()
-                    }
-                },
-            )
-        }
+        ResearchAnalyticsSection(app.consentStore)
 
         Spacer(Modifier.height(24.dp))
         Text(stringResource(Res.string.and_ui_neurone_home_0_1_0), style = MaterialTheme.typography.bodySmall)
@@ -422,6 +402,52 @@ internal fun SessionHistorySection(store: life.neurone.core.session.SessionHisto
                 TextButton(onClick = { store.clearHistory(); confirming = false }) { Text(stringResource(Res.string.history_clear_button)) }
             },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+}
+
+/**
+ * The research analytics switch (`REQ-CONSENT-28`, NP-PRIV-ANALYSIS-006 F-09). Turning it on shows what is sent and asks the person to
+ * confirm; the decision is the consent store's, which records the day it is turned off, so "never asked" and "said stop" stay apart.
+ * The switch follows the screen's own state, so it moves when it is tapped.
+ */
+@Composable
+internal fun ResearchAnalyticsSection(store: life.neurone.core.consent.ConsentStore) {
+    var on by remember { mutableStateOf(store.researchAnalyticsGranted) }
+    var withdrawnAt by remember { mutableStateOf(store.researchAnalyticsWithdrawnAt) }
+    var asking by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(stringResource(Res.string.and_ui_research_analytics), Modifier.weight(1f))
+        Switch(
+            checked = on,
+            onCheckedChange = { turnOn ->
+                if (turnOn) {
+                    asking = true
+                } else {
+                    store.revokeResearchAnalytics()
+                    on = store.researchAnalyticsGranted
+                    withdrawnAt = store.researchAnalyticsWithdrawnAt
+                }
+            },
+        )
+    }
+    WithdrawnNote(withdrawnDay(on, withdrawnAt))
+    if (asking) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { asking = false },
+            title = { Text(stringResource(Res.string.research_analytics_consent_title)) },
+            text = { Text(stringResource(Res.string.research_analytics_consent_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    store.grantResearchAnalytics()
+                    on = store.researchAnalyticsGranted
+                    asking = false
+                }) { Text(stringResource(Res.string.research_analytics_consent_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { asking = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

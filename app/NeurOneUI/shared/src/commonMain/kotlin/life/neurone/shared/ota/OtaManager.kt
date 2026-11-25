@@ -41,11 +41,14 @@ interface OtaLink {
     val connectionState: StateFlow<ConnectionState>
     val otaStatus: StateFlow<OtaStatusPacket?>
     val hubFirmwareVersion: StateFlow<String?>
-    fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray = ByteArray(0))
+    /** False, with nothing sent, when the link has not shown it is encrypted (`REQ-SW03-31` (d)). */
+    fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray = ByteArray(0)): Boolean
 }
 
 sealed interface OtaError {
     data object NotConnected : OtaError
+    /** The link has not shown it is encrypted, so no firmware was sent: the hub is not paired with this device (`REQ-SW03-31` (d)). */
+    data object NotPaired : OtaError
     data object ImageLoadFailed : OtaError
     data object SignatureInvalid : OtaError
     data object WrongImageKind : OtaError
@@ -256,7 +259,7 @@ class OtaManager(
 
     private fun send(opcode: OtaOpcode, payload: ByteArray = ByteArray(0)) {
         if (link.connectionState.value != ConnectionState.CONNECTED) fail(OtaError.TransferFailed)
-        link.sendOtaCommand(opcode, payload)
+        if (!link.sendOtaCommand(opcode, payload)) fail(OtaError.NotPaired)
     }
 
     private suspend fun waitForPhase(target: OtaPhase, timeoutMs: Long) {

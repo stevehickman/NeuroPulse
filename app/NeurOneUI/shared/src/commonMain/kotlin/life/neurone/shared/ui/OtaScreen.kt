@@ -210,6 +210,7 @@ private fun Progress(session: OtaSession, phase: OtaPhase, percent: Int, onAbort
 
 private fun errorText(error: OtaError): StringResource = when (error) {
     OtaError.NotConnected -> Res.string.ota_error_not_connected
+    OtaError.NotPaired -> Res.string.hub_not_paired_nothing_sent
     OtaError.ImageLoadFailed -> Res.string.ota_error_image_load
     OtaError.SignatureInvalid -> Res.string.ota_error_signature
     OtaError.WrongImageKind -> Res.string.ota_error_wrong_image

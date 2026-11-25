@@ -812,18 +812,22 @@ class NeurOneGattManager(
      */
     fun requestSessionResume() = central.write(UUID.fromString(GattUuidStrings.SESSION_PAUSE_ID), byteArrayOf(0x02))
 
-    /** Mode 4: trigger EDF+ download for the given hub session ID (LE uint32). */
-    fun requestEdfDownload(sessionId: Long) {
+    /**
+     * Mode 4: trigger EDF+ download for the given hub session ID (LE uint32). False, with nothing written, until the encrypted-only
+     * read has succeeded on this link: the session ID is the session's start time (`REQ-SW03-31` (d), NP-PRIV-ANALYSIS-006 F-11).
+     */
+    fun requestEdfDownload(sessionId: Long): Boolean {
         val bytes = ByteArray(4) { i -> ((sessionId shr (8 * i)) and 0xFF).toByte() }
-        central.write(UUID.fromString(GattUuidStrings.EDF_REQUEST_ID), bytes)
+        return writeEncrypted(UUID.fromString(GattUuidStrings.EDF_REQUEST_ID), bytes)
     }
 
-    override fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray) =
-        central.write(UUID.fromString(GattUuidStrings.OTA_COMMAND_ID), byteArrayOf(opcode.rawValue.toByte()) + payload)
+    /** A firmware command or image chunk; false, with nothing written, until the encrypted-only read has succeeded (`REQ-SW03-31` (d), CLAUDE.md §23). */
+    override fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray): Boolean =
+        writeEncrypted(UUID.fromString(GattUuidStrings.OTA_COMMAND_ID), byteArrayOf(opcode.rawValue.toByte()) + payload)
 
-    /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.). */
-    override fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode) =
-        central.write(UUID.fromString(GattUuidStrings.CALIBRATION_CMD_ID), byteArrayOf(opcode.rawValue.toByte()))
+    /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.); false, with nothing written, until the encrypted-only read has succeeded (`REQ-SW03-31` (d)). */
+    override fun sendCalibration(opcode: life.neurone.core.ble.CalibrationOpcode): Boolean =
+        writeEncrypted(UUID.fromString(GattUuidStrings.CALIBRATION_CMD_ID), byteArrayOf(opcode.rawValue.toByte()))
 
     /**
      * The wearer has read the alert. The hub has already refused or stopped stimulation —
