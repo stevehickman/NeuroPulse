@@ -13,6 +13,13 @@
 static volatile uint16_t s_requested_mask = 0U;
 static volatile uint16_t s_granted_mask   = 0U;
 static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
+/* Set when the safety MCU takes away a grant the hub still requests: a channel
+ * that was enabled stops without the hub having asked.  Whatever the cause
+ * (cardiac, contact, charge ceiling, tier, a bad reply), the latch is the same
+ * one bit, so it says that a channel stopped and never why (REQ-FWHUB-89 (c);
+ * the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004), 2026-11-23).
+ * Read and cleared by np_safety_spi_take_grant_withdrawn().                  */
+static volatile bool     s_grant_withdrawn = false;
 /* OI-CHARGE-03: set true by the session runner while a small-electrode modality
  * (HD-tDCS ring/bilateral) is in the session.  Every heartbeat then carries
  * NP_SESSION_STATUS_GEOM_REQUIRED so the safety MCU keeps CLIN_STIM blocked
@@ -119,6 +126,7 @@ np_hub_status_t np_safety_spi_init(void)
     s_requested_mask = 0U;
     s_granted_mask   = 0U;
     s_mcu_status     = NP_SAFETY_STATUS_OK;
+    s_grant_withdrawn = false;
     s_geom_required  = false;
     s_geom_required_tdcs = false;
     s_geom_required_bes  = false;
@@ -321,6 +329,9 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
      * Zero s_granted_mask so callers do not act on a stale grant.          */
     uint16_t expected = compute_checksum((const uint8_t *)&mcu_reply, 6U);
     if (mcu_reply.checksum != expected) {
+        if ((s_granted_mask & s_requested_mask) != 0U) {
+            s_grant_withdrawn = true;   /* a granted, still-requested channel loses its grant */
+        }
         s_granted_mask   = 0U;
         s_mcu_status     = NP_SAFETY_STATUS_FAULT;
         s_cvns_imp_valid = false;   /* OI-CVNS-HUB-11: distrust a corrupt frame's tail */
@@ -337,8 +348,12 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     parse_tier_report(rx_raw);
     parse_withhold_report(rx_raw);
 
-    s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
-                                 ((uint16_t)mcu_reply.granted_hi << 8));
+    const uint16_t new_granted = (uint16_t)((uint16_t)mcu_reply.granted_lo |
+                                            ((uint16_t)mcu_reply.granted_hi << 8));
+    if ((s_granted_mask & s_requested_mask & (uint16_t)~new_granted) != 0U) {
+        s_grant_withdrawn = true;       /* the MCU withdrew a grant the hub still requests */
+    }
+    s_granted_mask = new_granted;
     s_mcu_status   = mcu_reply.status;
 
     if (mcu_reply.status & (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF)) {
@@ -549,6 +564,15 @@ uint16_t np_safety_spi_get_granted_mask(void)
 uint16_t np_safety_spi_get_requested_mask(void)
 {
     return s_requested_mask;
+}
+
+bool np_safety_spi_take_grant_withdrawn(void)
+{
+    taskENTER_CRITICAL();
+    const bool was = s_grant_withdrawn;
+    s_grant_withdrawn = false;
+    taskEXIT_CRITICAL();
+    return was;
 }
 
 uint8_t np_safety_spi_get_status(void)

@@ -615,12 +615,15 @@ static void fai_hr_report(void)
                                              &hr_x10, &age_ms));
 }
 
-/* ── SHDR session summary carries flags only (OI-PRIV-23) ───────────────────── */
+/* ── Nothing of the session goes to SHDR; it stays in UHDR (REQ-CVNS-15) ───── */
 /*
- * The SHDR summary used to copy each electrode's kΩ, the frequency, the current,
- * the duration and the electrode configuration (NP-PRIV-ANALYSIS-004 H3).  Those
- * are UHDR.  These tests drive a real session through the impedance check and
- * read what the session put in ctx->shdr_summary when it ended.
+ * The library once kept a three-flag SHDR summary (impedance passed, cutoff
+ * occurred, fault reason), and before that kΩ values and the dose.  Since the
+ * principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004, 2026-11-23) it keeps no
+ * SHDR record at all: the session context has no SHDR member and the library
+ * calls no SHDR sink (scripts/check-redaction-shape.ts).  These tests drive a real
+ * session through the impedance check and show that what the summary held is in
+ * the UHDR record.
  */
 
 /* @verifies-none recording callback helper whose name begins test_; not a test case */
@@ -631,8 +634,8 @@ static void test_session_end_cb(const np_cvns_session_record_t *rec, np_cvns_sta
 }
 
 /* Starts a session, answers its impedance check with imp[], ticks once and stops it. */
-static void shdr_run_session(np_cvns_session_ctx_t *session, np_cvns_interlock_ctx_t *interlock,
-                             np_cvns_stim_ctx_t *stim, const float imp[NP_CVNS_ELECTRODE_COUNT])
+static void run_session(np_cvns_session_ctx_t *session, np_cvns_interlock_ctx_t *interlock,
+                        np_cvns_stim_ctx_t *stim, const float imp[NP_CVNS_ELECTRODE_COUNT])
 {
     np_cvns_interlock_config_t icfg = { .ppg_sample_rate_hz = NP_CVNS_PPG_SAMPLE_RATE_HZ, .now_s = 0U };
     ASSERT_OK(np_cvns_interlock_init(interlock, icfg, test_fault_cb));
@@ -645,68 +648,25 @@ static void shdr_run_session(np_cvns_session_ctx_t *session, np_cvns_interlock_c
     np_cvns_session_stop(session, 2000U);
 }
 
-/* @verifies REQ-CVNS-15#a,b */
-static void test_cvns_shdr_summary_is_two_flags_and_no_impedance(void)
+/* @verifies REQ-CVNS-15#b */
+static void test_cvns_session_facts_stay_in_uhdr(void)
 {
-    printf("\n[SHDR session summary — two flags only, REQ-CVNS-15]\n");
+    printf("\n[Session facts stay in UHDR, REQ-CVNS-15]\n");
     np_cvns_session_ctx_t   session;
     np_cvns_interlock_ctx_t interlock;
     np_cvns_stim_ctx_t      stim;
     const float imp[NP_CVNS_ELECTRODE_COUNT] = { 1.25f, 1.75f };
 
-    shdr_run_session(&session, &interlock, &stim, imp);
+    run_session(&session, &interlock, &stim, imp);
 
-    /* (a) two one-byte flags: nothing cut, no fault.  No impedance member
-     * exists to read (OI-PRIV-40: the in-session check is UHDR). */
-    ASSERT_EQ(sizeof(np_cvns_shdr_summary_t), 2U);
-    ASSERT_EQ(session.shdr_summary.cutoff_occurred, 0U);
-    ASSERT_EQ(session.shdr_summary.fault_reason, (uint8_t)NP_CVNS_FAULT_NONE);
-
-    /* (b) the kΩ values and parameters are in the UHDR record, and only there. */
     ASSERT_APPROX(session.uhdr_record.impedance_left_kohm, 1.25f, 1e-6f);
     ASSERT_APPROX(session.uhdr_record.impedance_right_kohm, 1.75f, 1e-6f);
     ASSERT_EQ(session.uhdr_record.stim_freq_hz, 25U);
     ASSERT_EQ(session.uhdr_record.stim_current_ua, 1500U);
     ASSERT_EQ(session.uhdr_record.electrode_config, 1U);
-    printf("  summary is {cutoff, fault reason}; kΩ, frequency, current and pads stay in UHDR\n");
-}
-
-/* @verifies REQ-CVNS-15#a */
-static void test_cvns_shdr_summary_same_whether_check_passed_or_failed(void)
-{
-    np_cvns_session_ctx_t   passed, failed;
-    np_cvns_interlock_ctx_t il_p, il_f;
-    np_cvns_stim_ctx_t      st_p, st_f;
-    const float good[NP_CVNS_ELECTRODE_COUNT] = { 1.0f, 1.0f };
-    const float bad[NP_CVNS_ELECTRODE_COUNT]  = { NP_CVNS_IMPEDANCE_MAX_KOHM + 1.0f, 1.0f };
-
-    shdr_run_session(&passed, &il_p, &st_p, good);
-    shdr_run_session(&failed, &il_f, &st_f, bad);
-
-    /* The UHDR record does see the difference (positive pin: the two runs
-     * really did take different paths through the check). */
-    ASSERT_APPROX(passed.uhdr_record.impedance_left_kohm, 1.0f, 1e-6f);
-    ASSERT_TRUE(failed.uhdr_record.impedance_left_kohm != passed.uhdr_record.impedance_left_kohm);
-    /* The SHDR summary does not: byte for byte the same. */
-    ASSERT_TRUE(memcmp(&passed.shdr_summary, &failed.shdr_summary, sizeof(np_cvns_shdr_summary_t)) == 0);
-    printf("  passed and failed impedance checks write the same SHDR summary\n");
-}
-
-/* @verifies REQ-CVNS-15#c */
-static void test_cvns_shdr_fault_reason_never_names_impedance(void)
-{
-    /* The impedance fault reports as a safety-MCU cut, a value other faults
-     * also produce; every other reason passes through unchanged. */
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_IMPEDANCE), (uint8_t)NP_CVNS_FAULT_SAFETY_MCU);
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_SAFETY_MCU), (uint8_t)NP_CVNS_FAULT_SAFETY_MCU);
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_NONE), (uint8_t)NP_CVNS_FAULT_NONE);
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_HR_CHANGE), (uint8_t)NP_CVNS_FAULT_HR_CHANGE);
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_DATA_LOSS), (uint8_t)NP_CVNS_FAULT_DATA_LOSS);
-    ASSERT_EQ(np_cvns_shdr_fault_reason(NP_CVNS_FAULT_WATCHDOG), (uint8_t)NP_CVNS_FAULT_WATCHDOG);
-    for (int r = 0; r <= 255; r++) {
-        ASSERT_TRUE(np_cvns_shdr_fault_reason((np_cvns_fault_reason_t)r) != (uint8_t)NP_CVNS_FAULT_IMPEDANCE);
-    }
-    printf("  SHDR fault reason never names the impedance check\n");
+    ASSERT_EQ(session.uhdr_record.cutoff_occurred, 0U);
+    ASSERT_EQ(session.uhdr_record.fault_reason, (uint8_t)NP_CVNS_FAULT_NONE);
+    printf("  kΩ, frequency, current, pads, cutoff and fault reason are in the UHDR record\n");
 }
 
 int main(void)
@@ -725,9 +685,7 @@ int main(void)
     fai_cv03_procedure_doc();
     fai_stim_validation();
     fai_ramp_arithmetic();
-    test_cvns_shdr_summary_is_two_flags_and_no_impedance();
-    test_cvns_shdr_summary_same_whether_check_passed_or_failed();
-    test_cvns_shdr_fault_reason_never_names_impedance();
+    test_cvns_session_facts_stay_in_uhdr();
 
     printf("=== Results: %d total failure(s) ===\n", g_fail_count);
 
