@@ -20,7 +20,8 @@ import life.neurone.core.platform.secureRandomBytes
 // holds either (CLAUDE.md §5.1). One exception, which the person chooses: to make a backup without asking again, the secret may
 // be kept in the app's SEALED per-install store (`np.backup.auto-secret`, encrypted under the device-only data key, never in a
 // bundle and never moved to another phone), by `toStoredText` and `storedSecret`. It is the person's own phone holding the
-// person's own secret, and it is destroyed by turning the automatic backup off and by the clear.
+// person's own secret, and it is destroyed by turning the automatic backup off and by the clear. A run whose storage is not
+// sealed keeps it nowhere (`SWR-MG-13` (e), `OI-PRIV-61`): the shared app's `ScheduledBackup` refuses to store it there.
 
 enum class BundleKeyMethod(val wire: String) {
     RECOVERY_CODE("recoveryCode"),
