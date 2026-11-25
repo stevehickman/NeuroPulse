@@ -256,6 +256,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bun scripts/check-main-ruleset.ts --live
 
+  # OI-SWCI-54 Q1 option B (NP-SW-CI-001 §6.21). The revision App bypasses the ruleset in mode `always` and
+  # can push anything to `main`; it is meant to touch `docs/` only. This is the detection: any commit in the
+  # last 14 days (two periods of this schedule) that arrived with no merged pull request and touches a file
+  # outside `docs/` fails the run, and main-health.yml sends the red-run email (§6.20).
+  # ⚠ This job must never be a required context: this workflow does not run on a pull request (OI-SWCI-23).
+  main-pushes-audit:
+    name: Nothing reached main without a pull request except under docs/ (read-only)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-toolchain
+        with:
+          bun: 'true'
+
+      - name: Commits on main with no merged pull request touch only docs/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/check-main-pushes.ts --live
+
   safety-mcu-cross:
     name: Safety MCU cross-compile (STM32G071, Class C)
     runs-on: ubuntu-latest
