@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-NVRAM-001
-**Revision:** 16
-**Date:** 2026-11-24
+**Revision:** 17
+**Date:** 2026-11-25
 **Status:** DRAFT — design study; not a release baseline. Every behaviour below is a proposed engineering commitment traced to a cited source. **No new part is proposed.** Rev 11 closes `OI-HEXMAP-01`: `np_hexmap_nvram_read/write` are bound to `npmp.bin` through `np_cfg_store` as first-party code, not platform seams, and `REQ-LFS-02` is a property of `np_module_map` itself, so a restored record answers nothing until the power-on poll confirms its UID (D-32, §4.2.1). Rev 10 closes `OI-NVRAM-18`: the hub decides that a mate happened, from its previous observation of the socket, and `U1` applies the increment at most once per power-up, so `mate_cycles_observed` no longer depends on a completed session (D-31, `NP-MOD-ID-001` §5.3.1). Rev 9 closes `OI-NVRAM-17`: the factory-reset boot check is called at bring-up before anything opens UHDR or SHDR or reads Config, and a result that does not permit them opens neither (§3.4.1). Rev 8 closes `OI-NVRAM-07`: the trajectory's axes are use, not time, SHDR already carries month-granular calendar age per module, and only sub-month cadence is missing, which no modelled mechanism needs; §7.4's fit must carry presence and calendar age beside exposure (D-30, §5.3.1). Rev 7 closes `OI-NVRAM-06`: the session an extraction interrupts is lost from Map 4 and not from the hub, so §7.4's model is unaffected if its exposure is hub-sourced (D-28), and §6.5 stops flagging that shortfall as a fault (D-29, §6.5.1). Rev 6 closes `OI-NVRAM-04`: nothing in this document needs the `SEAT#` pre-break window's duration, and the stagger dimension moves to the document whose own mechanism needs it (§4.3.1). Rev 5 gives the Config store a journal reader that steps by each row's own length, closing `OI-NVRAM-16` (§7.2.1). Rev 4 makes R-3 read its marker back before the first erase (§3.4.1). Rev 3 writes and falsifies the two CI checks §7.2 and §8.3 asked for, and corrects every claim that an SNVS flag survives power loss. Rev 2 resolves the store defects Rev 1 found (§3.3.1) so Map 3 can be built at all. See §11 (Decisions), §13 (Open items).
 **Effective Date:** —
 **Author:** NeurOne Firmware + Data Architecture
@@ -1532,7 +1532,7 @@ in order:
 §6's sync and watermark machinery, §6.3's journal-full policy and §7.2's row-version rule were written for the
 per-session journal and are revised with the new row. That work, and the codec, are **`OI-NVRAM-20`**.
 
-**Amended by the principal, 2026-11-24 (Rev {NP-FW-NVRAM-001 to}).** The totals are per module and measure **use as well
+**Amended by the principal, 2026-11-24 (Rev 17).** The totals are per module and measure **use as well
 as presence**: a module can be fitted and not driven, and its warranty lifetime depends on how much it is used. Each
 module's row therefore holds sessions present and the **time present** (exposure to hair, skin oil and sweat), sessions
 **used** and the **time used** (each use is an on/off and a ramp up and down; sessions differ in length), and a count
@@ -1894,3 +1894,4 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 | 14 | 2026-11-21 | NeurOne Firmware Engineering | **§3.3.1.5, §7.2.1, D-25, D-33, D-34 (`OI-UINT16-01`, the principal, 2026-11-19): Map 3 has one layout, a 64-byte row at version 1 with 32-bit counts stored whole. The 32-byte row, the duplicate tail and the 0xFFFF ceiling are removed because no hardware has shipped and no row was ever written; D-33 is superseded. 768 rows, 9 per socket, margin 9 days home and 0.8 days clinic.** |
 | 15 | 2026-11-23 | NeurOne Firmware Engineering | **§8.1: ordinal, dose_accum and throttle_count classified UHDR class, not written to Config (F1, F2, F8; OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 1); §3.3.1.5 and §8.1 say the Map 3 row is not to be written to Config until the principal rules what it keeps.** |
 | 16 | 2026-11-24 | NeurOne Firmware Engineering | **§8.5 added: the principal's ruling on Map 3 (presence is wear and SHDR; use accumulates as running totals per module with no session link; dose and throttle reach the fleet only under NP-MOD-ID-001 §7's opt-in). §3.3.1.5's per-session layout is retired unwritten; §8.1 rows updated; OI-NVRAM-20 opened to build the new row.** |
+| 17 | 2026-11-25 | NeurOne Firmware Engineering | **§8.5 amended (the principal, 2026-11-24): the per-module totals measure use as well as presence, with time present and time used, and faults per code, all SHDR as running totals; built as NP_CFG_FILE_MODULE_USAGE, not map3.jrn. OI-NVRAM-20 partly built.** |

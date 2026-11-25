@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HD-001
-**Revision:** 7
-**Date:** 2026-11-24
+**Revision:** 8
+**Date:** 2026-11-25
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -438,7 +438,7 @@ The session writes no SHDR record. It used to keep `np_hd_shdr_summary_t` "for t
 
 Device faults from an HD-tDCS session reach SHDR through the hub's fault log (`NP-FW-HUB-001` §6.3), which carries the fault kind and no session data.
 
-**What HD-tDCS does contribute to SHDR (Rev {NP-FW-HD-001 to}; the principal, 2026-11-24):** cumulative device information, as every modality does, through the hub's per-module running totals (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`): sessions the HD-tDCS accessory was present for and the time present, sessions it was used in and the time used, and its faults per code. They are totals with no session-level detail, upserted on the helmet and seen by the fleet only in the upload's snapshot. The accessory reports no identity, so its row follows the port (`OI-FWHUB-38`).
+**What HD-tDCS does contribute to SHDR (Rev 8; the principal, 2026-11-24):** cumulative device information, as every modality does, through the hub's per-module running totals (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`): sessions the HD-tDCS accessory was present for and the time present, sessions it was used in and the time used, and its faults per code. They are totals with no session-level detail, upserted on the helmet and seen by the fleet only in the upload's snapshot. The accessory reports no identity, so its row follows the port (`OI-FWHUB-38`).
 
 ---
 
@@ -687,3 +687,4 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 | 4 | 2026-09-08 | **The sLORETA buffers are on-chip; there is no external SDRAM.** NP-SW-CI-001 §4.13 closed OI-SWCI-46 by measuring that this document's entire ≈215 KB "LPSDR4" budget (weight matrix 205,548 B + source-power array 9,788 B = 215,336 B) fits on-chip — 312,716 B free in the 440 KiB OCRAM2 staging region alone, plus ~439 KB of unallocated established DTCM — and that no SDRAM part exists in any BOM, no linker script declares a region, and nothing configures the SEMC controller. `s_source_power` loses its `.lpsdr4` section attribute and becomes an ordinary static in `.bss`, which also puts it inside the one span the vendored startup zeroes; as an orphaned `.lpsdr4` it would have been placed inside DTCM with nothing copying to or clearing it. §3.2, §5.1 and §11 stop naming LPSDR4, and §11 records the OCRAM2 staging region as the binding resource rather than "1 MB on-chip". Header revision corrected 2→4: #270 added a Rev 3 history row without bumping the header. No algorithm, constant, interface or safety limit changed |
 | 5 | 2026-09-09 | **§6.4's map has a controlled hardware source of truth, and the firmware table stops being one.** `NP-HW-TCAP-001` Rev 1 §3 (`REQ-TCAP-02`) specifies the electrode-to-driver-channel map, closing `OI-TACS-02` half (i) — the gap `OI-TACS-01`'s widening of the hub wire format to 21 channels had made load-bearing, since the wire format committed to a channel count no controlled hardware document had ever specified. `k_driver_channel[]` now IMPLEMENTS §3; on a disagreement the firmware is wrong, and `scripts/check-tcap-map.ts` diffs the two in CI over names, MNI coordinates, driver channels and both `NP_HD_DRIVER_CHANNELS`/`NP_CLIN_TACS_CHANNELS` — falsified against ten injected perturbations first, per `NP-CONV-001` §8. It also re-derives the ~60 mm non-aliasing rule (`REQ-TCAP-03`) from the coordinates rather than trusting the map to be an identity, so the rule still bites if sharing is ever reintroduced. §6.4 gains a pointer to `NP-HW-TCAP-001` §4.2: specifying the conductor's rating surfaced that `NP_HD_MAX_CURRENT_UA` (2 mA), `NP_HD_MAX_ELECTRODE_DENSITY_A_M2` (6.0 A/m²) and the 40 µC/cm² per-phase limit cannot all hold on a 0.0962 cm² electrode — 2 mA is 34.6× the density limit, and the second constant has no production consumer at all (`OI-TCAP-01`, `OI-TCAP-02`). Both are recorded in `np_hd_config.h` at the constants themselves. **Not a live hazard** — T2 drivers are stubs, no cap exists, the Class C interlock is independent. **No algorithm, constant, montage, interface or safety limit changed by this revision** |
 | 7 | 2026-11-24 | **§8.2: the session writes no SHDR record; np_hd_shdr_summary_t (montage, anode electrode, current, duration, mean impedance, impedance pass flag, abort reason) is removed, and the ruling that the anode electrode index is SHDR is retired (OI-PRIV-75 (NP-PRIV-ANALYSIS-004)).** |
+| 8 | 2026-11-25 | **§8.2: HD-tDCS contributes to SHDR through the hub's per-module running totals (sessions present and used, their time, faults), with no session-level detail (the principal, 2026-11-24).** |
