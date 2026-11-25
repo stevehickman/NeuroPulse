@@ -2,7 +2,7 @@
 //
 // Selecting a condition never navigates directly. The destination host is a
 // third party that would learn this user looked up a specific condition, so the
-// user gets to see the host and decide. Nothing here is logged or reported:
+// user gets to see the host and the whole address, and decide. Nothing here is logged or reported:
 // condition views are UHDR-class by the §5.1 boundary rule, and the cleanest
 // way to honour that is to not record them at all.
 
@@ -100,6 +100,9 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
                   {t('WEB_CONDITION_DESTINATION_LABEL')}
                 </span>
                 <span className="condition-destination-host">{verdict.host}</span>
+                {/* The whole address too, so a query string or fragment that could carry a tracking
+                    identifier is seen before the person leaves (REQ-SW03-38, NP-COND-LINK-001 §4). */}
+                <span className="condition-destination-url">{verdict.url}</span>
               </div>
             </>
           ) : (

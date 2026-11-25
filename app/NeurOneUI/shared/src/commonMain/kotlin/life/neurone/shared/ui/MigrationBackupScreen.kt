@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -31,10 +30,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.AppServices
 import life.neurone.shared.MigrationPlace
 import life.neurone.shared.migration.BackupKind
@@ -55,6 +56,9 @@ import org.jetbrains.compose.resources.stringResource
 // says what the chosen kind leaves out BEFORE the backup is made. It decides nothing: which items a kind carries, what a
 // secret must be and what ends a backup are the shared core's, and every word it shows for them is a locale key the core names.
 
+/** The recovery code as the backup and the direct move show it, for a test to find. */
+const val RECOVERY_CODE_TAG = "recovery_code"
+
 @Composable
 fun MigrationBackupScreen(
     app: AppServices,
@@ -65,6 +69,8 @@ fun MigrationBackupScreen(
     /** With [linkPlace]: what the person does once the backup is made, which is to be shown the code. */
     onBackedUp: (() -> Unit)? = null,
 ) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     val transfer = app.platform.rememberFileTransfer()
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) {
@@ -155,15 +161,15 @@ fun MigrationBackupScreen(
                 Text(stringResource(Res.string.migration_backup_code_title), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(Res.string.migration_backup_code_body), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
+                // Not selectable (REQ-SW03-36 (a)): a copy would put the code, which with the backup opens all UHDR, in clipboard
+                // history and clipboard sync. The person writes it down.
                 Card(Modifier.fillMaxWidth()) {
-                    SelectionContainer {
-                        Text(
-                            s.code,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontFamily = FontFamily.Monospace,
-                        )
-                    }
+                    Text(
+                        s.code,
+                        modifier = Modifier.padding(16.dp).testTag(RECOVERY_CODE_TAG),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Monospace,
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

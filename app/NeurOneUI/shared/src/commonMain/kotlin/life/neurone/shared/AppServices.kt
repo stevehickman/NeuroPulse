@@ -83,6 +83,9 @@ class AppServices(
      * SWR-MG-13): it holds those keys in memory for the run and writes nothing to them on disk, so the sealed data is neither
      * read as ciphertext nor overwritten with plaintext. [storageProtection] says which of the three states this run is in.
      */
+    /** Keeps the window out of capture while a screen that asks is on show (REQ-SW03-36 (b)); the screens reach it through [LocalScreenCaptureGuard]. */
+    val screenCaptureGuard = ScreenCaptureGuard(platform.screenCaptureBlocker)
+
     /**
      * The person's presence for UHDR (`NP-APP-PRESENCE-001`), or null when the gate is not on: no host supplies [PlatformServices.gatedKeyStore]
      * yet, and a host that does answers [GatedSecretKeyStore.isEnabled] false until the person turns it on, so this is null and storage opens as before.

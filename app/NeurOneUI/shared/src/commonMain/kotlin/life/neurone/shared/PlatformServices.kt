@@ -203,6 +203,14 @@ interface PlatformServices {
     val endRunAfterErase: (() -> Unit)? get() = null
 
     /**
+     * The host's switch for keeping the window out of screenshots, screen recording and the app switcher's thumbnail while a screen
+     * that shows the recovery code, a backup, consent choices or the session history is on show (REQ-SW03-36 (b), (c)). Android
+     * supplies one (`FLAG_SECURE`). Null for a host with no such switch: the iOS host covers its app-switcher snapshot itself, for
+     * every screen (REQ-SW03-36 (d)); a computer and a browser have none.
+     */
+    val screenCaptureBlocker: ScreenCaptureBlocker? get() = null
+
+    /**
      * An action that asks the operating system for whatever it needs before [bleCentral] may scan
      * (Android's runtime Bluetooth permissions) and then re-reads the adapter state. Composable
      * because Android registers its permission launcher with the composition; a platform with
