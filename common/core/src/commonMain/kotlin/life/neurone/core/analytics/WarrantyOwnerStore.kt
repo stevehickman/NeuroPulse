@@ -17,6 +17,12 @@ data class WarrantyOwnerRecord(
     /** Zero means "never enrolled". It only increases, except at a change of custody. */
     val consentEpoch: Int = 0,
     val programmeId: Int = 0,
+    /**
+     * The owner forbids stealth mode on this helmet (`SWR-IND-02`, `OI-PRIV-37`): the app then asks the helmet for its indicators
+     * on, whatever the active profile chose. A choice about the owner's helmet, not about a person. False, the default, leaves
+     * the choice to the wearer. The app enforces it; the hub cannot tell who asks, so it does not.
+     */
+    val stealthForbidden: Boolean = false,
 )
 
 /**
@@ -46,6 +52,12 @@ class WarrantyOwnerStore(
     private val store: KeyValueStore,
     randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
     sha256: (ByteArray) -> ByteArray = Digests::sha256,
+    /**
+     * Where the hub's SHDR record waits for upload, one record per helmet (`REQ-SHDR-08` (f)); `null` on a host with no hub path
+     * that stages one. The record is the helmet's, under its owner's consent, so it is kept with that owner's decisions: it is
+     * named by this store's key for the helmet, read only for that helmet, and deleted when the owner revokes or custody ends.
+     */
+    private val staging: ShdrStaging? = null,
 ) {
     private val table = HubTokenTable(
         read = { store.getString(RECORDS_KEY) },
@@ -69,17 +81,58 @@ class WarrantyOwnerStore(
         table.save(hub, encode(change(record(hub) ?: WarrantyOwnerRecord())))
     }
 
-    private fun encode(r: WarrantyOwnerRecord): String =
-        listOf(FORMAT, if (r.fleetConsent) "1" else "0", if (r.enrolled) "1" else "0", r.consentEpoch, r.programmeId).joinToString(",")
+    /**
+     * Forget this helmet: its record and its staged SHDR record go, so it reads as never asked (`REQ-SHDR-09` (d)). A change of
+     * custody ends the old owner's decisions; the new owner is asked again, and their first enrolment is epoch 1.
+     */
+    fun forget(hub: String) {
+        clearStaged(hub)
+        table.remove(hub)
+    }
 
+    /**
+     * The SHDR record staged for this helmet, or `null`. Only the file named by this helmet's key is read, so one helmet's record
+     * is never read for another (`REQ-SHDR-08` (f)). With no record kept for any helmet there is no salt, and nothing is read.
+     */
+    fun staged(hub: String): ByteArray? {
+        val key = table.keyOf(hub) ?: return null
+        return staging?.read(key)
+    }
+
+    /**
+     * Stage [record] for this helmet, for the host's hub path to call. Refused (false) when the host has no staging or the helmet
+     * has no record here: a helmet whose owner was never asked has nothing to name its file by, and nothing to send it under.
+     */
+    fun stage(hub: String, record: ByteArray): Boolean {
+        val s = staging ?: return false
+        if (record(hub) == null) return false
+        val key = table.keyOf(hub) ?: return false
+        s.stage(key, record)
+        return true
+    }
+
+    /** Delete this helmet's staged record, if there is one. Every other helmet's stays. */
+    fun clearStaged(hub: String) {
+        val key = table.keyOf(hub) ?: return
+        staging?.clear(key)
+    }
+
+    private fun encode(r: WarrantyOwnerRecord): String =
+        listOf(
+            FORMAT, if (r.fleetConsent) "1" else "0", if (r.enrolled) "1" else "0", r.consentEpoch, r.programmeId,
+            if (r.stealthForbidden) "1" else "0",
+        ).joinToString(",")
+
+    // A v1 line (five fields, written before the stealth lock existed) reads with stealth not forbidden, which is what it meant.
     private fun decode(line: String): WarrantyOwnerRecord {
         val p = line.split(',')
         val epoch = p.getOrNull(3)?.toIntOrNull()
         val programme = p.getOrNull(4)?.toIntOrNull()
-        if (p.size != 5 || p[0] != FORMAT || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null) {
+        val shape = (p.size == 5 && p[0] == FORMAT_V1) || (p.size == 6 && p[0] == FORMAT && p[5] in FLAGS)
+        if (!shape || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null) {
             return WarrantyOwnerRecord()
         }
-        return WarrantyOwnerRecord(p[1] == "1", p[2] == "1", epoch, programme)
+        return WarrantyOwnerRecord(p[1] == "1", p[2] == "1", epoch, programme, stealthForbidden = p.getOrNull(5) == "1")
     }
 
     companion object {
@@ -94,7 +147,8 @@ class WarrantyOwnerStore(
             PersistedKeys.PROGRAMME_ID_KEY,
         )
 
-        private const val FORMAT = "v1"
+        private const val FORMAT = "v2"
+        private const val FORMAT_V1 = "v1"
         private val FLAGS = setOf("0", "1")
     }
 }

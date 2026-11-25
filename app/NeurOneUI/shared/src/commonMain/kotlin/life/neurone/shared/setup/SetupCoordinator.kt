@@ -29,12 +29,15 @@ interface SetupLink {
     val connectionState: StateFlow<ConnectionState>
     val impedanceReading: StateFlow<ImpedanceReading?>
     val zoneModules: StateFlow<ZoneModuleConfiguration>
-    fun sendCalibration(opcode: CalibrationOpcode)
+    /** False, with nothing sent, when the link has not shown it is encrypted (`REQ-SW03-31` (d)). */
+    fun sendCalibration(opcode: CalibrationOpcode): Boolean
 }
 
 /** Why a step did not advance. Data, not text: the words are read in composition (CLAUDE.md §17). */
 sealed interface SetupError {
     data object NotConnected : SetupError
+    /** The link has not shown it is encrypted, so the command was not sent: the hub is not paired with this device (`REQ-SW03-31` (d)). */
+    data object NotPaired : SetupError
     data object Timeout : SetupError
     data object CalibrationFailed : SetupError
     /** Electrodes (0-based) that did not pass. */
@@ -121,7 +124,10 @@ class SetupCoordinator(
         _impedanceFlags.value = 0
         try {
             val before = link.impedanceReading.value?.sequence ?: 0L
-            link.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)
+            if (!link.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)) {
+                _error.value = SetupError.NotPaired
+                return
+            }
             val reading = withTimeoutOrNull(impedanceTimeoutMs) {
                 link.impedanceReading.first { it != null && it.sequence > before }
             }
@@ -146,7 +152,10 @@ class SetupCoordinator(
         _isProcessing.value = true
         _error.value = null
         try {
-            link.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)
+            if (!link.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)) {
+                _error.value = SetupError.NotPaired
+                return
+            }
             delay(calibrationWaitMs)
             if (!connected()) _error.value = SetupError.CalibrationFailed else advance()
         } finally {

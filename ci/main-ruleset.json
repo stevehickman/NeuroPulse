@@ -1,6 +1,6 @@
 {
   "_comment": "The protection GitHub is expected to hold on main, apart from the required contexts, which are ci/required-checks.txt and are not restated here. scripts/check-main-ruleset.ts checks this file on every pull request that touches ci/ or a workflow (rules R1 to R6) and compares GitHub with it weekly in build-all.yml and by hand (--live, rules L1 to L8). NP-SW-CI-001 §6.17. This file changes nothing on GitHub: a settings change is the principal's (docs/human-input/oi-swci-54-main-ruleset.md), and this file is edited in the same operation, as ci/required-checks.txt is.",
-  "_observed": "Every value was read from GitHub on 2026-11-11 (gh api repos/stevehickman/NeuroPulse/rulesets/16412379 and .../rules/branches/main). Decided by a record: the pull_request rule, its first six parameters and the admin bypass mode (NP-SW-CI-001 §6.13.1); the App bypass (docs/revisions/README.md). Observed, and decided by no record: pull_request.require_extra_approval_for_unattributed_changes, pull_request.required_reviewers and the copilot_code_review rule. They are stated so that a change to them is seen, not because a record chose them (OI-SWCI-54). Changed since: status_checks.strict was true from 2026-11-21 (NP-SW-CI-001 §6.18.4) and is false from 2026-11-22, set by the principal in the ruleset UI with the required status in ci/required-statuses.txt added in the same edit; --live then reported only the strict flag (NP-SW-CI-001 §6.20.5; OI-SWCI-54 Q5).",
+  "_observed": "Every value was read from GitHub on 2026-11-11 (gh api repos/stevehickman/NeuroPulse/rulesets/16412379 and .../rules/branches/main). Decided by a record: the pull_request rule, its first six parameters and the admin bypass mode (NP-SW-CI-001 §6.13.1); the App bypass (docs/revisions/README.md), kept in mode always with an audit of what it pushes (the principal, 2026-11-24, NP-SW-CI-001 §6.21, OI-SWCI-54 Q1); pull_request.require_extra_approval_for_unattributed_changes, kept true (Q3), and the copilot_code_review rule, kept (Q4), both the principal, 2026-11-24. Observed, and decided by no record: pull_request.required_reviewers. It is stated so that a change to it is seen, not because a record chose it (OI-SWCI-54). Changed since: status_checks.strict was true from 2026-11-21 (NP-SW-CI-001 §6.18.4) and is false from 2026-11-22, set by the principal in the ruleset UI with the required status in ci/required-statuses.txt added in the same edit; --live then reported only the strict flag (NP-SW-CI-001 §6.20.5; OI-SWCI-54 Q5).",
   "repository": "stevehickman/NeuroPulse",
   "ruleset_id": 16412379,
   "name": "Safety",
@@ -34,7 +34,7 @@
       "actor_type": "Integration",
       "actor_id": 5585393,
       "bypass_mode": "always",
-      "who": "A GitHub App. The records say the App RevNumberFixer is on the bypass list (docs/revisions/README.md); that this id is that App was not confirmed from the session that wrote this file.",
+      "who": "A GitHub App: RevNumberFixer, which is on the bypass list (docs/revisions/README.md). The principal confirmed on 2026-11-25 that this id is that App (NP-SW-CI-001 §6.21.5).",
       "workflow": ".github/workflows/assign-revisions.yml"
     }
   ]

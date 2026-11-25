@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-005  
-**Revision:** 4
-**Date:** 2026-11-22  
+**Revision:** 5
+**Date:** 2026-11-25  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -114,6 +114,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Reference:** Permanent Storage anti-pattern; GDPR Art. 5(1)(e).
 - **Remediation:** Add `logging: {driver: local, options: {max-size: ..., max-file: ...}}` to the `caddy` service (and to `erase-relay`), with figures entered in the unjustified-choices register like `UC-095`, and a P10 check.
 - **Existing coverage:** New. The fleet figure is `UC-095`, under `OI-FLEET-01` (f).
+- **Status, 2026-11-25: closed (`OI-PRIV-57`).** Every service in the compose file, not only `caddy` and `erase-relay`, has a bounded `local` log driver (three 10 MB files per container, `UC-211`), and P10 in `ci/test_posthog_infra.py` holds every service to it. **What is not bounded is age:** Docker's log drivers have no age option, so a quiet service can keep a line past 30 days. That stays with `OI-PRIV-46` (from the `infra/` review), with ClickHouse's own server log.
 
 ### F8. LOW: the no-join gate cannot see a join on combinations of ordinary fields (`OI-PRIV-58`)
 
@@ -194,7 +195,7 @@ The owning entries are in `docs/status/pending-decisions.md`, under "Privacy rev
 | `OI-PRIV-54` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
 | `OI-PRIV-55` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
 | `OI-PRIV-56` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
-| `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check |
+| `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check. **Closed 2026-11-25** on the size bound and P10; the age bound is carried by `OI-PRIV-46`. |
 | `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened. **Closed 2026-11-22.** |
 
 ## Revision history
@@ -206,3 +207,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 2 | 2026-11-21 | NeurOne Quality | **§3, §4 and §8: open items renumbered OI-PRIV-21…28 → OI-PRIV-51…58 in the same order (F1 = OI-PRIV-51 … F8 = OI-PRIV-58), with a note in §8. NP-PRIV-ANALYSIS-004 merged first with those numbers and GitHub issues #949–#956. No finding, severity or closure condition changed.** |
 | 3 | 2026-11-21 | NeurOne Software Engineering | **F1 and F2 marked fixed with what remains; F2's count corrected from 12 of 21 to 13 of 22 (`emf_shielding_telemetry`, found by the new TIME-02 check); `OI-PRIV-51` and `-52` closed in §8.** |
 | 4 | 2026-11-22 | NeurOne Software Engineering | **F3 and F8 marked closed with what remains (`OI-PRIV-76`; the undefined serial format); `OI-PRIV-53` and `-58` closed in §8.** |
+| 5 | 2026-11-25 | NeurOne Software Engineering | **F7 marked closed on the size bound and P10; the age bound is carried by `OI-PRIV-46`; `OI-PRIV-57` closed in §8.** |

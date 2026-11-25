@@ -39,9 +39,9 @@ class DesktopPlatformServices(
     override fun fleetTransport(relayHost: String, pins: List<String>): life.neurone.core.net.HttpTransport =
         JdkHttpTransport(pinnedHttpClient(pins))
 
-    /** Where the hub leaves the SHDR record, beside the app's data (REQ-SHDR-01). */
+    /** Where the hub's SHDR record waits, one file per helmet, beside the app's data (REQ-SHDR-01, REQ-SHDR-08 (f)). */
     override val shdrStaging: life.neurone.core.analytics.ShdrStaging =
-        life.neurone.core.analytics.FileShdrStaging(desktopDataDirectory.resolve(life.neurone.core.analytics.FileShdrStaging.FILE_NAME))
+        life.neurone.core.analytics.FileShdrStaging(desktopDataDirectory)
 
     /** The system credential store, if it proves it can keep and remove a secret; otherwise none (SWR-MG-06). */
     override val secretKeyStore: SecretKeyStore? by lazy { DesktopSecretKeyStore.create() }

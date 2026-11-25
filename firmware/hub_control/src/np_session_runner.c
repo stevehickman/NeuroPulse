@@ -49,6 +49,8 @@
 #include <limits.h>
 
 #include "np_sw02_platform_hal.h"
+#include "np_module_map.h"
+#include "np_module_usage.h"
 
 /*
  * Cervical VNS scheduler wiring (OI-CVNS-HUB-07).  The module driver exposes no
@@ -303,6 +305,7 @@ static void process_stops(uint32_t now_ms)
         }
         s_ctx.stop_at_ms[slot] = 0U;
         np_slot_track_stopped(&s_ctx.slots, slot);   /* its command ran its course */
+        np_mu_slot_off(slot, now_ms);                /* REQ-FWHUB-93 */
     }
 }
 
@@ -318,11 +321,60 @@ static bool dispatch_tracked(uint16_t idx, uint32_t now_ms, bool *accepted)
     if (*accepted && cmd->target_kind == NP_PROTO_TARGET_SLOT) {
         if (cmd->params_len > 0U) {
             np_slot_track_started(&s_ctx.slots, cmd->slot_id, idx);
+            np_mu_slot_on(cmd->slot_id, cmd->mod_type, now_ms);    /* REQ-FWHUB-93: drive time starts */
         } else {
             np_slot_track_stopped(&s_ctx.slots, cmd->slot_id);
+            np_mu_slot_off(cmd->slot_id, now_ms);
         }
     }
     return marks;
+}
+
+/*
+ * REQ-FWHUB-93: what is fitted for this session, for the per-module running
+ * totals.  A tile is keyed by the UID it reports; an accessory reports no
+ * identity, so its port is the key (np_module_usage.h).  The PBM types are
+ * left to the socket map: their legacy zone slots are retired.
+ */
+static void mark_fitted_modules(void)
+{
+    const uint16_t n = np_module_map_socket_count();
+    for (uint16_t i = 0U; i < n; i++) {
+        np_module_uid_t uid;
+        if (np_module_map_socket_uid(i, &uid) == NP_HUB_OK && !np_module_uid_is_zero(&uid)) {
+            const np_mu_key_t k = np_mu_key_uid(uid.b);
+            np_mu_mark_present(&k);
+        }
+    }
+    for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
+        const np_mod_entry_t *mod = np_mod_reg_get(slot);
+        if (mod != NULL && mod->present &&
+            mod->type != NP_MOD_PBM_BASE && mod->type != NP_MOD_PBM_SMART) {
+            const np_mu_key_t k = np_mu_key_port(slot, mod->type);
+            np_mu_mark_present(&k);
+        }
+    }
+}
+
+/*
+ * REQ-FWHUB-93: close the session's totals.  Each tile the dose meter tracked
+ * adds the time it was driven, keyed by the UID in its socket now; then every
+ * open accessory interval closes at `total_ms` and the table is written once.
+ * Nothing here reaches the SHDR log (np_module_usage.h).
+ */
+static void commit_module_usage(uint32_t total_ms)
+{
+    for (uint32_t i = 0U; i < NP_PST_MAX_TRACKED; i++) {
+        uint16_t socket_id;
+        uint32_t on_ms;
+        np_module_uid_t uid;
+        if (np_pst_usage(i, &socket_id, &on_ms) && on_ms > 0U &&
+            np_module_map_socket_uid(socket_id, &uid) == NP_HUB_OK && !np_module_uid_is_zero(&uid)) {
+            const np_mu_key_t k = np_mu_key_uid(uid.b);
+            np_mu_add_used(&k, on_ms);
+        }
+    }
+    (void)np_mu_session_end(total_ms);
 }
 
 
@@ -527,6 +579,7 @@ static void do_pause(uint32_t now_ms)
     s_pause_wall_ms  = 0U;
     uint8_t slots[NP_HUB_SLOT_MAX];
     const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
+    for (uint8_t i = 0U; i < n; i++) { np_mu_slot_off(slots[i], now_ms); }   /* REQ-FWHUB-93: a pause stops drive time */
 
     np_mod_stim_tick(clock_now_ms());
     for (uint8_t i = 0U; i < n; i++) {
@@ -606,6 +659,7 @@ static void do_panic(uint32_t now_ms)
 
     uint8_t slots[NP_HUB_SLOT_MAX];
     const uint8_t n = np_slot_track_pause(&s_ctx.slots, slots);
+    for (uint8_t i = 0U; i < n; i++) { np_mu_slot_off(slots[i], now_ms); }   /* REQ-FWHUB-93 */
     bool tdcs_cut = false;
     for (uint8_t i = 0U; i < n; i++) {
         const uint8_t slot = slots[i];
@@ -890,6 +944,19 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     return NP_HUB_OK;
 }
 
+/* Set by np_runner_note_early_stop() when a channel stops before its scheduled end
+ * without the session ending (a cervical VNS fault, whatever its reason).  With the
+ * safety MCU's grant-withdrawal latch and an abort of the session, it becomes the
+ * SHDR session-end record's stopped_early flag: SHDR learns that a stop happened,
+ * which changes the hardware's usage, and never which stop or why (REQ-FWHUB-89 (c);
+ * the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004), 2026-11-23). */
+static volatile bool s_early_stop;
+
+void np_runner_note_early_stop(void)
+{
+    s_early_stop = true;
+}
+
 np_hub_status_t np_runner_run(void)
 {
     /* OI-CVNS-HUB-01: hard-reset the CVNS re-enable manager at session start —
@@ -898,6 +965,9 @@ np_hub_status_t np_runner_run(void)
      * heartbeat where the session is not RUNNING, and
      * np_safety_spi_disable_all() clears the SPI-level bit on session end.) */
     np_cvns_reenable_session_reset();
+
+    s_early_stop = false;
+    (void)np_safety_spi_take_grant_withdrawn();   /* nothing from before this session counts */
 
     s_ctx.state      = NP_SESSION_RUNNING;
     np_session_clock_start(&s_ctx.clock, clock_now_ms());
@@ -925,6 +995,10 @@ np_hub_status_t np_runner_run(void)
         const size_t n = np_fitting_build(np_safety_spi_get_hardware_version(), s_ctx.desc.rules_stamp, fitting, sizeof fitting);
         np_log_session_fitting(fitting, n);
     }
+
+    /* REQ-FWHUB-93: the per-module running totals start this session with what is fitted. */
+    np_mu_session_begin();
+    mark_fitted_modules();
 
     /* OI-FMEA-09: no envelope, run or latch carries over from a previous
      * session.  Before any dispatch, so every commanded level is this one's. */
@@ -1183,7 +1257,16 @@ np_hub_status_t np_runner_run(void)
     s_ctx.uhdr.duration_s   = total_ms / 1000U;
     s_ctx.uhdr.abort_reason = (uint8_t)s_ctx.abort_reason;
     /* The SHDR record gets none of these: duration, abort reason and the
-     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21). */
+     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21).  It gets one
+     * cause-free bit: did the session, or any channel in it, stop before its
+     * scheduled end?  An abort for any reason, a cervical VNS fault for any reason
+     * and a grant the safety MCU withdrew for any reason all set the same bit
+     * (REQ-FWHUB-89 (c), OI-PRIV-22). */
+    {
+        const bool withdrawn = np_safety_spi_take_grant_withdrawn();
+        s_ctx.shdr.stopped_early =
+            (s_early_stop || withdrawn || s_ctx.abort_reason != NP_ABORT_NONE) ? 1U : 0U;
+    }
 
     /* OI-FWHUB-10: each lattice socket's final dose into this session's file,
      * and this session's PBM counts to SHDR — every session, PBM or not, so the
@@ -1203,6 +1286,10 @@ np_hub_status_t np_runner_run(void)
      * not left to the heartbeat — so an unplug straight after the session
      * cannot lose the intranasal sleeve's one-session count. */
     np_cons_on_session_end(s_ctx.uhdr.mods_active_mask);
+
+    /* REQ-FWHUB-93: every fitted and every driven module's running totals,
+     * written once, here, before the session's records are wiped. */
+    commit_module_usage(total_ms);
 
     /* REQ-FWHUB-84 (b), (d), OI-PRIV-39: every output is stopped and the records
      * are closed (np_log_session_end zeroed its own buffers, REQ-FWHUB-84 (c)), so

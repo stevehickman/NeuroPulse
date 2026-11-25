@@ -601,6 +601,9 @@ object PersistedKeys {
     const val SESSION_HISTORY_KEY: String = "np.session.history"
     // How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-33).
     const val SESSION_HISTORY_RETENTION_KEY: String = "np.session.history-retention"
+    // A stored session history that could not be read, kept as found so the next write does not destroy it
+    // (OI-PRIV-66, REQ-SW03-35).
+    const val SESSION_HISTORY_QUARANTINE_KEY: String = "np.session.history-quarantine"
     // The first hardware setup has completed.
     const val FIRST_SETUP_KEY: String = "np.setup.first-complete"
     // Persists age-gate completion (ISC-87).

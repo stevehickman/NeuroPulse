@@ -46,6 +46,7 @@ typedef struct {
     float               ntc_peak_c;
     np_pbm_cal_t        cal[NP_PBM_WL_COUNT];
     np_pbm_dose_state_t dose;
+    uint32_t            driven_ticks;   /* dose ticks driven this session (REQ-FWHUB-93) */
 } pst_entry_t;
 
 static pst_entry_t     s_pool[NP_PST_MAX_TRACKED];
@@ -122,6 +123,18 @@ void np_pst_untrack_driving(uint16_t socket_id)
     }
 }
 
+bool np_pst_usage(uint32_t index, uint16_t *socket_id, uint32_t *on_ms)
+{
+    if (index >= NP_PST_MAX_TRACKED || socket_id == NULL || on_ms == NULL || !s_pool[index].in_use) {
+        return false;
+    }
+    const pst_entry_t *e = &s_pool[index];
+    *socket_id = e->socket_id;
+    *on_ms = (e->driven_ticks > UINT32_MAX / NP_PBM_DOSE_TICK_MS) ? UINT32_MAX
+                                                                  : e->driven_ticks * NP_PBM_DOSE_TICK_MS;
+    return true;
+}
+
 void np_pst_note_predrive_refusal(void)
 {
     s_counts.predrive_refusals++;
@@ -196,6 +209,7 @@ void np_pst_dose_poll(uint32_t now_ms)
         for (uint32_t i = 0U; i < NP_PST_MAX_TRACKED; i++) {
             if (s_pool[i].in_use && s_pool[i].driving) {
                 tick_one(&s_pool[i]);
+                s_pool[i].driven_ticks++;
             }
         }
     }

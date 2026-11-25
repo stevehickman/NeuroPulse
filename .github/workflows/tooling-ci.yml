@@ -675,9 +675,9 @@ jobs:
           assert scope.sharedplace.paths false docs/np_art_001.md
 
           # The migration key gate. A key can be added in any app, so every app's tree reaches it; the list is the other half.
-          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/MigrationFlow.cs
+          assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationFlow.kt
           assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
-          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/NppsCore.cs
+          assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt
           assert scope.migrationkeys.paths true  common/npps/migration-keys.json
           assert scope.migrationkeys.paths true  common/npps-core/src/migration_flow.rs
           assert scope.migrationkeys.paths false docs/np_art_001.md
@@ -936,6 +936,14 @@ jobs:
 
       - name: The expected protection of main is a protection
         run: bun scripts/check-main-ruleset.ts
+
+      # OI-SWCI-54 Q1 option B (NP-SW-CI-001 §6.21). The detection for what the revision App may push to
+      # main is build-all.yml's, weekly; its decisions are proven here, on the pull request that changes them.
+      - name: Main-pushes audit self-test (prove each way a direct push can be wrong is caught)
+        run: bun scripts/check-main-pushes.ts --self-test
+
+      - name: The App's bypass has its audit (build-all.yml still runs it, on a schedule)
+        run: bun scripts/check-main-pushes.ts
 
       # NP-SW-CI-001 §6.20. main-health.yml runs scripts/main-health.ts from the default branch only (it posts a required
       # status, so a pull request must not be able to change what decides its own), which means a change to the script

@@ -81,21 +81,67 @@ pub(crate) fn all_keys() -> Vec<String> {
 /// §5.1 says what to do then. They never move in a migration (that is `perInstall`'s meaning); sealing is about what is left on
 /// the disk. The list is computed here so every platform seals the same keys, and a key moved out of `unsorted` into a list that
 /// is not sealed has to be taken out of this one on purpose.
+///
+/// **The one exception is `hostPlain`** (`OI-PRIV-62`, `REQ-PRES-11`): the presence gate's own records (whether the gate is on, and
+/// the passphrase wrap of the gated data key). The host reads them before anyone is present, so they cannot be sealed under the
+/// gated key, and sealing them under it destroyed the gate on its first use (the wrap sealed under the key it wraps). The flag says only
+/// that the person chose the gate; the wrap seals itself, under the passphrase and the device key (`REQ-PRES-10`). They stay `perInstall` so a clear forgets them.
 pub(crate) fn sealed_at_rest() -> Vec<String> {
-    all_keys()
+    let plain = host_plain();
+    all_keys().into_iter().filter(|k| !plain.contains(k)).collect()
+}
+
+/// `REQ-PRES-11`: the per-install keys the tiered stores never seal and that are in neither tier (the presence gate's own records;
+/// the passphrase record seals itself under the device key, `REQ-PRES-10`).
+pub(crate) fn host_plain() -> Vec<String> {
+    let mut v: Vec<String> = key_map()["hostPlain"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+    v.sort();
+    v.dedup();
+    v
 }
 
 /// `NP-APP-PRESENCE-001` §4 (`REQ-PRES-05`): the keys that stay readable while the person's presence has not been established, so that
 /// reminders, the fleet upload and the hub reconnect work locked. **Every other sealed key is UHDR and is gated.** The list is in the
 /// key file next to the sorting, so the apps read one list; it is a subset of the sorted keys, and a key joins it only by a ruling that
-/// shows it says nothing about the person (`CLAUDE.md` §5.1). **The three it holds are a proposal awaiting the Privacy Lead
-/// (`OI-PRES-01`).**
+/// shows it says nothing about the person (`CLAUDE.md` §5.1). **It holds four keys: the principal accepted three on 2026-10-21
+/// (`OI-PRES-01`) and added two on 2026-11-21; `np.warranty.consent-granted`, one of the three, left it on 2026-11-22 when no host
+/// read it any longer (`OI-PRIV-66` (3)).** A key in the file that [`DEVICE_TIER_RULINGS`] does not name is left out, so it stays
+/// gated: adding a key to the file alone moves nothing (NP-PRIV-ANALYSIS-007 L18, `OI-PRIV-66`).
 pub(crate) fn device_tier() -> Vec<String> {
-    let mut v: Vec<String> = key_map()["deviceTier"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+    device_tier_of(&key_map())
+}
+
+/// [`device_tier`] over a given key file.
+fn device_tier_of(map: &Value) -> Vec<String> {
+    let mut v: Vec<String> = map["deviceTier"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .filter(|k| DEVICE_TIER_RULINGS.iter().any(|(ruled, _)| ruled == k))
+        .map(String::from)
+        .collect();
     v.sort();
     v.dedup();
     v
 }
+
+/// Every key allowed in the device tier, with the ruling that moved it there. A key in this tier is readable while the app is locked
+/// and is moved off the presence key at the next unlock, which lowers the protection it had: that is the principal's decision under
+/// `REQ-PRES-09` and is never made as a detail. A new entry needs a ruling recorded in `NP-APP-PRESENCE-001` §4 first, and its
+/// citation here. Removing a key (back to UHDR) only raises protection and needs no ruling.
+pub(crate) const DEVICE_TIER_RULINGS: [(&str, &str); 4] = [
+    ("ble.last-hub-id", "the principal, 2026-10-21 (OI-PRES-01; NP-APP-PRESENCE-001 §4)"),
+    (
+        "np.analytics.distinct-id",
+        "the principal, 2026-11-21 (NP-APP-PRESENCE-001 §4, history row 13; recorded under REQ-PRES-09)",
+    ),
+    (
+        "np.analytics.pending-erasures",
+        "the principal, 2026-11-21 (NP-APP-PRESENCE-001 §4, history row 13; recorded under REQ-PRES-09)",
+    ),
+    ("np.shdr.device-token", "the principal, 2026-10-21 (OI-PRES-01; NP-APP-PRESENCE-001 §4)"),
+];
 
 const MIGRATE_ITEMS: [&str; 4] = ["protocols", "sessionHistory", "withdrawalState", "limitsProfiles"];
 const UHDR_ITEMS: [&str; 2] = ["sessionHistory", "withdrawalState"];
@@ -266,7 +312,8 @@ fn offer_routes(req: &Value) -> R<Value> {
     for r in routes {
         let id = r["id"].as_str().unwrap_or("");
         let atomic = r["atomicClaim"].as_bool().unwrap_or(false);
-        let paired = r["authenticatedPairing"].as_bool().unwrap_or(true);
+        // Fail closed: a direct route whose host did not say it is paired is not paired (NP-PRIV-ANALYSIS-007 L19, `OI-PRIV-66`).
+        let paired = r["authenticatedPairing"].as_bool().unwrap_or(false);
         if kind == "migrate" && !atomic {
             withheld.push(json!({ "id": id, "reason": "no_atomic_claim" }));
         } else if r["direct"].as_bool().unwrap_or(false) && !paired {
@@ -642,6 +689,10 @@ fn migration_op(op: &str, req: &Value) -> R<Value> {
             let mut m = key_map();
             m["sealedAtRest"] = json!(sealed_at_rest());
             m["deviceTier"] = json!(device_tier());
+            m["hostPlain"] = json!(host_plain());
+            // The key an interrupted clear keeps its progress under (`SWR-MG-08`), so a host can tell values sealed under a key the
+            // clear destroyed from values sealed under a key that still guards them (`OI-PRIV-62`, `REQ-PRES-11` (b)).
+            m["clearProgressKey"] = json!(crate::migration_flow::CLEAR_PROGRESS_KEY);
             m
         }
         "readHeader" => read_header(req)?,
@@ -994,6 +1045,26 @@ mod tests {
         assert_eq!(m["withheld"].as_array().unwrap().len(), 2);
         let b = ask(json!({"op":"offerRoutes","kind":"uhdr","routes":routes}));
         assert_eq!(b["offered"], json!(["cloudA", "folder"]), "no pairing still withholds a direct link");
+    }
+
+    // @verifies SWR-MG-10
+    #[test]
+    fn a_direct_route_that_does_not_say_it_is_paired_is_withheld() {
+        let routes = json!([
+            {"id":"unstated","atomicClaim":true,"direct":true},
+            {"id":"notBool","atomicClaim":true,"direct":true,"authenticatedPairing":"yes"},
+            {"id":"paired","atomicClaim":true,"direct":true,"authenticatedPairing":true},
+            {"id":"cloud","atomicClaim":true}
+        ]);
+        for kind in ["migrate", "uhdr"] {
+            let r = ask(json!({"op":"offerRoutes","kind":kind,"routes":routes}));
+            assert_eq!(r["offered"], json!(["paired", "cloud"]), "{kind}");
+            assert_eq!(
+                r["withheld"],
+                json!([{"id":"unstated","reason":"no_authenticated_pairing"},{"id":"notBool","reason":"no_authenticated_pairing"}]),
+                "{kind}"
+            );
+        }
     }
 
     // @verifies SWR-MG-12
@@ -1349,6 +1420,32 @@ mod tests {
         }
     }
 
+    // @verifies REQ-PRES-05
+    #[test]
+    fn every_device_tier_key_in_the_key_file_has_a_ruling_and_every_ruling_a_key() {
+        let in_file: Vec<String> =
+            key_map()["deviceTier"].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect();
+        for k in &in_file {
+            assert!(
+                DEVICE_TIER_RULINGS.iter().any(|(ruled, _)| ruled == k),
+                "{k} is in deviceTier in migration-keys.json with no ruling in DEVICE_TIER_RULINGS (REQ-PRES-05, REQ-PRES-09)"
+            );
+        }
+        for (ruled, why) in DEVICE_TIER_RULINGS {
+            assert!(in_file.iter().any(|k| k == ruled), "{ruled} has a ruling and is not in deviceTier: remove the stale entry");
+            assert!(why.starts_with("the principal, "), "{ruled}: the ruling names who decided it and when");
+        }
+        assert_eq!(device_tier().len(), in_file.len(), "the tier is exactly the ruled keys in the file");
+    }
+
+    // @verifies REQ-PRES-05
+    #[test]
+    fn a_key_with_no_ruling_is_not_in_the_device_tier() {
+        // A key added to the file alone stays gated.
+        let file = json!({ "deviceTier": ["np.shdr.device-token", "np.session.history", "np.consent.research"] });
+        assert_eq!(device_tier_of(&file), ["np.shdr.device-token"]);
+    }
+
     // @verifies SWR-MG-06
     // @verifies SWR-MG-16#a
     #[test]
@@ -1363,12 +1460,28 @@ mod tests {
         for k in m["carried"].as_object().unwrap().values().flat_map(|a| a.as_array().unwrap()) {
             assert!(sealed.contains(&k.as_str().unwrap().to_string()), "carried key {k}");
         }
-        for k in list("consent").into_iter().chain(list("perInstall")).chain(list("unsorted")) {
+        for k in list("consent").into_iter().chain(list("perInstall")).chain(list("unsorted")).filter(|k| !list("hostPlain").contains(k)) {
             assert!(sealed.contains(&k), "consent, per-install or unsorted key {k}");
         }
-        assert_eq!(sealed.len(), all_keys().len(), "every key the apps store is sealed, so none is left in the clear by omission");
+        let plain = list("hostPlain");
+        assert_eq!(sealed.len() + plain.len(), all_keys().len(), "every key the apps store is sealed except the gate's own records, so none is left in the clear by omission");
         assert!(sealed.contains(&"np.cvns.fault-ledger.last-acknowledged-session".to_string()), "the cardiac fault acknowledgement");
         assert!(sealed.contains(&"np.onboarding.bipa-accepted".to_string()), "the biometric-privacy consent record");
         assert!(sealed.iter().all(|k| all_keys().contains(k)), "every sealed key is a sorted key");
+    }
+
+    // @verifies REQ-PRES-11#a
+    #[test]
+    fn the_gates_own_records_are_host_plain_per_install_and_nothing_else() {
+        let m = ask(json!({"op":"itemKeys"}));
+        let list = |name: &str| -> Vec<String> { m[name].as_array().unwrap().iter().map(|k| k.as_str().unwrap().to_string()).collect() };
+        let (plain, sealed, per_install, tier) = (list("hostPlain"), list("sealedAtRest"), list("perInstall"), list("deviceTier"));
+        assert_eq!(plain, ["np.presence.enabled", "np.presence.passphrase-wrap"], "the gate's two records and nothing else");
+        for k in &plain {
+            assert!(per_install.contains(k), "{k} is per-install, so a clear still forgets it");
+            assert!(!sealed.contains(k), "{k} is never sealed by the stores: the host reads it before anyone is present");
+            assert!(!tier.contains(k), "{k} is in no tier");
+        }
+        assert_eq!(m["clearProgressKey"], json!("np.migration.clear-progress"));
     }
 }

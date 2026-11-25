@@ -63,9 +63,9 @@ void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint32_t beat_mhz, uint8
     g.binaural_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = beat_mhz; g.planar_vol = level_half_db;
     note_vol(level_half_db);
 }
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
+void np_mod_audio_hal_set_isochronic(uint16_t carrier_hz, uint32_t rate_mhz, uint8_t level_half_db)
 {
-    g.iso_calls++; g.carrier_hz = freq_hz; g.planar_vol = level_half_db; note_vol(level_half_db);
+    g.iso_calls++; g.carrier_hz = carrier_hz; g.beat_mhz = rate_mhz; g.planar_vol = level_half_db; note_vol(level_half_db);
 }
 void np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db)
 {
@@ -194,6 +194,57 @@ static void test_a_frequency_update_after_a_stop_plays_nothing(void)
     check(g.binaural_calls == before, "no tone after a stop");
 }
 
+/* ── REQ-AUDIO-27: an isochronic rate of 0 ──────────────────────────────────────────────────── */
+
+/* @verifies REQ-AUDIO-27 */
+static void test_an_isochronic_rate_of_zero_is_refused_but_a_binaural_beat_of_zero_plays(void)
+{
+    np_mod_audio_params_t p;
+    memset(&p, 0, sizeof(p));
+    p.carrier_hz = 440U;
+    p.level_half_db = 40U;
+
+    reset();
+    p.mode = 1U;
+    p.beat_mhz = 0U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "an isochronic command with a rate of 0 is refused");
+    check(g.binaural_calls + g.iso_calls + g.noise_calls + g.bone_set_calls == 0, "and reaches no driver");
+
+    reset();
+    check(cmd(0U, 40U, 0U, 0U) == NP_HUB_OK, "a running command starts");
+    p.mode = 1U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG && g.iso_calls == 0,
+          "a refused isochronic command leaves the running one as it was");
+
+    reset();
+    p.beat_mhz = 1U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g.iso_calls == 1,
+          "the smallest nonzero rate plays");
+
+
+    reset();
+    p.mode = 0U;
+    p.beat_mhz = 0U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g.binaural_calls == 1,
+          "a binaural beat of 0 plays");
+}
+
+/* @verifies REQ-AUDIO-28 */
+static void test_an_isochronic_command_reaches_the_output_stage_with_its_carrier_and_its_rate(void)
+{
+    np_mod_audio_params_t p;
+    memset(&p, 0, sizeof(p));
+    p.mode = 1U;
+    p.carrier_hz = 440U;
+    p.beat_mhz = 40000U;
+    p.level_half_db = 40U;
+    reset();
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g.iso_calls == 1 &&
+          g.carrier_hz == 440U && g.beat_mhz == 40000U,
+          "an isochronic command reaches the output stage with its carrier and its pulse rate");
+}
+
 int main(void)
 {
     test_a_level_above_the_ceiling_reaches_no_transducer();
@@ -202,6 +253,8 @@ int main(void)
     test_a_frequency_update_does_not_turn_another_mode_into_binaural();
     test_a_frequency_update_still_retunes_a_binaural_session();
     test_a_frequency_update_after_a_stop_plays_nothing();
+    test_an_isochronic_rate_of_zero_is_refused_but_a_binaural_beat_of_zero_plays();
+    test_an_isochronic_command_reaches_the_output_stage_with_its_carrier_and_its_rate();
     printf("%s (%d failures)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

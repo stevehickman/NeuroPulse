@@ -553,9 +553,10 @@ void np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
     NP_PLATFORM_TRAP();
 }
 
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
+void np_mod_audio_hal_set_isochronic(uint16_t carrier_hz, uint32_t rate_mhz, uint8_t level_half_db)
 {
-    (void)freq_hz;
+    (void)carrier_hz;
+    (void)rate_mhz;
     (void)level_half_db;
     NP_PLATFORM_TRAP();
 }

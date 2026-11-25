@@ -3,9 +3,12 @@
   NP-ANALYTICS-001 §7.6 (OI-ANALYTICS-01)
   Path: /etc/clickhouse-server/users.d/np-erase-user.xml
 
-  The relay (erase_relay.py) deletes one pseudonymous ID's events and nothing else, so its user may ALTER ... DELETE on the
-  events table and do nothing more: it cannot read, insert or drop. The password comes from the container's environment
-  (ERASE_CLICKHOUSE_PASSWORD, set in .env). The table name must match ERASE_TABLES and POSTHOG_VERSION's schema.
+  The relay (erase_relay.py) deletes withdrawn people's events and nothing else. Its user may ALTER ... DELETE on the events
+  table, and read that table's distinct_id column so the relay can tell an ID whose events are gone (answer 200) from one still
+  held (queue it, answer 202) without keeping a list of erased IDs (OI-PRIV-48). It cannot read any other column, insert or
+  drop. The column read lets whoever holds this password list the pseudonymous IDs the store holds; that is the price of keeping
+  no list of erased IDs (OI-PRIV-48). The password comes from the container's environment (ERASE_CLICKHOUSE_PASSWORD, set in
+  .env). The table name must match ERASE_TABLES and POSTHOG_VERSION's schema.
 -->
 <clickhouse>
   <users>
@@ -16,6 +19,7 @@
       <quota>default</quota>
       <grants>
         <query>GRANT ALTER DELETE ON posthog.sharded_events</query>
+        <query>GRANT SELECT(distinct_id) ON posthog.sharded_events</query>
       </grants>
     </np_erase>
   </users>

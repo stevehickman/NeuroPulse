@@ -52,17 +52,27 @@ enum class PresenceState {
 /**
  * The lock itself: written once, so every host locks on the same rule (`REQ-PRES-03`). It starts **locked** (a cold start always asks).
  * It locks again when the app has been in the background for [backgroundTimeoutMs] or more, checked when the app returns
- * ([onForeground]) and whenever the host can wake it ([tick]). The clock is injected so the rule is testable.
+ * ([onForeground]) and whenever the host can wake it ([tick]). The clocks are injected so the rule is testable.
+ *
+ * **The time away is measured on a monotonic clock** ([nowMs]), which the person cannot set (`OI-PRIV-62`, M9): on the wall clock,
+ * setting the time back while the app was away made the elapsed time negative and kept the app unlocked. A monotonic clock may stop
+ * while the device sleeps, so the wall clock ([wallMs]) is asked as well, as a second witness: **the lock closes when either clock
+ * says the timeout has passed, or when either has gone backwards** (a negative elapsed time is expired, never "not yet"). Moving the
+ * wall clock forward can only lock sooner.
  */
 class PresenceLock(
     private val key: GatedSecretKeyStore,
+    /** A monotonic clock in milliseconds (any origin): one the person cannot set. */
     private val nowMs: () -> Long,
     val backgroundTimeoutMs: Long = BACKGROUND_TIMEOUT_MS,
+    /** The wall clock in milliseconds, or null: a second witness for time the monotonic clock did not count (the device asleep). */
+    private val wallMs: (() -> Long)? = null,
 ) {
     private val _state = MutableStateFlow(PresenceState.LOCKED)
     val state: StateFlow<PresenceState> = _state
 
     private var backgroundedAtMs: Long? = null
+    private var backgroundedAtWallMs: Long? = null
     private val listeners = mutableListOf<(PresenceState) -> Unit>()
 
     val isUnlocked: Boolean get() = _state.value == PresenceState.UNLOCKED
@@ -78,6 +88,7 @@ class PresenceLock(
         val ok = runCatching { key.unlock(reason) }.getOrDefault(false) && key.isUnlocked
         if (ok) {
             backgroundedAtMs = null
+            backgroundedAtWallMs = null
             set(PresenceState.UNLOCKED)
         }
         return ok
@@ -90,6 +101,7 @@ class PresenceLock(
         val result = runCatching { passphraseKey.unlockWithPassphrase(passphrase) }.getOrDefault(PassphraseResult.FAILED)
         if (result == PassphraseResult.OK && key.isUnlocked) {
             backgroundedAtMs = null
+            backgroundedAtWallMs = null
             set(PresenceState.UNLOCKED)
         } else if (result == PassphraseResult.OK) {
             return PassphraseResult.FAILED
@@ -103,25 +115,36 @@ class PresenceLock(
     fun lock() {
         key.lock()
         backgroundedAtMs = null
+        backgroundedAtWallMs = null
         set(PresenceState.LOCKED)
     }
 
     /** The app left the foreground. */
     fun onBackground() {
-        if (isUnlocked && backgroundedAtMs == null) backgroundedAtMs = nowMs()
+        if (isUnlocked && backgroundedAtMs == null) {
+            backgroundedAtMs = nowMs()
+            backgroundedAtWallMs = wallMs?.invoke()
+        }
     }
 
     /** The app came back: if it was away for the timeout or longer, it is locked before anything is shown. */
     fun onForeground() {
         tick()
         backgroundedAtMs = null
+        backgroundedAtWallMs = null
     }
 
     /** Lock if the app has been in the background for the timeout. A host that can run a timer in the background calls this from it. */
     fun tick() {
         val since = backgroundedAtMs ?: return
-        if (isUnlocked && nowMs() - since >= backgroundTimeoutMs) lock()
+        if (!isUnlocked) return
+        val sinceWall = backgroundedAtWallMs
+        val wallExpired = sinceWall != null && wallMs?.let { expired(it() - sinceWall) } == true
+        if (expired(nowMs() - since) || wallExpired) lock()
     }
+
+    /** A time away of [elapsedMs] has used up the timeout: it reached it, or it is negative (a clock went back, `OI-PRIV-62` M9). */
+    private fun expired(elapsedMs: Long): Boolean = elapsedMs < 0 || elapsedMs >= backgroundTimeoutMs
 
     private fun set(next: PresenceState) {
         if (_state.value == next) return

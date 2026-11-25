@@ -45,7 +45,7 @@ export const PINS_FILE = ".github/toolchain.json";
 export const ACTION_FILE = ".github/actions/setup-toolchain/action.yml";
 export const ACTION_REF = "./.github/actions/setup-toolchain";
 
-const REQUIRED_KEYS = ["macos", "java", "javaDistribution", "gradle", "bun", "rust", "python", "dotnet", "armGcc"];
+const REQUIRED_KEYS = ["macos", "java", "javaDistribution", "gradle", "bun", "rust", "python", "armGcc"];
 const EXACT_KEYS = ["gradle", "bun", "rust"];
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const MACOS_IMAGE = /^macos-\d+(-intel|-large|-xlarge)?$/;
@@ -149,7 +149,7 @@ export function check(files: Map<string, string>): Finding[] {
 }
 
 function selfTest(): void {
-  const pins = JSON.stringify({ macos: "macos-26", java: "17", javaDistribution: "temurin", gradle: "8.11.1", bun: "1.4.4", rust: "1.97.0", python: "3.11", dotnet: "8.0.x", armGcc: "13.2.Rel1" });
+  const pins = JSON.stringify({ macos: "macos-26", java: "17", javaDistribution: "temurin", gradle: "8.11.1", bun: "1.4.4", rust: "1.97.0", python: "3.11", armGcc: "13.2.Rel1" });
   const action = "runs:\n  steps:\n    - uses: actions/setup-java@v4\n      with:\n        java-version: ${{ steps.pins.outputs.java }}\n";
   const wf = [
     "jobs:",

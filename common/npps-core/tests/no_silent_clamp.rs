@@ -378,6 +378,15 @@ fn the_cores_limits_are_the_hubs_limits() {
     refused(compile("audio_entrainment", audio(json!({ "noiseType": "pink", "volumeDb": 85.5 }))), &["Audio level 85.5 dB SPL"]);
 }
 
+// @verifies REQ-NPPS-33#a
+#[test]
+fn an_isochronic_rate_of_zero_is_refused_but_a_binaural_beat_of_zero_is_allowed() {
+    // The principal, 2026-11-24 (OI-NPPS-AUDIO-01): no pulse is not an isochronic tone; a 0 Hz beat is two equal tones.
+    refused(compile("audio_entrainment", audio(json!({ "isochronicTonesHz": 0, "carrierHz": 440 }))), &["Audio", "isochronicTonesHz", "above 0 Hz"]);
+    ok("audio_entrainment", audio(json!({ "binauralBeatsHz": 0, "carrierHz": 440 })));
+    ok("audio_entrainment", audio(json!({ "isochronicTonesHz": 0.001, "carrierHz": 440 })));
+}
+
 // @verifies REQ-AUDIO-25
 #[test]
 fn a_planar_tone_above_1000_hz_is_refused_not_reduced() {

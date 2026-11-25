@@ -84,6 +84,7 @@ object GattParser {
 
     /** PPX_SENSITIVITY: the detector's sensitivity level and the highest the helmet offers (REQ-FWHUB-68). Null if malformed. */
     fun parsePpxSensitivity(data: ByteArray): PpxSensitivity? = PpxSensitivity.fromWire(data)
+    fun parseStealth(data: ByteArray): Boolean? = life.neurone.core.models.StealthFlag.fromWire(data)
 
     /** SESSION_HOLD: why a session is held paused, one byte (SWR-SS-09). Null if malformed or not known. */
     fun parseHoldCause(data: ByteArray): HoldCause? = HoldCause.fromWire(data)

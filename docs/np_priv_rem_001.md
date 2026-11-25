@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 6
-**Date:** 2026-11-21  
+**Revision:** 7
+**Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -483,7 +483,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Step 1 — Initial outreach to Neda Rashidi-Ranjbar (neda.rashidi-ranjbar@unityhealth.to):**
 - Email subject: "NeurOne — Research Collaboration Opportunity: EEG + HRV + PBM Platform Study"
 - Content: Brief description of NeurOne (wearable multi-modal neuromodulation); reference her 2025 MCI PBM RCT; propose a pilot study using NeurOne as the platform; offer device loan + data access + co-authorship
-- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/np_clin_001.docx`)
+- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/np_clin_001.md`)
 - Goal of call: confirm interest; identify whether she can serve as PI or co-PI on a NeurOne IRB protocol; discuss her REB (Research Ethics Board — Canadian equivalent of IRB) process at Unity Health Toronto
 
 **Step 2 — If Rashidi-Ranjbar agrees, prepare REB/IRB protocol:**
@@ -1116,3 +1116,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 6 | 2026-11-21 | NeurOne Quality | **STEP-05 marked reopened in part: the research gate passed exact dates, the recording ID and a linking code; the repair is NP-FW-EMMC-002 §E.5 and the remainder is in OI-PRIV-26 (NP-PRIV-ANALYSIS-004) (GitHub #954).** |
+| 7 | 2026-11-25 | Quality Lead (interim: Steve Hickman, CEO) | **NP-CLIN-001's executive summary cited at docs/np_clin_001.md, its Markdown issue, in place of the Word file now in docs/superseded/.** |

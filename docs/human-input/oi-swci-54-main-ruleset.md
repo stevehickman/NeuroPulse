@@ -1,6 +1,6 @@
 # The ruleset on `main`: what it holds today, and five settings nobody has decided
 
-**Status:** DRAFT, not sent. **Partly answered 2026-11-21:** Q2 for the redaction-shape context only, and Q5 option B (`NP-SW-CI-001` §6.18, §6.18.4). Q1, Q3, Q4 and the rest of Q2 are open. **Q5 answered again 2026-11-22:** `strict: false`, with a merge hold while `main` is red (`NP-SW-CI-001` §6.20). **From:** a Claude Code session working on GitHub #446. **To:** the principal
+**Status:** **ANSWERED 2026-11-24 (the principal): Q1 B, Q2 as recommended (set P), Q3 A, Q4 A, Q5 A** (`NP-SW-CI-001` §6.21). **App id confirmed 2026-11-25 (the principal): `5585393` is `RevNumberFixer`, so §4 is fully answered.** The ruleset half of Q2 was found in force on 2026-11-25 (`NP-SW-CI-001` §6.21.5). Earlier record: **Partly answered 2026-11-21:** Q2 for the redaction-shape context only, and Q5 option B (`NP-SW-CI-001` §6.18, §6.18.4). Q1, Q3, Q4 and the rest of Q2 are open. **Q5 answered again 2026-11-22:** `strict: false`, with a merge hold while `main` is red (`NP-SW-CI-001` §6.20). **From:** a Claude Code session working on GitHub #446. **To:** the principal
 **GitHub issue:** [#446](https://github.com/stevehickman/NeuroPulse/issues/446)
 (repository admin; interim Quality authority). Open item: `OI-SWCI-54` (`docs/np_sw_ci_001.md` §7).
 
@@ -37,7 +37,7 @@ Read from GitHub on 2026-11-11 with `gh api repos/stevehickman/NeuroPulse/rulese
 | `required_status_checks` | 10 contexts, each bound to App `15368` (GitHub Actions); `strict` is `false` | `NP-SW-CI-001` §6.7.8, §6.12, §6.13; the two simulator contexts by `ci/required-checks.txt` |
 | `copilot_code_review` | in force | **no record** (Q4) |
 | Bypass: `RepositoryRole 5` (admin) | `pull_request` mode | `NP-SW-CI-001` §6.13.1 |
-| Bypass: `Integration 5585393` | `always` | `docs/revisions/README.md` records that the App `RevNumberFixer` was put on the bypass list (2026-11-02). **Not confirmed:** that id `5585393` is that App. This session could not read the Apps endpoint. The mode was not recorded (Q1) |
+| Bypass: `Integration 5585393` | `always` | `docs/revisions/README.md` records that the App `RevNumberFixer` was put on the bypass list (2026-11-02). **Confirmed 2026-11-25 by the principal:** that id `5585393` is that App (written on 2026-11-11 as not confirmed: the session could not read the Apps endpoint). The mode was not recorded then; Q1 is answered (`NP-SW-CI-001` §6.21) |
 | Classic branch protection | not read: `GET /branches/main/protection` returned 403 to this session. It was 404 (none) on 2026-08-10 (`NP-SW-CI-001` §7, `OI-SWCI-22`) | — |
 
 The ten required contexts, and the job that reports each. They equal `ci/required-checks.txt` exactly:

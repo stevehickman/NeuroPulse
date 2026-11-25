@@ -780,10 +780,11 @@ test('end to end: the device-serial replay guard is live: a protocol for another
 });
 
 // @verifies REQ-FWHUB-90#c
-test('end to end: the replay guard fails closed: a helmet whose serial is all zero refuses even a serial-less protocol, and a serial-less protocol is refused by a provisioned one', { skip: !BIN }, async () => {
+test('end to end: the replay guard fails closed: a helmet whose serial is all zero refuses even a serial-less protocol as serial unknown, and a serial-less protocol is refused by a provisioned one', { skip: !BIN }, async () => {
   const blank = await upload(GOLDEN_UNSTAMPED.pbm660, { before: [{ type: 'FW_COMMAND', cmd: 'proto_serial', hex: '00'.repeat(32) }, ...MCU] });
-  assert.strictEqual(blank.pump.code, -7, 'an unprovisioned (all-zero) helmet is NP_HUB_ERR_WRONG_DEVICE, not a match for an all-zero header');
+  assert.strictEqual(blank.pump.code, -44, 'an unprovisioned (all-zero) helmet is NP_HUB_ERR_SERIAL_UNKNOWN, not a match for an all-zero header');
   assert.strictEqual(blank.pump.loaded, false);
+  assert.deepStrictEqual([Buffer.from(blank.frame, 'hex')[0], Buffer.from(blank.frame, 'hex')[1]], [2, 44], 'REFUSED, reason 44');
   const serialLess = await upload(GOLDEN_UNSTAMPED.pbm660, { before: MCU });
   assert.strictEqual(serialLess.pump.code, -7, 'a protocol compiled without the device serial is refused by the TEST device');
   assert.strictEqual(serialLess.pump.loaded, false);

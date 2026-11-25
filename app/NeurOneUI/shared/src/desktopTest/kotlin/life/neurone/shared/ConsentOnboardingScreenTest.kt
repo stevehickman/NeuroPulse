@@ -1,6 +1,9 @@
 package life.neurone.shared
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -14,6 +17,9 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** The research-consent onboarding is two screens whose controls follow the layers, and L3 carries its notice (ported from `ConsentStoreTests`, `ConsentEngineTests`). */
 @OptIn(ExperimentalTestApi::class)
@@ -22,7 +28,7 @@ class ConsentOnboardingScreenTest {
         Res.string.consent_l4_results_toggle, Res.string.consent_l4_portal_toggle, Res.string.consent_l1_toggle,
         Res.string.consent_s2_select_all_toggle, Res.string.consent_s2_blanket_toggle, Res.string.consent_important_label,
         Res.string.setup_continue_button, Res.string.consent_finish,
-        Res.string.consent_and_permanently_stops_any_further_data_flowi,
+        Res.string.consent_and_permanently_stops_any_further_data_flowi, Res.string.consent_skip_button,
     )
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
@@ -84,5 +90,45 @@ class ConsentOnboardingScreenTest {
     fun noNoticeIsShownWhileBlanketConsentIsOff() = runComposeUiTest {
         showSecondScreen(blanket = false)
         onNodeWithText(text(Res.string.consent_important_label)).assertDoesNotExist()
+    }
+
+    // The toggles share one column, so they are found by position: S1 opens with the L4 results switch, and S2 ends with the
+    // blanket (L3) switch, after Select-all and the nine categories.
+    private fun androidx.compose.ui.test.ComposeUiTest.toggleResults() = onAllNodes(isToggleable()).onFirst().performClick()
+    private fun androidx.compose.ui.test.ComposeUiTest.toggleBlanket() = onAllNodes(isToggleable()).onLast().performClick()
+
+    // @verifies REQ-CONSENT-27
+    @Test
+    fun skipOnAFirstRun_recordsNothing_soTheStoreStaysNeverAsked() = runComposeUiTest {
+        var completed = 0
+        val store = store()
+        setContent {
+            strings = used.associateWith { stringResource(it) }
+            ConsentOnboardingScreen(store, onComplete = { completed++ })
+        }
+        toggleResults()
+        onNodeWithText(text(Res.string.setup_continue_button)).performClick()
+        toggleBlanket()
+        onNodeWithText(text(Res.string.consent_skip_button)).performClick()
+
+        assertEquals(1, completed)
+        assertFalse(store.researchConsent.resultsOptIn, "a toggle turned on and then skipped is not a grant")
+        assertFalse(store.researchConsent.blanketConsentGranted, "a toggle turned on and then skipped is not a grant")
+    }
+
+    // @verifies REQ-CONSENT-27
+    @Test
+    fun skipFromResearchPreferences_keepsTheEarlierChoices_andRecordsNoWithdrawal() = runComposeUiTest {
+        val store = store(blanket = true)
+        setContent {
+            strings = used.associateWith { stringResource(it) }
+            ConsentOnboardingScreen(store, onComplete = {})
+        }
+        onNodeWithText(text(Res.string.setup_continue_button)).performClick()
+        toggleBlanket()
+        onNodeWithText(text(Res.string.consent_skip_button)).performClick()
+
+        assertTrue(store.researchConsent.blanketConsentGranted, "turning blanket consent off and skipping does not withdraw it")
+        assertNull(store.researchConsent.blanketConsentWithdrawnAt)
     }
 }

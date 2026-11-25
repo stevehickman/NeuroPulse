@@ -130,6 +130,12 @@ typedef enum {
      * reason is a fault and still returns NP_HUB_ERR_SAFETY_FAULT.  It is a session-end status only: it never reaches the
      * upload-check frame or any log record (the record carries abort_reason, unchanged). */
     NP_HUB_ERR_STOPPED              = -43,
+    /* REQ-FWHUB-90 (b), (c); OI-PRIV-31 (NP-PRIV-ANALYSIS-004) (the principal, 2026-11-24: the refusal has a status of its own).
+     * The helmet cannot read its own device serial, or reads it as all zero (never provisioned, or a blank Config value), so
+     * the device-serial replay guard cannot show a descriptor was signed for this helmet and refuses it.  Not WRONG_DEVICE
+     * (-7): the protocol is not known to be for another helmet; this helmet does not know which helmet it is.  Nothing the
+     * person sends changes it.  Reason 44 in the upload-check frame. */
+    NP_HUB_ERR_SERIAL_UNKNOWN       = -44,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -670,14 +676,18 @@ typedef struct {
                                   * uint32 required — NP_MOD_VIBROTACTILE = 0x10 */
 } np_session_uhdr_record_t;
 
-/* The SHDR session-end record: the device session count and the firmware
- * version, and nothing else (REQ-FWHUB-89, OI-PRIV-21 (NP-PRIV-ANALYSIS-004)).
- * Duration, abort reason and the modalities that ran describe the person's
+/* The SHDR session-end record: the device session count, the firmware version
+ * and whether the session stopped early, and nothing else (REQ-FWHUB-89,
+ * OI-PRIV-21 and OI-PRIV-22 (NP-PRIV-ANALYSIS-004)).  Duration, abort reason,
+ * the modalities that ran and the cause of any stop describe the person's
  * session and are UHDR only (np_session_uhdr_record_t above;
  * data-architecture-detail.md §5.1).  Add nothing here without a §5.1 ruling. */
 typedef struct {
     uint32_t device_session_count; /* unsigned; no timestamp (SHDR) */
     uint8_t  firmware_version[4];  /* semver packed */
+    uint8_t  stopped_early;        /* 1 if the session or any channel stopped before
+                                    * its scheduled end, for ANY cause; never the
+                                    * cause (REQ-FWHUB-89 (c)) */
 } np_session_shdr_record_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

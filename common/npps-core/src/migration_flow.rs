@@ -89,7 +89,7 @@ const LAST_HUB_KEY: &str = "ble.last-hub-id";
 /// Written last by the clear. Names no user and no device: it says only that a clear ran.
 const CLEARED_MARKER_KEY: &str = "np.migration.cleared";
 /// The finished clear steps, comma-separated, so an interrupted clear resumes (`SWR-MG-08`).
-const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
+pub(crate) const CLEAR_PROGRESS_KEY: &str = "np.migration.clear-progress";
 /// The step that overwrites and deletes the app's files (`SWR-MG-06`), and the size of one overwrite chunk. One chunk of
 /// random bytes is asked for once and written repeatedly (`UC-089`).
 /// What the old phone records when it seals a migration bundle, and the only thing its clear trusts a confirmation against

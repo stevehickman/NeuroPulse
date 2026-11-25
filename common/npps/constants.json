@@ -8,7 +8,6 @@
         "ts",
         "kotlin",
         "swift",
-        "csharp",
         "rust"
       ],
       "note": "Every hardware ceiling and fixed device figure the apps and the shared validator use. The firmware enforces them independently; no dosage limit or clinician override can exceed them.",
@@ -253,7 +252,6 @@
       "targets": [
         "ts",
         "swift",
-        "csharp",
         "c",
         "rust"
       ],
@@ -299,7 +297,6 @@
         "ts",
         "kotlin",
         "swift",
-        "csharp",
         "c"
       ],
       "note": "The 16-bit id of each characteristic (every name ends in _ID, so SESSION_STATE_ID is never mistaken for the session state itself) of the NeurOne BLE service. The 128-bit UUID is the base with its second group replaced by the id (4E455550-XXXX-1000-8000-00805F9B34FB), so the base is written once, here, and every runtime builds its UUIDs from it. `hub: true` marks a characteristic the hub firmware publishes; only those reach the firmware header, because a firmware reference is what the consumable-trigger gate reads as 'the hub produces it'. `required: true` marks the characteristics an app must find before it treats a hub as fully resolved; the others are optional, or T2 only, or not yet published (OI-WA-03).",
@@ -553,7 +550,6 @@
         "ts",
         "kotlin",
         "swift",
-        "csharp",
         "c"
       ],
       "note": "Fixed value lengths of the NeurOne BLE service, in bytes.",
@@ -911,7 +907,6 @@
       "targets": [
         "swift",
         "kotlin",
-        "csharp",
         "c"
       ],
       "note": "Sizes and flags of the signed session descriptor the apps build and the hub verifies (NP-FW-HUB-001 §4).",
@@ -941,8 +936,7 @@
           "note": "Descriptor flag bit 0, computed by the app. It carries no authority: no firmware decision reads it, because whether a protocol is T2 comes from its modality set and whether this unit may run one is the safety MCU's signed tier identity (RISK-PWRSRC-10).",
           "cName": "NP_PROTO_FLAG_T2_TIER",
           "types": {
-            "swift": "UInt8",
-            "csharp": "byte"
+            "swift": "UInt8"
           }
         }
       ]
@@ -1084,6 +1078,11 @@
           "name": "SESSION_HISTORY_RETENTION_KEY",
           "value": "np.session.history-retention",
           "note": "How long the person chose to keep the session history (OI-PRIV-10 (2), REQ-SW03-33)."
+        },
+        {
+          "name": "SESSION_HISTORY_QUARANTINE_KEY",
+          "value": "np.session.history-quarantine",
+          "note": "A stored session history that could not be read, kept as found so the next write does not destroy it (OI-PRIV-66, REQ-SW03-35)."
         },
         {
           "name": "FIRST_SETUP_KEY",

@@ -46,6 +46,12 @@
 #include "../include/np_session_fitting.h"
 #include "../include/np_log_hrv.h"
 
+/* REQ-FWHUB-93: np_log_shdr_fault() hands each fault to the per-module running totals; that module has its own
+ * suite (np_module_usage_tests), so here the hand-off is only counted. */
+#include "np_module_usage.h"
+static unsigned g_mu_faults;
+void np_mu_note_fault(uint8_t slot, uint8_t mod_type, uint8_t code) { (void)slot; (void)mod_type; (void)code; g_mu_faults++; }
+
 static int g_failures = 0;
 
 static void check(int cond, const char *name)
@@ -926,12 +932,13 @@ static bool shdr_has_count_record(uint8_t tag, uint32_t want)
 
 /* ── OI-PRIV-21 (NP-PRIV-ANALYSIS-004): SHDR session records carry nothing about the session ── */
 
-#define END_REC_BYTES (1U + sizeof(uint32_t) + 4U)   /* tag, count, firmware version */
+#define END_REC_BYTES (1U + sizeof(uint32_t) + 4U + 1U)   /* tag, count, firmware version, stopped_early */
 
 /* Run one whole session through the logger and return the SHDR bytes it wrote
  * after the OPEN marker. */
 static size_t shdr_session_end_bytes(uint32_t boot_count, uint32_t duration_s,
                                      uint8_t abort_reason, uint32_t mods_mask,
+                                     uint8_t stopped_early,
                                      uint8_t *out, size_t out_max)
 {
     np_log_test_reset();
@@ -949,6 +956,7 @@ static size_t shdr_session_end_bytes(uint32_t boot_count, uint32_t duration_s,
     memset(&sh, 0, sizeof sh);
     sh.firmware_version[0] = 1U; sh.firmware_version[1] = 2U;
     sh.firmware_version[2] = 3U; sh.firmware_version[3] = 4U;
+    sh.stopped_early = stopped_early;
     np_log_session_end(&u, &sh);
     np_log_flush();
     const size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR) - base;
@@ -965,17 +973,33 @@ static void test_shdr_session_end_is_count_and_version_only(void)
     uint8_t b[64];
     /* A short clean session with one modality, then a long one stopped by a
      * seizure halt with every modality bit set: SHDR must not tell them apart. */
-    const size_t na = shdr_session_end_bytes(7U, 5U, (uint8_t)NP_ABORT_NONE, 0x1U, a, sizeof a);
-    const size_t nb = shdr_session_end_bytes(7U, 3600U, (uint8_t)NP_ABORT_EEG_SEIZURE, 0xFFFFFFFFU,
+    const size_t na = shdr_session_end_bytes(7U, 5U, (uint8_t)NP_ABORT_NONE, 0x1U, 1U, a, sizeof a);
+    const size_t nb = shdr_session_end_bytes(7U, 3600U, (uint8_t)NP_ABORT_EEG_SEIZURE, 0xFFFFFFFFU, 1U,
                                              b, sizeof b);
 
     uint32_t count = 0U;
     memcpy(&count, a + 1U, sizeof count);
     check(na == END_REC_BYTES && a[0] == NP_LOG_TAG_SHDR_SESSION_END && count == 8U &&
           a[5] == 1U && a[6] == 2U && a[7] == 3U && a[8] == 4U,
-          "shdr end: 9 bytes, the tag, this session's count and the firmware version, nothing else");
+          "shdr end: 10 bytes, the tag, this session's count, the firmware version and the stop flag, nothing else");
     check(nb == na && memcmp(a, b, na) == 0,
           "shdr end: duration, abort reason and the modalities that ran change no SHDR byte");
+}
+
+/* @verifies REQ-FWHUB-89#c */
+static void test_shdr_session_end_stop_flag_is_one_byte_in_every_record(void)
+{
+    uint8_t clean[64], stopped[64], odd[64];
+    const size_t nc = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_NONE, 0x1U, 0U, clean, sizeof clean);
+    const size_t ns = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_USER, 0x1U, 1U, stopped, sizeof stopped);
+    const size_t no = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_NONE, 0x1U, 0x5AU, odd, sizeof odd);
+    check(nc == END_REC_BYTES && ns == END_REC_BYTES,
+          "stop flag: a clean session and a stopped one write the same length");
+    check(clean[END_REC_BYTES - 1U] == 0U && stopped[END_REC_BYTES - 1U] == 1U &&
+          memcmp(clean, stopped, END_REC_BYTES - 1U) == 0,
+          "stop flag: the last byte is 0 or 1 and is the only byte that differs");
+    check(no == END_REC_BYTES && odd[END_REC_BYTES - 1U] == 1U,
+          "stop flag: any non-zero value is written as 1, so the byte carries one bit");
 }
 
 /* @verifies REQ-FWHUB-89#b */
@@ -1019,7 +1043,7 @@ static void test_session_telemetry_writes_no_shdr(void)
     np_log_session_end(&g_rec, &sh);
     np_log_flush();
     check(np_log_test_captured_len(NP_LOG_PART_SHDR) == sbase + END_REC_BYTES,
-          "telemetry: a session of any length leaves OPEN and one 9-byte END in SHDR");
+          "telemetry: a session of any length leaves OPEN and one 10-byte END in SHDR");
 }
 
 /* @verifies REQ-FWHUB-40 */
@@ -1540,6 +1564,7 @@ int main(void)
     test_session_end_keeps_queued_adapt_events();
     test_session_open_marker_is_durable_before_return();
     test_shdr_session_end_is_count_and_version_only();
+    test_shdr_session_end_stop_flag_is_one_byte_in_every_record();
     test_session_telemetry_writes_no_shdr();
     test_command_record_layout();
     test_zone_auth_record_has_no_session_count();

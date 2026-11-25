@@ -33,6 +33,7 @@
 #include "np_log_backend.h"    /* per-session UHDR files (OI-LFS-11) */
 #include "np_log_hrv.h"        /* HRV session record (OI-HRV-03) */
 #include "np_session_fitting.h"   /* the fitting frame layout (SWR-HV-02, SWR-HV-03) */
+#include "np_module_usage.h"
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -302,12 +303,16 @@ void np_log_session_end(const np_session_uhdr_record_t *uhdr_rec,
     }
 
     if (shdr_rec != NULL) {
-        /* SHDR: the session count and the firmware version, and nothing else
-         * (REQ-FWHUB-89).  Duration, abort reason and the modalities that ran
-         * describe the session and stay in the UHDR record above (§5.1). */
+        /* SHDR: the session count, the firmware version and the cause-free
+         * stopped-early flag, and nothing else (REQ-FWHUB-89).  Duration, abort
+         * reason, the modalities that ran and the cause of any stop describe the
+         * session and stay in the UHDR record above (§5.1).  The flag is written
+         * as 0 or 1 in every record, so its presence says nothing. */
+        const uint8_t stopped_early = (shdr_rec->stopped_early != 0U) ? 1U : 0U;
         shdr_u8(NP_LOG_TAG_SHDR_SESSION_END);
         shdr_write(&s_device_session_count,  sizeof(s_device_session_count));
         shdr_write(shdr_rec->firmware_version, sizeof(shdr_rec->firmware_version));
+        shdr_write(&stopped_early, 1U);
     }
 
     /* The session-end record is the last thing in this session's file. */
@@ -603,6 +608,10 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
         s_fq_dropped++;
     }
     crit_exit(saved);
+
+    /* REQ-FWHUB-93: the module's running fault totals, outside the queue's
+     * critical section.  A fault with no slot belongs to no module. */
+    np_mu_note_fault(slot, (uint8_t)type, fault_code);
 }
 
 /* Called with the lock held, by the outermost take() only.  Each entry leaves

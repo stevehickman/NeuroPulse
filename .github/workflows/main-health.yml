@@ -45,7 +45,6 @@ on:
       - Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
       - Warranty No-Join CI Gate (OI-EMMC2-06)
       - Web App CI (TypeScript + Vitest)
-      - Windows CI (dotnet)
     types: [completed]
     branches: [main]
   pull_request_target:
@@ -63,7 +62,7 @@ env:
   # ⚠ This string is a required-status-check CONTEXT (ci/required-statuses.txt, NP-SW-CI-001 §6.20). Changing it
   # un-gates the branch SILENTLY: the ruleset keeps waiting on the old string. Change it only together with the ruleset.
   NP_STATUS_CONTEXT: 'main is green, or this PR is up to date with main'
-  NP_GATE_WORKFLOWS: 'firmware-cross-build.yml safety-mcu-ci.yml simulator-ci.yml tooling-ci.yml'
+  NP_GATE_WORKFLOWS: 'firmware-cross-build.yml safety-mcu-ci.yml shdr-schema-ci.yml simulator-ci.yml tooling-ci.yml warranty-nojoin-ci.yml'
 
 jobs:
   freeze-status:

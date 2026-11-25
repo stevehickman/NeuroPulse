@@ -48,9 +48,14 @@ class OtaManagerTest {
             otaStatus.value = OtaStatusPacket(phase.rawValue, progress, error)
         }
 
-        override fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray) {
+        /** False models a link that has not shown it is encrypted: nothing reaches the hub. */
+        var paired = true
+
+        override fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray): Boolean {
+            if (!paired) return false
             sent += opcode to payload
             hub(opcode, sent.size, this)
+            return true
         }
 
         val opcodes get() = sent.map { it.first }
@@ -175,6 +180,14 @@ class OtaManagerTest {
         val e = assertFailsWith<OtaException> { OtaManager(link, Source(image = null), scope(), setOf(trusted)).beginUpdate(image()) }
         assertEquals(OtaError.ImageLoadFailed, e.error)
         assertTrue(link.sent.isEmpty())
+    }
+
+    // @verifies REQ-SW03-31#d
+    @Test fun a_link_that_has_not_shown_it_is_encrypted_gets_no_firmware_and_the_update_says_pair() = runTest {
+        val link = Link().apply { paired = false }
+        val e = assertFailsWith<OtaException> { OtaManager(link, Source(image = bytes(1200)), scope(), setOf(trusted)).beginUpdate(image()) }
+        assertEquals(OtaError.NotPaired, e.error)
+        assertTrue(link.sent.isEmpty(), "no command and no chunk reached the hub")
     }
 
     // @verifies DI-PERF-21

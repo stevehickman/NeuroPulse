@@ -244,6 +244,8 @@ fn every_reason_the_helmet_can_refuse_for_has_a_cause_a_screen_can_say() {
         (40, "outside_limit"),
         // 41 and 42 are NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT and _TOO_LONG: a cervical VNS block the helmet cannot represent (REQ-FWHUB-78 (k)).
         (41, "cervical_block_too_short"), (42, "cervical_block_too_long"),
+        // 44 is NP_HUB_ERR_SERIAL_UNKNOWN: the helmet cannot read its own serial, or it is all zero (REQ-FWHUB-90 (b), (c)).
+        (44, "serial_unknown"),
         (255, "other"), (99, "other"),
     ] {
         assert_eq!(cause(reason).as_deref(), Some(want), "reason {reason}");

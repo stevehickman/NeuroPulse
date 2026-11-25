@@ -105,6 +105,7 @@
 #                             → np_cvns_fault_summary_tests (NP-SW-FAULTMSG-001 §9.6)
 #                             → np_gatt_server_tests      (OI-WA-03 GATT server + warranty token)
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
+#                             → np_module_usage_tests     (REQ-FWHUB-93 per-module running totals)
 #                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_socket_layouts_tests   (REQ-FWHUB-64: socket table by hardware version)
@@ -585,6 +586,11 @@ if(NP_BUILD_TESTS)
     # OI-ACC-08 (#381): the CONSUMABLE_STATUS producer.
     add_test(NAME np_consumables_tests
         COMMAND np_consumables_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # REQ-FWHUB-93: the per-module running totals.
+    add_test(NAME np_module_usage_tests
+        COMMAND np_module_usage_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-NVRAM-08 (#444): a Map 3 journal written under version n loses no

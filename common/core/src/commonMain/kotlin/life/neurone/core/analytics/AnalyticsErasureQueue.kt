@@ -18,11 +18,13 @@ import life.neurone.core.net.HttpTransport
  * erasure relay has accepted it. A withdrawal made offline is therefore not lost: the request is sent when the phone next can.
  *
  * Contract with the relay (`docs/np_analytics_001.md` §7.6): one `POST <host>/np/erase` with `{"distinct_id": …}` and nothing else.
- * 2xx: accepted (erasing an ID the vendor does not hold is accepted too, so there is no separate "already gone" answer), and the
- * ID is dropped. **Nothing else drops it** (`OI-PRIV-08` (2)): the queue holds the only copy, and a 401, 403 or 404 is what a
- * misdeployed relay or a proxy in front of it answers, not a verdict on the ID. A 4xx other than 408 and 429 keeps the ID and the
- * drain goes on to the next one (the answer may be about this ID alone); 408, 429, 5xx, any other status or no answer keeps it
- * and the rest wait for the next call (the relay is likely unavailable to all of them). Either way an ID is asked about at most
+ * `200`: deleted (erasing an ID the vendor does not hold is a `200` too, so there is no separate "already gone" answer), and the
+ * ID is dropped. **Nothing else drops it** (`OI-PRIV-08` (2), `OI-PRIV-48`): the queue holds the only copy. `202` means the relay
+ * has queued the ID for a batched delete that has not run yet, so the ID is kept and asked about again, and the drain goes on to
+ * the next one. A 401, 403 or 404 is what a misdeployed relay or a proxy in front of it answers, not a verdict on the ID: a 4xx
+ * other than 408 and 429 keeps the ID and the drain goes on to the next one (the answer may be about this ID alone); 408, 429,
+ * 5xx, any other status (another 2xx included) or no answer keeps it and the rest wait for the next call (the relay is likely
+ * unavailable to all of them). Either way an ID is asked about at most
  * once in a drain, and a drain runs at launch, at a withdrawal and before an erase, so a relay that refuses is not asked in a loop.
  *
  * The list is per install and sealed with the rest of the app's state; an ID in it is a pseudonym the vendor holds data under, so it
@@ -51,28 +53,33 @@ class AnalyticsErasureQueue(
     /**
      * Ask the relay about every queued ID, once each. Does nothing, and makes no network call, when the queue is empty, the build
      * has no analytics host or the host has no transport. Returns when every queued ID has been asked about or the relay stopped
-     * answering; [pending] then says what is left.
+     * answering; [pending] then says what is left. The IDs the relay answered `202` in this drain are returned: they stay in
+     * [pending], and the relay holds them for its batched delete, which matters to a caller about to wipe the store.
      */
-    suspend fun drain() {
-        val transport = transport ?: return
+    suspend fun drain(): Set<String> {
+        val transport = transport ?: return emptySet()
+        val queuedAtRelay = mutableSetOf<String>()
         draining.withLock {
             for (id in pending) {
-                val url = baseUrl()?.let { "$it/$PATH" } ?: return
+                val url = baseUrl()?.let { "$it/$PATH" } ?: return queuedAtRelay
                 val body = buildJsonObject { put("distinct_id", id) }.toString().encodeToByteArray()
                 val answer = transport.post(HttpRequest(url, mapOf("Content-Type" to "application/json"), body))
                 when (outcome(answer?.status)) {
                     Outcome.DONE -> remove(id)
+                    Outcome.QUEUED -> queuedAtRelay += id
                     Outcome.REFUSED -> continue
-                    Outcome.RETRY_LATER -> return
+                    Outcome.RETRY_LATER -> return queuedAtRelay
                 }
             }
         }
+        return queuedAtRelay
     }
 
     /**
      * Ask the relay about [id] once, without queueing it, and say whether it accepted. For an ID that is leaving with a wiped
      * store (`OI-ANALYTICS-01` (5c)): queueing it would write it back into the store the wipe just emptied. A failure is final,
-     * since nothing keeps the ID to ask again.
+     * since nothing keeps the ID to ask again. Accepted is `200` (deleted) or `202` (queued at the relay, which deletes it in its
+     * next batch without being asked again): nothing here can keep the ID, so the relay's queue is the copy that remains.
      */
     suspend fun eraseNow(id: String): Boolean {
         val transport = transport ?: return false
@@ -80,15 +87,20 @@ class AnalyticsErasureQueue(
         val url = baseUrl()?.let { "$it/$PATH" } ?: return false
         val body = buildJsonObject { put("distinct_id", id) }.toString().encodeToByteArray()
         val answer = transport.post(HttpRequest(url, mapOf("Content-Type" to "application/json"), body))
-        return outcome(answer?.status) == Outcome.DONE
+        return outcome(answer?.status).let { it == Outcome.DONE || it == Outcome.QUEUED }
     }
 
-    /** [REFUSED] is a 4xx that is not about load: the ID is kept and asked about again at the next drain, never dropped. */
-    internal enum class Outcome { DONE, REFUSED, RETRY_LATER }
+    /**
+     * [DONE] is `200`: deleted, so the ID is dropped. [QUEUED] is `202`: the relay holds the ID for a batched delete, so the ID is
+     * kept and asked about again (`OI-PRIV-48`). [REFUSED] is a 4xx that is not about load: the ID is kept and asked about again at
+     * the next drain, never dropped.
+     */
+    internal enum class Outcome { DONE, QUEUED, REFUSED, RETRY_LATER }
 
     private fun outcome(status: Int?): Outcome = when {
         status == null -> Outcome.RETRY_LATER
-        status in 200..299 -> Outcome.DONE
+        status == 200 -> Outcome.DONE
+        status == 202 -> Outcome.QUEUED
         status == 408 || status == 429 -> Outcome.RETRY_LATER
         status in 400..499 -> Outcome.REFUSED
         else -> Outcome.RETRY_LATER

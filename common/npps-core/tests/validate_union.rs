@@ -281,3 +281,20 @@ fn a_planar_tone_above_1000_hz_is_a_validation_error_before_the_compiler_refuses
     assert!(tone(&audio(960.0, ("isochronicTonesHz", 40.0))).is_none());
     assert!(tone(&audio(5000.0, ("noiseType", 0.0))).is_none());
 }
+
+// @verifies REQ-NPPS-33#a
+#[test]
+fn an_isochronic_rate_of_zero_is_a_validation_error_and_a_binaural_beat_of_zero_is_not() {
+    // The principal, 2026-11-24 (OI-NPPS-AUDIO-01).
+    let audio = |field: &str, rate: f64| {
+        let mut p = json!({ "carrierHz": 440, "volumeDb": 60, "eegAdaptive": false, "boneConductionPacer": false });
+        p[field] = json!(rate);
+        run(proto(600.0, vec![block("audio_entrainment", p, CONT())]), json!({}), json!({}))
+    };
+    let zero = |i: &[Value]| i.iter().find(|x| x["message"]["key"] == "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_2").cloned();
+    let issue = zero(&audio("isochronicTonesHz", 0.0)).expect("an isochronic rate of 0 Hz must be an error");
+    assert_eq!(issue["severity"], "error");
+    assert_eq!(issue["parameterKey"], "isochronicTonesHz");
+    assert!(zero(&audio("isochronicTonesHz", 0.001)).is_none());
+    assert!(zero(&audio("binauralBeatsHz", 0.0)).is_none());
+}

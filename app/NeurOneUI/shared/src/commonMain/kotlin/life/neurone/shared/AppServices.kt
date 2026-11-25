@@ -39,6 +39,7 @@ import life.neurone.core.migration.MemoryObjectStore
 import life.neurone.core.consumable.ConsumableCountsProviding
 import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.models.SessionState
+import life.neurone.core.models.StealthFlag
 import life.neurone.core.protocol.NPLimitsStore
 import life.neurone.core.protocol.NPWavelengthRulesStore
 import life.neurone.core.protocol.NPProtocolLibrary
@@ -63,8 +64,13 @@ class AppServices(
     val platform: PlatformServices,
     /** Long-lived scope for the GATT manager and the consumable subscription. */
     val scope: CoroutineScope,
-    /** The clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. */
-    private val nowMs: () -> Long = { epochSeconds() * 1000 },
+    /**
+     * The monotonic clock the presence lock's background timeout reads, in milliseconds; injected so the rule is testable. Not the wall
+     * clock, which the person can set back while the app is away (`OI-PRIV-62` M9); the wall clock is [wallMs], a second witness.
+     */
+    private val nowMs: () -> Long = monotonicMs,
+    /** The wall clock in milliseconds, asked as well so time the monotonic clock did not count (the device asleep) still locks. */
+    private val wallMs: () -> Long = { epochSeconds() * 1000 },
     /** The cloud providers this build was registered with (SWR-MG-19); generated from the build's properties, empty until the owner registers clients. */
     cloudAuthConfig: life.neurone.core.cloudauth.CloudAuthConfig = CloudAuthBuildConfig.config,
 ) {
@@ -82,8 +88,20 @@ class AppServices(
      * yet, and a host that does answers [GatedSecretKeyStore.isEnabled] false until the person turns it on, so this is null and storage opens as before.
      * Starts locked; the screens ask ([PresenceGate]) before showing anything.
      */
-    val presenceLock: PresenceLock? = platform.gatedKeyStore?.takeIf { it.isEnabled && platform.secretKeyStore != null }?.let { gated ->
-        PresenceLock(gated, nowMs)
+    val presenceLock: PresenceLock? = platform.gatedKeyStore?.takeIf { gateIsOn(it) }?.let { gated ->
+        PresenceLock(gated, nowMs, wallMs = wallMs)
+    }
+
+    /**
+     * Whether storage opens gated: the host says the gate is on, **or a protected value is sealed under a key other than the device key**,
+     * which on this install can only be the gated key (`REQ-PRES-11` (b), `OI-PRIV-62` H2). A flag or record that was lost or misread
+     * then does not open the person's data ungated, where the next write would seal it again under a key the device releases alone.
+     */
+    private fun gateIsOn(gated: life.neurone.core.common.GatedSecretKeyStore): Boolean {
+        val secrets = platform.secretKeyStore ?: return false
+        if (gated.isEnabled) return true
+        val keys = runCatching { EncryptedKeyValueStore.uhdrKeys() }.getOrNull() ?: return false
+        return runCatching { ProtectedStorage.holdsValueSealedElsewhere(platform.keyValueStore, secrets, keys) }.getOrDefault(true)
     }
 
     init {
@@ -97,6 +115,9 @@ class AppServices(
         val secrets = platform.secretKeyStore
         if (gated != null && lock != null && secrets != null) {
             ProtectedStorage.openGated(platform.keyValueStore, secrets, gated, lock, { EncryptedKeyValueStore.uhdrKeys() }, { EncryptedKeyValueStore.deviceTierKeys() })
+        } else if (gated != null) {
+            // A host that offers the gate fails closed over a value sealed under the gated key (`REQ-PRES-11` (b)).
+            ProtectedStorage.openOnGateHost(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
         } else {
             ProtectedStorage.open(platform.keyValueStore, platform.secretKeyStore) { EncryptedKeyValueStore.uhdrKeys() }
         }
@@ -201,7 +222,7 @@ class AppServices(
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, analyticsBackend, analyticsErasureQueue, scope)
     /** The warranty owner's records, one per helmet, apart from every user's data (`REQ-SHDR-10`). */
-    val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore)
+    val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore, staging = platform.shdrStaging)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(warrantyOwnerStore)
 
     /**
@@ -416,7 +437,32 @@ class AppServices(
         }
         gattManager.recordTagMigration = { profileId, tag -> limits.recordTagMigration(profileId, tag) }
         gattManager.activeUser = userOf(limits.activeProfileId)
-        limits.onActiveProfileChanged = { gattManager.activeUser = userOf(it) }
+        limits.onActiveProfileChanged = {
+            gattManager.activeUser = userOf(it)
+            refreshStealth()
+        }
+        // SWR-IND-01: a profile's stealth choice reaches the hub when it is saved, and when the profiles are read again.
+        limits.onProfilesChanged = { refreshStealth() }
+    }
+
+    /**
+     * Send the hub what its indicators should show (`SWR-IND-01`, `SWR-IND-02`, `OI-PRIV-37`): the active profile's stealth
+     * choice, or lit when the warranty owner forbids stealth on the helmet the link is to. With no profile named and no lock,
+     * nothing is sent. Called when the active profile, a profile, the helmet or the owner's lock changes.
+     */
+    fun refreshStealth() {
+        // The callbacks that call this are set in limitsStore's initialiser and fire only after it is built.
+        val choice = limitsStore.activeProfile?.stealth
+        gattManager.desiredStealth = StealthFlag.desired(choice, stealthForbidden(gattManager.hubIdentifier.value))
+    }
+
+    /** True when the warranty owner forbids stealth on [hub] (`SWR-IND-02`); false with no helmet named. */
+    fun stealthForbidden(hub: String?): Boolean = hub?.let { warrantyOwnerStore.record(it)?.stealthForbidden } == true
+
+    /** The owner's stealth lock for [hub] (`SWR-IND-02`): kept in the owner's store, and applied at once to the connected helmet. */
+    fun setStealthForbidden(hub: String, forbidden: Boolean) {
+        warrantyOwnerStore.update(hub) { it.copy(stealthForbidden = forbidden) }
+        refreshStealth()
     }
 
     /**
@@ -474,27 +520,32 @@ class AppServices(
             }
         }
         // The connected hub is the helmet whose limits tier applies; none connected means no helmet tier.
-        scope.launch { gattManager.hubIdentifier.collect { limitsStore.activeHelmetSerial = it } }
+        scope.launch {
+            gattManager.hubIdentifier.collect {
+                limitsStore.activeHelmetSerial = it
+                refreshStealth() // the owner's lock is per helmet
+            }
+        }
         composeFleetUpload()
     }
 
     /**
-     * The SHDR upload pipeline, the same on every host that has it (`REQ-SHDR-01`, `-02`, `-05`): the helmet the link is to names
-     * the token, a hub-delivered token replaces the interim one (a disconnect never downgrades it), and a pending upload with a
-     * staged record and an open warranty gate is sent, the staged file being removed only once the fleet service took it.
+     * The SHDR upload pipeline, the same on every host that has it (`REQ-SHDR-01`, `-02`, `-05`, `-08`, `-09`): the helmet the link is
+     * to names the token, a hub-delivered token replaces the interim one for the helmet that sent it (a disconnect never downgrades
+     * it, and a different hub token over a kept one ends that helmet's custody), and a pending upload sends the record staged for
+     * that one helmet when its own owner has consented, the staged file being removed only once the fleet service took it.
      */
     private fun composeFleetUpload() {
         val uploader = fleetUploader ?: return
         scope.launch { gattManager.hubIdentifier.collect { FleetUploadWiring.applyHubIdentifier(it, uploader) } }
-        scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, uploader) } }
-        val staging = platform.shdrStaging ?: return
+        scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, gattManager.hubIdentifier.value, uploader) } }
+        if (platform.shdrStaging == null) return
         scope.launch {
             // One attempt per notification of 0x01 (a repeat is a retry the hub asked for); attempts never overlap, as this collects in turn.
             gattManager.shdrUploadSignal.collect {
-                // The consent of the helmet the link is to, and of no other (`REQ-SHDR-08`).
-                val gateOpen = warrantyAnalyticsGate.isOpen(gattManager.hubIdentifier.value)
-                val payload = if (gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
-                FleetUploadWiring.applyUploadPending(true, gateOpen, payload, uploader) { if (it) staging.clear() }
+                // One reading of the helmet names the consent, the token and the staged record (`REQ-SHDR-08` (f)).
+                val hub = gattManager.hubIdentifier.value
+                kotlinx.coroutines.withContext(Dispatchers.Default) { uploader.uploadStaged(hub) }
             }
         }
     }
@@ -526,3 +577,7 @@ private const val BACKUP_CHECK_MILLIS = 3_600_000L
 
 /** How often the open app checks whether the background timeout has run out (`UC-106`). */
 internal const val PRESENCE_TICK_MS = 15_000L
+
+/** A monotonic clock in milliseconds since this process started: one the person cannot set (`OI-PRIV-62` M9). */
+private val processStart = kotlin.time.TimeSource.Monotonic.markNow()
+internal val monotonicMs: () -> Long = { processStart.elapsedNow().inWholeMilliseconds }

@@ -63,8 +63,9 @@ static void test_each_mode_reaches_the_output_stage(void)
     run("audio 0 200 10000 40 0 0");
     check(au()->audio_mode == 1U && au()->audio_carrier_hz == 200U && au()->audio_beat_mhz == 10000U && au()->audio_level_half_db == 40U,
           "mode: binaural carries carrier, beat and volume");
-    run("audio 1 440 0 30 0 0");
-    check(au()->audio_mode == 2U && au()->audio_carrier_hz == 440U, "mode: isochronic carries its frequency");
+    run("audio 1 440 40000 30 0 0");   /* a pulse rate of 0 is refused (REQ-AUDIO-27) */
+    check(au()->audio_mode == 2U && au()->audio_carrier_hz == 440U && au()->audio_beat_mhz == 40000U,
+          "mode: isochronic carries its carrier and its pulse rate");
     run("audio 2 0 0 25 0 0");
     check(au()->audio_mode == 3U, "mode: 2 is pink noise");
     run("audio 3 0 0 25 0 0");
@@ -128,7 +129,7 @@ static void test_eeg_adaptive_beat_follows_the_dominant_frequency(void)
 static void test_adaptation_leaves_a_non_binaural_mode_alone(void)
 {
     setup();
-    run("audio 1 440 0 30 0 1");
+    run("audio 1 440 40000 30 0 1");
     check(au()->audio_mode == 2U, "mode: isochronic is playing");
     run("audio_eeg_freq 10000");
     check(au()->audio_mode == 2U, "mode: an EEG frequency update leaves it isochronic (OI-SIMFW-19, closed)");
