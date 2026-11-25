@@ -247,8 +247,12 @@ services:
       - analytics-internal
 
   # ── Erasure relay (activate with --profile https, beside Caddy) ──────────────
-  # Receives POST /np/erase {"distinct_id": …} from the app's AnalyticsErasureQueue (REQ-SW03-19) and deletes that ID's events
-  # from ClickHouse, as a user that may do nothing else (clickhouse/np-erase-user.xml). It keeps no ID and no address.
+  # Receives POST /np/erase {"distinct_id": …} from the app's AnalyticsErasureQueue (REQ-SW03-19). An ID the store holds no
+  # events under is answered 200; one it does hold is queued on the erase_queue volume and answered 202, and a worker deletes
+  # the queue in batches (OI-PRIV-48). Its ClickHouse user may delete from the events table and read its distinct_id column, and
+  # nothing else (clickhouse/np-erase-user.xml). The queue holds pending IDs only; no address and no list of erased IDs is kept.
+  # ORDER OF RELEASE: an app released before OI-PRIV-48's app half drops an ID on any 2xx, so do not run this relay where such
+  # apps are in use (np_analytics_001 §7.6).
   # NOT yet exercised against a live stack: run `docker compose run --rm erase-relay python /app/erase_relay.py --self-check`
   # (np_analytics_001 §7.6, OI-ANALYTICS-01) before relying on it.
   erase-relay:
@@ -265,8 +269,14 @@ services:
       ERASE_LISTEN: 0.0.0.0:8080
       ERASE_RATE_PER_SECOND: ${ERASE_RATE_PER_SECOND:-5}
       ERASE_BURST: ${ERASE_BURST:-20}
+      # The pending IDs, on a volume so a restart loses none. The batch figures have no derivation (UC-210).
+      ERASE_QUEUE_PATH: /var/lib/np-erase/queue
+      ERASE_BATCH_SECONDS: ${ERASE_BATCH_SECONDS:-60}
+      ERASE_BATCH_MAX: ${ERASE_BATCH_MAX:-500}
+      ERASE_MUTATION_TIMEOUT_SECONDS: ${ERASE_MUTATION_TIMEOUT_SECONDS:-600}
     volumes:
       - ./erase_relay.py:/app/erase_relay.py:ro
+      - erase_queue:/var/lib/np-erase
     command: ["python", "-I", "/app/erase_relay.py"]
     networks:
       - analytics-internal
@@ -324,6 +334,8 @@ volumes:
   caddy_data:
     driver: local
   caddy_config:
+    driver: local
+  erase_queue:
     driver: local
 
 networks:
