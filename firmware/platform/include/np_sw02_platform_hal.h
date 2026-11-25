@@ -124,8 +124,30 @@ extern "C" {
  * register file behind I2C, NP_PBM_OK from the safety-MCU enable request.
  * That file is now host-test only.  np_pbm_hal_tia_gain_boot_init() is declared
  * in the same header but has no caller in the image, so it is not owed.
+ *
+ * 119 → 120 on 2026-11-21 (OI-PRIV-27, NP-PRIV-ANALYSIS-004 H7):
+ * np_factory_reset_hal_purge_unmapped(), the R-7a eMMC SANITIZE.  R-5 erases
+ * UHDR and cannot purge it (SANITIZE has no LBA scope), so the purge is its
+ * own step after the last erase.  It traps like the rest of the reset HAL
+ * until the application has an eMMC transport (OI-RESET-01).
+ *
+ * 120 → 123 on 2026-11-21 (NP-FW-EMMC-002 §C.7, OI-PRIV-35 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_attempts_read(), np_uhdr_hal_attempts_write()
+ * and np_uhdr_hal_uptime_ms(), the persisted failed-unlock count and the
+ * monotonic uptime the UHDR unlock back-off (REQ-EMMC2-01) is measured in.
+ *
+ * 123 → 127 on 2026-11-23 (NP-FW-EMMC-002 §C.8, OI-PRIV-34 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_profile_read(), _profile_write(),
+ * _profile_erase() and np_uhdr_hal_recovery_kdf(), declared in
+ * np_uhdr_profile.h: the per-person key records in Config and the KDF that
+ * turns a person's recovery code into the key of their portable wrap.
+ *
+ * 127 → 128 on 2026-11-24 (NP-FW-EMMC-002 §C.8.7, OI-PRIV-34 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_file_kdf(), declared in np_uhdr_seal.h,
+ * the KDF that derives each sealed UHDR file's key from its owner's profile
+ * key and the file's random id.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   119
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   128
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
@@ -164,7 +186,10 @@ extern uint32_t np_platform_clock_init(void);
 typedef enum {
     NP_LED_IDLE    = 0,
     NP_LED_SESSION = 1,
-    NP_LED_FAULT   = 2
+    NP_LED_FAULT   = 2,
+    /* Both temple indicators dark: stealth mode (REQ-FWHUB-86, OI-PRIV-37).  Only np_status_led.c asks for it, and
+     * never in place of NP_LED_FAULT: stealth suppresses the indicators, and a fault always shows. */
+    NP_LED_OFF     = 3
 } np_led_state_t;
 
 extern void     np_hal_status_led_set(np_led_state_t state);        /* OI-HUB-MAIN-02 */

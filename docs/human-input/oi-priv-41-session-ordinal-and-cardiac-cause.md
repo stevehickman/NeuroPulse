@@ -1,6 +1,6 @@
 # Question for the principal and Safety: OI-PRIV-41 (NP-PRIV-ANALYSIS-004), the shared session ordinal, the cardiac cutoff's cause in SHDR, and the NVSTATE fault
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-23 by the principal (see §Ruling at the end). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#969](https://github.com/stevehickman/NeuroPulse/issues/969)
 **From:** NeurOne Firmware (`OI-PRIV-41` (NP-PRIV-ANALYSIS-004) in `docs/status/pending-decisions.md`; `docs/np_priv_analysis_004.md` Findings L3 and L6)
 **To:** the principal (Q1, Q2) and Safety (Q2, Q3)
@@ -48,6 +48,11 @@ per helmet. They do not need it to equal the SHDR count.
 trade-off. A moves nothing toward SHDR, so if the principal prefers, A can proceed as ordinary Firmware work on a "yes".
 
 ## Q2. What may SHDR say about the cause of a cardiac cutoff? (point 2; Safety and the principal)
+
+> **Ruled option A (§Ruling at the end), and the same day overtaken by the principal's ruling on `OI-PRIV-22` (`oi-priv-22-detector-interlocks-in-shdr.md`).**
+> SHDR has no cutoff event any more: `0xC1` is retired, and SHDR keeps only a cause-free `stopped_early` bit that any abort, any cervical VNS fault and any
+> withdrawn grant set alike (`NP-FW-HUB-001` `REQ-FWHUB-89` (c), `REQ-FWHUB-91`). Option A's rule (one event, no cause) holds trivially, and the cause stays
+> UHDR. Option C was not taken up. The text below is kept as asked.
 
 ### Present state (checked)
 
@@ -108,3 +113,28 @@ which predictive maintenance needs.
 ## Recommendation
 
 Q1 A, Q2 A (optionally C later), Q3 A. Q2 A and Q3 A change no firmware behaviour. Q1 A is Firmware and app work and moves nothing toward SHDR.
+
+## Ruling (the principal, 2026-11-23)
+
+**Q1: the UHDR session order is per person, not per helmet; option A of the follow-up below.** The principal did not take this brief's
+option A (a separate per-helmet UHDR counter). In their words: UHDR should have a user-specific session count, because in a clinic a person
+may use several helmets over time and a per-helmet value collides; and a user-specific count also stops SHDR and UHDR being joined on it.
+Mode 3 runs sessions with no phone, so the helmet cannot ask for the person's next number. Two designs were put to the principal in chat:
+
+- **A (chosen).** The helmet names each UHDR session with a random 128-bit ID drawn at session start (no collision across helmets, joins to
+  nothing), and the app assigns the person's own sequence number when the session reaches it, counting across every helmet.
+- B (not chosen). The app hands the helmet the person's next number with the active user, and the helmet counts on from it in Mode 3. It
+  collides when one person runs Mode 3 on two helmets between syncs.
+
+The device session count stays SHDR only. The cervical fault summary's ordering and the apps' acknowledgement ledger follow the same rule.
+Not built; the work stays under `OI-PRIV-41`, alongside `OI-PRIV-34`'s per-person sealing on a shared helmet.
+
+**Q2: option A.** SHDR keeps one cardiac cutoff event and never learns its cause. In the principal's words: SHDR does not need to know why it
+happened, since it does not bear on hardware warranty, and it should not know, because the cause is UHDR. The fleet label becomes
+`CVNS_CARDIAC_INTERLOCK_CUTOFF`. No firmware behaviour changes. Whether SHDR carries the cutoff at all is `OI-PRIV-22` (open); this ruling
+governs its form if it does. *(Since ruled: it does not; `OI-PRIV-22`, the principal, 2026-11-23.)* Option C (the cause in the person's UHDR session) was not asked for and is not taken up.
+
+**Q3: option A, accepted.** The NVSTATE slot stays as it is, for the reasons in Q3.
+
+Recorded in `docs/reference/data-architecture-detail.md` §5.1, `docs/status/completed-decisions.md` (2026-11-23) and the `OI-PRIV-41` row.
+

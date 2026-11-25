@@ -62,11 +62,13 @@
 #include "np_cvns_fault_summary.h" /* np_cvfs_hal_load/_save (2) */
 #include "np_gatt_server.h"      /* np_gatt_hal_*          (2) */
 #include "np_warranty_token.h"   /* np_warranty_hal_*      (1) */
-#include "np_factory_reset.h"    /* np_factory_reset_hal_* (5) */
+#include "np_factory_reset.h"    /* np_factory_reset_hal_* (6) */
 #include "np_log_backend.h"      /* np_log_hal_part_*      (3) */
 #include "np_pbm_hal.h"          /* np_pbm_hal_*          (18) */
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
-#include "np_uhdr_key.h"         /* np_uhdr_hal_*          (8) */
+#include "np_uhdr_key.h"         /* np_uhdr_hal_*         (11) */
+#include "np_uhdr_profile.h"     /* np_uhdr_hal_profile_*, _recovery_kdf (4) */
+#include "np_uhdr_seal.h"        /* np_uhdr_hal_file_kdf    (1) */
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -857,6 +859,13 @@ np_reset_status_t np_factory_reset_hal_zero_config(void)
     NP_PLATFORM_TRAP();
 }
 
+/* R-7a eMMC SANITIZE (OI-PRIV-27, NP-PRIV-ANALYSIS-004).  A trap, never NP_RESET_OK: a
+ * plausible return here would report a purge that did not happen. */
+np_reset_status_t np_factory_reset_hal_purge_unmapped(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
 np_reset_status_t np_factory_reset_hal_trng_generate(uint8_t *buf, size_t len)
 {
     (void)buf;
@@ -1011,6 +1020,68 @@ np_uhdr_status_t np_uhdr_hal_config_write_ukmd(const np_ukmd_record_t *rec)
 np_uhdr_status_t np_uhdr_hal_mount_uhdr(const uint8_t *ukmd)
 {
     (void)ukmd;
+    NP_PLATFORM_TRAP();
+}
+
+/* Unlock attempt limit (OI-PRIV-35, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.7). */
+np_uhdr_status_t np_uhdr_hal_attempts_read(uint32_t *failed)
+{
+    (void)failed;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_attempts_write(uint32_t failed)
+{
+    (void)failed;
+    NP_PLATFORM_TRAP();
+}
+
+uint64_t np_uhdr_hal_uptime_ms(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+/* Per-person key store (OI-PRIV-34, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.8). */
+np_uhdr_status_t np_uhdr_hal_profile_read(uint8_t profile, np_uhdr_profile_record_t *out)
+{
+    (void)profile;
+    (void)out;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_profile_write(uint8_t profile, const np_uhdr_profile_record_t *rec)
+{
+    (void)profile;
+    (void)rec;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_profile_erase(uint8_t profile)
+{
+    (void)profile;
+    NP_PLATFORM_TRAP();
+}
+
+np_uhdr_status_t np_uhdr_hal_recovery_kdf(const uint8_t code[NP_UHDR_RECOVERY_CODE_LEN],
+                                          const uint8_t salt[NP_UHDR_RECOVERY_SALT_LEN],
+                                          uint8_t rk_out[NP_UHDR_RECOVERY_KEY_LEN])
+{
+    (void)code;
+    (void)salt;
+    (void)rk_out;
+    NP_PLATFORM_TRAP();
+}
+
+/* Per-file sealing (OI-PRIV-34, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.8.7). */
+np_uhdr_status_t np_uhdr_hal_file_kdf(const uint8_t pk[NP_UHDR_PROFILE_KEY_LEN],
+                                      const uint8_t profile_id[NP_UHDR_PROFILE_ID_LEN],
+                                      const uint8_t file_id[NP_UHDR_FILE_ID_LEN],
+                                      uint8_t fk_out[NP_UHDR_FILE_KEY_LEN])
+{
+    (void)pk;
+    (void)profile_id;
+    (void)file_id;
+    (void)fk_out;
     NP_PLATFORM_TRAP();
 }
 

@@ -174,6 +174,15 @@ class HoldCauseTest {
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, HoldCause.DETECTOR_DISCHARGE, false, false), "not until the helmet says the session is held")
         assertFalse(life.neurone.shared.ui.holdDialogShown(false, null, true, false), "a cause not known is not a reason")
     }
+
+    // @verifies REQ-FWHUB-67 REQ-FWHUB-69
+    @Test fun resume_is_never_offered_for_a_hold_the_detector_made() {
+        assertFalse(life.neurone.shared.ui.resumeOffered(HoldCause.DETECTOR_DISCHARGE), "a discharge halt ends only with Stop")
+        assertFalse(life.neurone.shared.ui.resumeOffered(HoldCause.DETECTOR_BLIND), "and so does a halt because the detector could not see")
+        assertTrue(life.neurone.shared.ui.resumeOffered(HoldCause.USER_PAUSE), "a pause the person made can be resumed")
+        assertTrue(life.neurone.shared.ui.resumeOffered(HoldCause.USER_PANIC), "and a panic they pressed")
+        assertTrue(life.neurone.shared.ui.resumeOffered(null), "a cause not yet read does not hide it (the hub refuses a detector hold anyway)")
+    }
 }
 
 /** The detector's sensitivity, read from and written to the helmet (REQ-FWHUB-68). */

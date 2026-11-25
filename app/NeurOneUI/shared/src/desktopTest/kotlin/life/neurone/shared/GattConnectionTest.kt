@@ -248,7 +248,7 @@ class GattConnectionTest {
 
     /** [version, state, 1, 0] + one record [counter 7, kind, 0 sides, 0, 0] (the Swift test's frame). */
     private fun oneFault(kind: Int, state: Int = 0) =
-        byteArrayOf(0x01, state.toByte(), 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, kind.toByte(), 0x00, 0x00, 0x00)
+        byteArrayOf(0x02, state.toByte(), 0x01, 0x80.toByte(), 0x07, 0x00, 0x00, 0x00, kind.toByte(), 0x00, 0x00, 0x00)
 
     // @verifies REQ-SW03-03
     @Test fun an_unread_cardiac_cutoff_blocks_a_cervical_restart_until_it_is_acknowledged_and_is_explained_once() = runTest {
@@ -272,7 +272,7 @@ class GattConnectionTest {
         val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
         m.onDeviceFound("hub")
         m.onConnected("hub")
-        m.applyCervicalFaultStatus(byteArrayOf(0x01, 0x00, 0x01, 0x00))   // says one record, carries none
+        m.applyCervicalFaultStatus(byteArrayOf(0x02, 0x00, 0x01, 0x80.toByte()))   // says one record, carries none
         assertNull(m.cervicalFaultStatus.value)
 
         m.applyCervicalFaultStatus(oneFault(kind = 2, state = 2))
@@ -304,7 +304,7 @@ class GattConnectionTest {
         val m = NeurOneGattManager(FakeCentral(AdapterState.ON), TestScope(testScheduler))
         m.onDeviceFound("hub")
         m.onConnected("hub")
-        m.applyCervicalFaultStatus(byteArrayOf(0x01, 0x00, 0x00, 0x02))
+        m.applyCervicalFaultStatus(byteArrayOf(0x02, 0x00, 0x00, 0x82.toByte()))
         assertTrue(m.cervicalOutstandingForAnotherUser)
         assertFalse(m.cardiacWarningAcknowledged.value)
         m.acknowledgeCardiacWarning()

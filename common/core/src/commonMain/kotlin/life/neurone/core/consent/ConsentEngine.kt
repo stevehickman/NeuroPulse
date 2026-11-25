@@ -2,6 +2,7 @@ package life.neurone.core.consent
 
 import life.neurone.core.models.ClinicianAccessScope
 import life.neurone.core.models.ClinicianConsentGrant
+import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
@@ -108,43 +109,58 @@ object ConsentEngine {
      * The §6.1 **differential consent document** for widening an existing grant: what the change
      * would newly show, what it already shows, and what stays out of reach either way.
      *
-     * Returns null when the change is not an expansion, and the caller must treat that as a
-     * refusal rather than a formatting problem. Four cases are not expansions:
+     * **An expansion is derived from use cases, exactly as a grant is** (`REQ-CONSENT-15` (f),
+     * `OI-PRIV-64`). What it would add is what the request's use cases need, clamped to the
+     * request's tier, less what the grant already reaches. The tier is the ceiling and the
+     * subscription; it never decides the elements. This used to grant `toTier.uhdrElements` less
+     * what was approved, so widening a grant built from one use case handed over the whole new
+     * tier, and a request for the grant's own tier read as a widening to the rest of it.
      *
-     *  - **The grant is not in force on [today]** (`REQ-CONSENT-18`). An expired grant, or one
-     *    with no expiry, reaches nothing, so there is nothing to widen; the clinician needs a new
+     * Returns null when the change is not an expansion, and the caller must treat that as a
+     * refusal rather than a formatting problem. These cases are not expansions:
+     *
+     *  - **The grant is not in force on [today]** (`REQ-CONSENT-18`). An expired, revoked or
+     *    undated grant reaches nothing, so there is nothing to widen; the clinician needs a new
      *    grant, which is asked for whole.
-     *  - **Nothing new.** The target tier adds no element the grant does not already reach, so
-     *    there is nothing to consent to.
-     *  - **Something lost.** The target tier does not contain everything the grant already
-     *    reaches. That is a re-scope, not a widening, and describing it with an expansion
-     *    document would tell the user only about what they are gaining.
+     *  - **No use case, or one the tier cannot carry.** A request that names no use case asks for
+     *    no element (§6.1: clinicians select use cases, never data elements). A use case above
+     *    [ClinicianAccessExpansionRequest.toTier] is refused, not clamped, because the person would
+     *    be shown a use case whose elements the tier then withholds.
+     *  - **Nothing new.** The use cases add no element the grant does not already reach.
+     *  - **Something lost.** The target tier ranks below the grant's, or does not contain
+     *    everything the grant already reaches. That is a re-scope, not a widening, and describing
+     *    it with an expansion document would tell the user only about what they are gaining.
      *  - **Either side is [ClinicianUseCaseTier.RESEARCH].** Its `uhdrElements` is empty because a
      *    research tier's elements are IRB-defined per study descriptor, not derivable from the
-     *    tier. Treating that emptiness as a set would describe a research grant as seeing nothing
-     *    and a move away from one as adding everything; both are wrong. Research access changes
-     *    go through the per-study consent path (§6.3), not this one.
+     *    tier. Research access changes go through the per-study consent path (§6.3), not this one.
      *
      * The document carries no prose of its own: the elements are the substance, and the wording
      * around them belongs to whichever platform is rendering it (CLAUDE.md §17).
      */
     fun accessDifferential(
         grant: ClinicianConsentGrant,
-        newTier: ClinicianUseCaseTier,
+        request: ClinicianAccessExpansionRequest,
         today: String,
     ): ClinicianAccessDifferential? {
         if (!grant.isInForce(today)) return null
+        val newTier = request.toTier
         if (grant.tier == ClinicianUseCaseTier.RESEARCH ||
             newTier == ClinicianUseCaseTier.RESEARCH
         ) {
             return null
         }
+        if (newTier.rank < grant.tier.rank) return null
+
+        val useCaseIds = request.useCaseIds.orEmpty().toSet()
+        if (useCaseIds.isEmpty()) return null
+        val offered = useCasesAvailableFor(newTier).map { it.id }.toSet()
+        if (!offered.containsAll(useCaseIds)) return null
 
         val current = grant.approvedElements
         val target = newTier.uhdrElements
         if (!target.containsAll(current)) return null
 
-        val newlyVisible = target - current
+        val newlyVisible = (minimumNecessaryElements(useCaseIds) intersect target) - current
         if (newlyVisible.isEmpty()) return null
 
         return ClinicianAccessDifferential(
@@ -153,10 +169,34 @@ object ConsentEngine {
             organization = grant.clinicianOrganization,
             fromTier = grant.tier,
             toTier = newTier,
+            useCaseIds = useCaseIds,
             newlyVisibleElements = newlyVisible,
             alreadyVisibleElements = current,
-            stillNotAccessibleElements = UHDRElement.entries.toSet() - target,
+            stillNotAccessibleElements = UHDRElement.entries.toSet() - current - newlyVisible,
         )
+    }
+
+    /**
+     * Whether [grant] may be recorded as a new grant (`REQ-CONSENT-15` (g), `OI-PRIV-64`): it is built from use cases the
+     * tier offers, and every scope it carries reaches only what those use cases need within the tier. The research tier
+     * carries no use case and no element (`REQ-CONSENT-15` (c)). A grant made in code without a scope, or with an
+     * element no selected use case needs, is refused, because the element list would then be the clinician's selection,
+     * not the person's use cases.
+     */
+    fun isWellFormedNewGrant(grant: ClinicianConsentGrant): Boolean {
+        if (!grant.isActive || grant.revokedOnDay != null) return false
+        val ids = grant.useCaseIds?.toSet() ?: return false
+        val scopes = grant.accessScopes ?: return false
+        if (scopes.isEmpty()) return false
+        val offered = useCasesAvailableFor(grant.tier).map { it.id }.toSet()
+        if (grant.tier != ClinicianUseCaseTier.RESEARCH && ids.isEmpty()) return false
+        if (!offered.containsAll(ids)) return false
+        val allowed = if (grant.tier == ClinicianUseCaseTier.RESEARCH) {
+            emptySet()
+        } else {
+            minimumNecessaryElements(ids) intersect grant.tier.uhdrElements
+        }
+        return scopes.all { allowed.containsAll(it.elements) && isIsoDay(it.effectiveFromDay) }
     }
 
     // ── Study descriptor ingestion (§6.3 per-project workflow) ───────────
@@ -373,6 +413,8 @@ data class ClinicianAccessDifferential(
     val organization: String,
     val fromTier: ClinicianUseCaseTier,
     val toTier: ClinicianUseCaseTier,
+    /** The use cases the expansion is derived from, the person's terms for what it adds (§6.1). */
+    val useCaseIds: Set<String>,
     val newlyVisibleElements: Set<UHDRElement>,
     val alreadyVisibleElements: Set<UHDRElement>,
     val stillNotAccessibleElements: Set<UHDRElement>,

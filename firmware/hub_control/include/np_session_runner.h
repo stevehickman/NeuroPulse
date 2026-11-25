@@ -82,11 +82,26 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len);
 np_hub_status_t np_runner_run(void);
 
 /*
+ * np_runner_end_status — the status np_runner_run() returns for a session that ended with this reason (REQ-FWHUB-85):
+ * NP_HUB_OK for NONE, NP_HUB_ERR_STOPPED for a stop by the person (USER) or a pause timeout (PAUSE_TIMEOUT), and
+ * NP_HUB_ERR_SAFETY_FAULT for every other reason.  The session STATE is unchanged by this: it is FAULT for any reason
+ * but NONE (OI-PRIV-37 records that as not yet decided).
+ */
+np_hub_status_t np_runner_end_status(np_abort_reason_t reason);
+
+/*
  * np_runner_abort — signal a session abort from any task context.
  * reason is recorded in the SHDR summary.
  * Posts NP_EV_SESSION_ABORT to unblock np_runner_run().
  */
 void np_runner_abort(np_abort_reason_t reason);
+
+/*
+ * np_runner_note_early_stop — a channel stopped before its scheduled end while the
+ * session goes on.  Any task.  The runner keeps no cause: the call only sets the
+ * SHDR session-end record's stopped_early flag (REQ-FWHUB-89 (c)).
+ */
+void np_runner_note_early_stop(void);
 
 /*
  * np_runner_get_state — thread-safe state read (reads with a critical section).
@@ -103,6 +118,9 @@ np_session_state_t np_runner_get_state(void);
  * absolute start and stop and the dose delivered is the dose authored.  A pause withdraws every enable request and stops
  * every driven module; a resume re-dispatches exactly what was running, through the ordinary dispatch path and so through
  * every check a fresh command meets, the safety MCU's included.  Nothing is restored past an interlock.
+ *
+ * A session the photoparoxysmal detector holds (NP_HOLD_DETECTOR_DISCHARGE or _BLIND) is not resumed: np_runner_resume
+ * returns NP_HUB_ERR_PPX_HALT and the only second step is a stop (REQ-FWHUB-67, REQ-FWHUB-69; the principal, 2026-11-23).
  */
 np_hub_status_t np_runner_pause(void);
 np_hub_status_t np_runner_resume(void);

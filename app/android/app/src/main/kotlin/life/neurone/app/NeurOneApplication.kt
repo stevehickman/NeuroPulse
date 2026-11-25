@@ -12,7 +12,6 @@ import life.neurone.shared.AppServices
 import life.neurone.shared.NoOpAnalyticsBackend
 import life.neurone.shared.ble.NeurOneGattManager
 import life.neurone.core.common.KeyValueStore
-import life.neurone.core.models.ActiveUserTag
 import life.neurone.core.consent.ConsentStore
 import life.neurone.core.consumable.ConsumableTracker
 import life.neurone.core.protocol.NPLimitsStore
@@ -99,7 +98,7 @@ class NeurOneApplication : Application() {
                 httpTransport = OkHttpTransport(),
                 authorizationLauncher = browserLauncher,
                 analyticsConfig = life.neurone.core.analytics.AnalyticsConfig(BuildConfig.ANALYTICS_HOST, BuildConfig.POSTHOG_PROJECT_TOKEN),
-                shdrStaging = life.neurone.core.analytics.FileShdrStaging(File(filesDir, life.neurone.core.analytics.FileShdrStaging.FILE_NAME)),
+                shdrStaging = life.neurone.core.analytics.FileShdrStaging(filesDir),
                 folderPlaces = AndroidFolderPlaces(this),
                 backgroundBackup = AndroidBackgroundBackupScheduler(this),
                 uhdrFolder = AndroidUhdrFolder(File(filesDir, "UHDR")),

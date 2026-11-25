@@ -32,6 +32,7 @@ typedef enum {
     NP_ERR_BOTH_BANKS_BAD   = -16,
     NP_ERR_ROLLBACK         = -17,  /* signed version below the floor (OI-PRIV-32) */
     NP_ERR_ROLLBACK_STORE   = -18,  /* floor unreadable/unwritable: refused (OI-PRIV-32) */
+    NP_ERR_EMMC_SANITIZE_UNSUPPORTED = -19, /* EXT_CSD[231] bit 6 clear (OI-PRIV-27) */
 } np_status_t;
 
 /* ── Boot bank identifier ─────────────────────────────────────────────────── */

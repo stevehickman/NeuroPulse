@@ -204,7 +204,7 @@ static void reach_active(void)
 }
 
 /* A session that gets from the baseline to delivery (OI-SIMFW-22, fixed).  It used to fault one tick after the baseline completed. */
-/* @verifies-none Baseline to delivery is np_cvns_session.c's and np_mod_cvns.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none Baseline to delivery is np_cvns_session.c's and np_mod_cvns.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-87). Simulator evidence only (REQ-SIMFW-06). */
 static void test_a_session_gets_from_baseline_to_delivery(void)
 {
     setup();
@@ -228,7 +228,7 @@ static void test_a_session_gets_from_baseline_to_delivery(void)
 }
 
 /* Waiting for the grant is not a fault. */
-/* @verifies-none The grant wait is np_cvns_session.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-65). Simulator evidence only (REQ-SIMFW-06). */
+/* @verifies-none The grant wait is np_cvns_session.c's; np_mod_cvns_tests verifies it (REQ-FWHUB-87). Simulator evidence only (REQ-SIMFW-06). */
 static void test_a_session_waits_for_the_grant_without_faulting(void)
 {
     setup();
@@ -267,7 +267,8 @@ static void test_losing_the_r_peaks_in_delivery_cuts_the_session(void)
     run("cvns_run 12000 -1");                        /* no PPG samples at all */
     check(stage() == STAGE_FAULT && !enable_bit() && published_ua() == 0U,
           "data loss: 12 s with no R-peaks faults the session, drops the enable and clears the published current");
-    check(count("\"fn\":\"np_log_shdr_fault\"") == 1, "data loss: and the fault is logged to SHDR once");
+    check(count("\"fn\":\"np_log_shdr_fault\"") == 0,
+          "data loss: and nothing about the fault goes to SHDR; the session-end record's cause-free stop flag is all it learns (REQ-FWHUB-91)");
 }
 
 /* A heart-rate step is not this side's cutoff. */

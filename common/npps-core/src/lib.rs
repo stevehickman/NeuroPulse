@@ -7,6 +7,7 @@
 //! Covers every block of an `.npps` file (`protocol`, `composite`, `limits`, `zone`, `condition`,
 //! `wavelength_rules`) and the descriptor compiler.
 
+pub mod active_user_tag;
 pub mod analytics;
 pub mod archive;
 pub mod api;
@@ -18,6 +19,7 @@ pub mod composite;
 pub mod constants {
     include!(concat!(env!("OUT_DIR"), "/constants.rs"));
 }
+pub mod current_device;
 pub mod error;
 pub mod identity;
 pub mod js;
@@ -32,6 +34,7 @@ pub mod ohttp;
 pub mod parser;
 pub mod primitives;
 pub mod resolve;
+pub mod rpmb_provision;
 pub mod secret_io;
 pub mod sigv4;
 pub mod serialize;

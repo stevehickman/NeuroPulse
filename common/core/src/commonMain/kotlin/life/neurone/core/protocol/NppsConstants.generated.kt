@@ -232,6 +232,10 @@ object GattIds {
     // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     const val PAUSE_LIMIT_ID: Int = 0x001B
+    // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
+    // the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+    // in hub RAM only; every boot starts with it off (OI-PRIV-37).
+    const val STEALTH_ID: Int = 0x0022
     // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
     // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
     // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -330,6 +334,10 @@ object GattUuidStrings {
     // READ/WRITE 4 B little-endian uint32, encrypted link only: the longest a session may stay paused, in
     // seconds, before the hub ends it. 0 (the default) is no limit. Set by the hardware owner (SWR-SS-05).
     const val PAUSE_LIMIT_ID: String = "4E455550-001B-1000-8000-00805F9B34FB"
+    // READ/WRITE 1 B, encrypted link only: stealth mode (CLAUDE.md section 4.7, REQ-FWHUB-86). Bit 0 on:
+    // the temple indicators are dark, except that a fault always shows. Any other bit set is refused. Held
+    // in hub RAM only; every boot starts with it off (OI-PRIV-37).
+    const val STEALTH_ID: String = "4E455550-0022-1000-8000-00805F9B34FB"
     // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
     // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
     // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
@@ -394,6 +402,8 @@ object GattSizes {
     const val PAUSE_LIMIT_LEN: Int = 4
     // PPX_CONFIG read: one byte of flags, one byte of evidence level.
     const val PPX_CONFIG_LEN: Int = 2
+    // STEALTH: one byte of flags, read and write; bit 0 is stealth on.
+    const val STEALTH_LEN: Int = 1
     // PPX_CONFIG write: one byte of flags.
     const val PPX_CONFIG_WRITE_LEN: Int = 1
     // SESSION_HOLD: one byte, the hold cause.
@@ -441,14 +451,21 @@ object ConsentLimits {
 // The CVNS_FAULT_STATUS frame (NP-SW-FAULTMSG-001): a 4-byte header then up to MAX_WIRE_RECORDS records of RECORD_LEN
 // bytes. The hub writes it and the apps parse it.
 object CvfsWire {
-    // Byte 0 of the frame.
-    const val WIRE_VERSION: Int = 1
+    // Byte 0 of the frame. Version 2 adds FLAG_REPORT_VALID to byte 3 (OI-PRIV-29, NP-PRIV-ANALYSIS-004);
+    // version 1, where a flags byte of 0 could mean either 'nothing outstanding' or 'no valid report', was
+    // never deployed and is refused.
+    const val WIRE_VERSION: Int = 2
     // Header bytes before the first record.
     const val HEADER_LEN: Int = 4
     // Bytes in one fault record.
     const val RECORD_LEN: Int = 8
     // Most records one frame carries.
     const val MAX_WIRE_RECORDS: Int = 4
+    // Byte 3, bit 7: the flags below it come from a safety-MCU report the hub validated (magic and
+    // checksum). Clear when the hub has no valid report or has published nothing, so a 0 in bits 0-1 then
+    // means 'unknown', never 'nothing outstanding'. An app moves a person to a new active-user tag only on
+    // a frame with this bit set and bit 1 clear (REQ-FAULTMSG-01 (c)).
+    const val FLAG_REPORT_VALID: Int = 128
 }
 
 // The ZONE_MODULE_STATUS notification frame (np_zone_notify.h): a 4-byte header then fixed-size records, either status

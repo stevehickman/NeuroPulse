@@ -49,6 +49,12 @@ data class ClinicianConsentGrant(
     val expiresAtDay: String? = null,
     val isActive: Boolean = true,
     /**
+     * The day the person revoked this grant ("yyyy-MM-dd"), or null if they have not. A revoked grant is kept, inactive,
+     * as the record of who had access, to what and from when to when (§5.1: clinician access is audited; `OI-PRIV-64`).
+     * Revoking used to delete the grant, and the record went with it.
+     */
+    val revokedOnDay: String? = null,
+    /**
      * The access decisions this grant is made of, newest last. Null because a grant written
      * before the §6.1 expansion workflow existed has none; null is "never went through the
      * workflow", which is not the same as "went through it and came out with no access".
@@ -155,6 +161,13 @@ data class ClinicianAccessExpansionRequest(
     val toTier: ClinicianUseCaseTier,
     val requestedAtDay: String,
     val decision: ExpansionDecision? = null,
+    /**
+     * The use cases the clinician asks to add ([life.neurone.core.consent.ConsentEngine] library IDs). An expansion is
+     * derived from them exactly as a grant is (§6.1: clinicians select use cases, never data elements; `REQ-CONSENT-15`
+     * (f)): it adds what they need, within [toTier], and nothing else. [toTier] is the ceiling and the subscription, never
+     * the set of elements granted. Null or empty is a request that names no use case, and it widens nothing.
+     */
+    val useCaseIds: List<String>? = null,
 ) {
     /**
      * The two §6.1 decisions are kept apart in the record, not merged into one Boolean:
@@ -396,8 +409,8 @@ enum class ResearchCategory(val wireName: String) {
  * enrolment, as that day and 0 bytes, which recorded a transmission that had not happened (`OI-PRIV-06` point 4).
  * No extractor exists yet (`OI-CONSENT-07`), so today every record has [transmittedAtDay] null.
  *
- * [enrolledOnDay] and [withdrawnAtDay] are not in §5.3's list: they are the person's decisions about a study.
- * Nothing uploads this record today, and whether any of it may leave the device as SHDR is `OI-PRIV-07`.
+ * The whole record is UHDR (`OI-PRIV-07`, the principal, 2026-11-20): it names a study and holds the person's
+ * enrolment and withdrawal decisions. It stays on the device under the person's key and never goes to SHDR.
  */
 @Serializable
 data class StudyParticipationRecord(
@@ -670,6 +683,14 @@ data class StudyInvitation(
 
         @Serializable
         data class Declined(val decidedOnDay: String) : StudyDecision
+
+        /**
+         * The person stopped a study they were in: they opted out of an engagement notification, or a consent withdrawal
+         * stopped the participation it no longer covered. §6.2 makes an L3 user's opt-out a withdrawal, not a decline, and
+         * the record keeps the two apart (`REQ-CONSENT-11` (c), `OI-PRIV-64`).
+         */
+        @Serializable
+        data class Withdrawn(val decidedOnDay: String) : StudyDecision
 
         @Serializable
         data class QuestionSent(val sentOnDay: String) : StudyDecision

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 7
-**Date:** 2026-11-21
+**Revision:** 19
+**Date:** 2026-11-25
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -75,6 +75,28 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 **Trigger:** User selects "Reset Device" → "Transfer or Sell Device" in the app's device management settings.  
 **Authentication gate:** Requires current biometric authentication + explicit two-step confirmation ("This will permanently erase all your health data from this device. This cannot be undone." → "Erase Device").
 
+> **Rev 16 (2026-11-23): ruled by the principal, superseding the trigger and the gate above (`OI-PRIV-27`
+> (NP-PRIV-ANALYSIS-004), GitHub #955; `docs/human-input/oi-priv-27-factory-reset-command.md` §8).** A factory reset
+> is per helmet: it erases the whole UHDR, SHDR and Config partitions, and SANITIZE purges the whole eMMC (§B.3). Helmets
+> are shared (§C.8), so it destroys every person's UHDR on the helmet. Therefore:
+> - **Only the warranty owner may start a factory reset.** No user can, present or not.
+> - **Every attempt first shows a list of every user who has any data on the helmet**, before any choice and before
+>   anything is erased.
+> - **The warranty owner then chooses which users' data to back up (export).** Each row shows something the owner can
+>   associate with a specific user, and never any of that user's data. **Users current on the helmet start selected;
+>   users who are not current start deselected** (ruled 2026-11-24). Deselecting every user means wipe everything;
+>   there is no other path.
+> - **The backup, if any, is followed by the wipe** (§B.3 R-1 to R-12). The export is §C.8.4's clinic backup of the
+>   selected profiles, so the warranty owner can read none of it.
+>
+> **Confirmed 2026-11-24:** the wipe starts only after every selected export has finished and the owner's app holds
+> it, and a failed export erases nothing; the confirmation names every deselected user; the list is shown even when
+> empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
+> signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
+> owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
+> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
+
 ### B.3 Reset sequence
 
 The reset is orchestrated by the app via a signed reset command sent to the hub, which executes the following sequence in order:
@@ -89,16 +111,53 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      read back from a fresh mount, and the reset starts only if it reads PRESENT;
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
-R-5  Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition
-     → NIST SP 800-88 "Purge" — all UHDR blocks overwritten to media-specific pattern
-R-6  Hub zeroes SHDR partition (eMMC ERASE + SANITIZE)
+R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), which
+     unmaps it; the purge is R-7a (Rev 9)
+R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
+R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
+     then CMD13 polling until the card is in TRAN, ready for data, with no error bit
+     → NIST SP 800-88 "Purge" of every unmapped block: the UHDR blocks R-5 unmapped
+     and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
+     not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
+     not finish within its bound, the reset fails here and stays in progress
+     (Rev 9)
 R-8  Hub generates new TRNG salt (256-bit) for future UHDR Argon2id derivation
 R-9  Hub generates new warranty token via TRNG (not pre-registered)
 R-10 Hub writes only: new TRNG salt, new warranty token, and factory firmware defaults to Config partition
 R-11 Hub clears reset_in_progress flag
 R-12 Hub reboots — device presents as factory-new to the next owner
 ```
+
+> **Rev 9 correction (2026-11-21, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004` H7), GitHub #955, `REQ-SW02-13`).**
+> Up to Rev 6, R-5 read "Hub issues eMMC SANITIZE (CMD38, SANITIZE_START) on UHDR partition" and
+> R-6 "(eMMC ERASE + SANITIZE)". **CMD38 does not start SANITIZE.** CMD38 with argument 0 is a plain
+> ERASE, and that is all the bootloader's interrupted-reset path issued. SANITIZE is started by CMD6 SWITCH
+> (write byte) writing 1 to EXT_CSD byte 165, `SANITIZE_START`, and a part advertises it in EXT_CSD byte 231
+> (`SEC_FEATURE_SUPPORT`), bit 6 (`SEC_SANITIZE`). Source checked: Linux v6.12
+> `include/linux/mmc/mmc.h` (`EXT_CSD_SANITIZE_START 165`, `EXT_CSD_SEC_FEATURE_SUPPORT 231`,
+> `EXT_CSD_SEC_SANITIZE BIT(6)`) and `drivers/mmc/core/mmc_ops.c` `mmc_sanitize()`, which calls
+> `__mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START, 1, …)`. JEDEC JESD84-B51 and the
+> selected part's datasheet have **not** yet been read against these figures. That check stays open under
+> `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`).
+>
+> SANITIZE acts on the device's unmapped space as a whole and cannot be scoped to UHDR's LBA range.
+> So the sequence becomes: erase (unmap) UHDR at R-5, zero SHDR and Config at R-6 and R-7, then **one SANITIZE
+> at R-7a**, before R-8 mints anything. That also purges Config: the wrapped UKMD (§C.3) was zeroed and
+> never purged. The bootloader's flag branch (§B.4) runs the same SANITIZE after its three erases.
+> Code: `firmware/bootloader/include/np_emmc_sanitize.h` (the sequence, host-tested),
+> `np_emmc_sanitize()` in `firmware/bootloader/src/np_emmc.c`, and `np_factory_reset_hal_purge_unmapped()`
+> (R-7a in `firmware/factory_reset/`). On the application side the HAL traps until the application has an
+> eMMC transport (`OI-RESET-01`).
+>
+> **The wait is bounded at 240 s** (`UC-202`, PROVISIONAL), the Linux default when a caller names
+> none. No part is selected, so its own figure is unknown (`OI-EMMC2-03`, `FAI-RESET-01`).
+> **The part must advertise SANITIZE.** A part that does not cannot complete a factory reset,
+> by design: there is no fallback to the plain erase.
+>
+> **R-1 and R-2 have no implementation yet.** No wire command or handler reaches
+> `np_factory_reset_execute()`. The authenticated command is a wire and design change, briefed in
+> `docs/human-input/oi-priv-27-factory-reset-command.md`.
 
 ### B.4 Power-loss resilience
 
@@ -142,34 +201,101 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that the single-layer Argon2id-derived key 
 
 ```
 Layer 1 — UHDR Master Key (UKMD):
-  - 32-byte random value generated by TRNG at first device activation
-  - Used directly as the AES-256-XTS key for the UHDR partition
+  - 64-byte random value generated by TRNG at first device activation
+  - The AES-256-XTS key of the UHDR partition: K1 = bytes 0–31 (data), K2 = bytes 32–63 (tweak),
+    as NP-FW-EMMC-001 §6.2 EMMC-UHDR-04 requires; K1 is never equal to K2 (REQ-EMMC2-06)
   - Never transmitted off-device
   - Stored in Config partition encrypted under the Layer 2 wrapper key
 
 Layer 2 — Master Key Wrapper Key (WKMD):
-  - Derived from user's biometric/PIN using Argon2id (same parameters as NP-FW-EMMC-001 Rev 1 §6)
-  - Used only to encrypt/decrypt the 32-byte UKMD stored in Config
+  - Derived from user's biometric/PIN using Argon2id in two stages: the NP-FW-EMMC-001 Rev 1 §6 parameters on the phone, then a 256 KiB stage on the hub (§C.4, Rev 19)
+  - Used only to encrypt/decrypt the 64-byte UKMD stored in Config
   - Held in on-chip SRAM only during the unlock window (app foreground session)
   - Zeroed from SRAM using memset_explicit when app moves to background
 ```
+
+> **Rev 10 (2026-11-21): scope of this scheme: one key per helmet, not per person (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004), GitHub #962).**
+> There is one UKMD, one wrapped record and one credential, and the UKMD is the key of the whole UHDR partition, whose
+> session files are named by the device-wide session counter (`np_log_backend.h`). **Whoever can unlock a helmet reads
+> every session recorded on it, whoever ran it.** Nothing here isolates one person's UHDR from another's on a shared
+> (clinic or household) helmet, although `CLAUDE.md` §6.0 and `NP-SW-FAULTMSG-001` §9 treat helmets as shared. Whether
+> to add per-profile key slots and namespaces, or to record a single-person decision with a notice, is the principal's
+> (`docs/human-input/oi-priv-34-several-users-one-helmet.md`). Until it is decided, no document may describe the helmet's
+> UHDR as separated per user.
+> **Ruled 2026-11-23 (the principal): helmets are shared.** Each person's UHDR is to be sealed from every other's, by
+> a key per person over per-file sealing, so that one person's UHDR can move to their own helmet and a clinic can back up
+> and restore everyone's without reading any of it. This scheme is to be replaced accordingly. The credential and the
+> recovery code were decided the same day. The design is §C.8. Until it is built, §C.1 to §C.7 describe what is
+> built, not what is decided.
+
+> **Rev 12 note — the key above is not an AES-256-XTS key, and the KDF memory does not fit
+> the device (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004 Findings M9 and M10).** XTS-AES-256 takes a 64-byte key,
+> Key1 ‖ Key2 (IEEE Std 1619; NIST SP 800-38E). A 32-byte UKMD used directly is XTS-AES-128, or the
+> degenerate Key1 = Key2 case. Separately, §C.4's `m = 65536` KiB (64 MiB) is 64 times the whole 1 MB of
+> on-chip SRAM, and the 32 MB external SDRAM CLAUDE.md §4.1 lists has no part, no BOM line and no linker
+> region (`NP-SW-CI-001` §4.13, `OI-SWCI-47`). **Neither is changed here.** Both are on-flash and
+> cryptographic design choices for the `OI-EMMC2-02` reviewer, and the Argon2id figure must be settled
+> before any device is provisioned, because once a record exists the §C.3 parameter floor forbids lowering
+> it (CLAUDE.md §5.1, protection only goes up). Brief: `docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`.
+> No target code consumes either yet: the Argon2id and mount seams trap (`firmware/platform/src/np_platform_stub.c`).
+
+> **Rev 15 (2026-11-23): the UKMD is 64 bytes, K1 ‖ K2, and the key length question of the Rev 12 note is
+> closed (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) Finding M9; widening approved 2026-11-23 in the `OI-PRIV-35` working session).** The 32 bytes this section printed
+> contradicted a mandatory clause of the parent specification, `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 ("AES-256-XTS key
+> material is 512 bits … two independent 256-bit keys"), and no decision to depart from it was recorded. The UKMD is
+> now 64 random bytes from the TRNG, the §C.3 record carries all 64 (the 32 bytes come out of `reserved`, so the
+> record stays 192 bytes), and a key whose halves are equal is refused at provisioning and never mounted. Nothing
+> on a device changes: no record has been minted, because the Config and mount seams trap on target. The phone's
+> own UHDR key (`derive_uhdr_key`, `common/npps-core/src/bundle_key.rs`) was already 64 bytes. **Still open from the
+> Rev 12 note:** the Argon2id memory figure. **Also for the `OI-EMMC2-02` reviewer:** `NP-FW-EMMC-001` EMMC-UHDR-06
+> builds "AES-256 with two-key 128-bit halves" on the AES-128 DCP, which is not AES-256; the mount must use real
+> AES-256 (the CAAM's, or the vetted software library EMMC-UHDR-06 allows). That document is a `.docx` and is not
+> edited here (`OI-CONV-04`).
+
+> **Rev 19 (2026-11-24): the Argon2id question of the Rev 12 note is settled; the credential is stretched
+> twice (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) Finding M10; settled in the `OI-PRIV-35` working session that day).**
+> The memory-hard stage keeps the written figure, 64 MiB, `t = 4`, `p = 1`, and runs on the phone, which has the memory
+> and which §C.8 already makes the place the credential is derived (`REQ-EMMC2-08`). The hub then runs Argon2id at
+> `m = 256` KiB, `t = 4`, `p = 1` over the phone's output, and binds the result to the fused key as before. These hub
+> figures are what §C.3 stores and its floor enforces. 256 KiB is sized from the image: on `main` at 468484e
+> (2026-11-24) the established 512 KiB DTCM had about 450,000 B free and the OCRAM2 staging region 187,300 B, so the
+> work area fits DTCM and not staging. **What changes for an attacker.** Offline, an attacker who has the eMMC image
+> needs the fused key (F1); one who also has the fused key pays the 64 MiB stage and the hub stage for every guess, which
+> is more than the written design asked. Online, on the helmet, an attacker skips nothing: the phone stage costs them
+> the same 64 MiB per guess on their own hardware, and the helmet's share of each attempt is the 256 KiB stage instead
+> of a 64 MiB one that never ran. After five failures the §C.7 back-off (30 s, doubling) sets the online rate, not the
+> KDF. **Still provisional (UC-206):** the hub figures are sized from memory, not from a measured time per attempt;
+> that time is measured on the target and written here before any device is provisioned, and `t` may then rise, never
+> fall. The phone stage is not built, and its parameters reach the phone with the salt over the §23 channel
+> (`OI-SIMFW-71`).
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-06` | The UHDR partition key is a full XTS-AES-256 key: (a) the UKMD is 64 bytes, K1 ‖ K2, all 64 drawn from the TRNG, wrapped and authenticated whole in the §C.3 record, recovered whole at unlock and handed whole to the mount; (b) a UKMD whose two halves are equal is never minted (provisioning refuses it) and never mounted (unlock refuses it and scrubs it). *Fails without it:* the partition is encrypted with XTS-AES-128, below the AES-256 that CLAUDE.md §5.1 states, or with the degenerate K1 = K2 construction. | `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04, EMMC-UHDR-07; IEEE Std 1619; NIST SP 800-38E; FIPS 140-3 Implementation Guidance (XTS-AES requires Key1 ≠ Key2); CLAUDE.md §5.1 |
+| `REQ-EMMC2-08` | The memory-hard stretch of the UHDR credential runs on the phone: every credential (C1 or C2, §C.8) is put through Argon2id at 64 MiB, `t = 4`, `p = 1` with the record's salt before it leaves the phone, and the hub applies its own §C.3 stage and the fused-key bind to what it receives. Not built. *Fails without it:* an attacker who has read the fused key and the eMMC image tests guesses at the 256 KiB hub cost instead of 64 MiB | `NP-FW-EMMC-001` Rev 1 §6 (the 64 MiB figure); RFC 9106 §4; CLAUDE.md §5.1 (protection only goes up); `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
 
 ### C.3 Config partition UKMD record
 
 ```c
 /* Config partition, LittleFS file "ukmd.rec" — UKMD record (Rev 3; see note below) */
 typedef struct {
-    uint8_t  ukmd_ciphertext[32];   /* AES-256-GCM(UKMD, WKMD, nonce=ukmd_nonce) */
+    uint8_t  ukmd_ciphertext[64];   /* AES-256-GCM(UKMD = K1 || K2, WKMD, nonce=ukmd_nonce) */
     uint8_t  ukmd_nonce[12];        /* AES-GCM nonce — random, unique per wrap operation */
     uint8_t  ukmd_tag[16];          /* AES-GCM authentication tag */
     uint8_t  argon2id_salt[32];     /* Salt for WKMD derivation — device-unique, TRNG */
     uint32_t argon2id_version;      /* 0x13 = Argon2id version 1.3 */
-    uint32_t argon2id_m_cost;       /* Memory: 65536 KiB (64 MiB) */
+    uint32_t argon2id_m_cost;       /* Memory: 256 KiB, the hub stage (§C.4) */
     uint32_t argon2id_t_cost;       /* Iterations: 4 */
     uint32_t argon2id_parallelism;  /* p = 1 */
-    uint8_t  reserved[44];          /* Pad to 192 bytes — future use */
+    uint8_t  reserved[52];          /* Pad to 192 bytes — future use (Rev 15: was 44, see below) */
 } np_ukmd_record_t;
 ```
+
+> **Rev 15 — the record carries the 64-byte UKMD (`REQ-EMMC2-06`).** `ukmd_ciphertext` is 64 bytes and
+> `reserved` is 52, so the named fields are 140 bytes and the record keeps its stated 192 bytes:
+> 64 + 12 + 16 + 32 + 4 × 4 + 52 = 192 (`NP_UHDR_UKMD_RECORD_SIZE`, asserted at compile time). This section printed
+> `reserved[44]` before, which did not reach 192 either (108 + 44 = 152; `OI-UHDRK-08`); the code has always kept the
+> stated 192, and this block now prints the same layout as `firmware/uhdr_key/include/np_uhdr_key_types.h`.
 
 > **Rev 3 correction — the record has an address it cannot have, and the code never used it.**
 > This block read *"Config partition offset 0x1000 — UKMD record"* until 2026-09-13. A byte offset
@@ -195,11 +321,12 @@ typedef struct {
 ### C.4 UKMD unlock sequence (on app foreground)
 
 ```
+0. Attempt limit (§C.7): refuse with LOCKOUT if the back-off has not elapsed; else charge the attempt
 1. App prompts biometric / PIN
-2. App sends biometric-derived input to i.MX RT1062 via secure USB-C protocol
-3. i.MX RT1062 runs Argon2id(input, argon2id_salt, m=65536, t=4, p=1) → WKMD (32 bytes, in SRAM)
-4. AES-256-GCM decrypt(ukmd_ciphertext, WKMD, ukmd_nonce) → authenticate tag → extract UKMD (32 bytes, in SRAM)
-5. Mount UHDR partition using UKMD as AES-256-XTS key
+2. App stretches the credential: Argon2id(credential, argon2id_salt, m=65536, t=4, p=1) → 32 bytes, on the phone (REQ-EMMC2-08), and sends them to i.MX RT1062 via secure USB-C protocol
+3. i.MX RT1062 runs Argon2id(input, argon2id_salt, m=256, t=4, p=1), then hw_bind with the fused key → WKMD (32 bytes, in SRAM)
+4. AES-256-GCM decrypt(ukmd_ciphertext, WKMD, ukmd_nonce) → authenticate tag → extract UKMD (64 bytes, in SRAM)
+5. Refuse the key if K1 = K2 (REQ-EMMC2-06); else mount UHDR partition with K1 ‖ K2 as the AES-256-XTS key
 6. Zero WKMD from SRAM (it is not needed after UKMD is derived)
 7. UKMD is zeroed from SRAM when the app moves to background (not on session end — session end leaves UHDR mounted for the session log write)
 ```
@@ -211,12 +338,12 @@ When the user changes their biometric enrollment or PIN:
 ```
 1. User authenticates with the current biometric/PIN (UKMD is in SRAM after unlock, step C.4)
 2. User provides new biometric/PIN
-3. New WKMD = Argon2id(new_input, argon2id_salt, same cost parameters)
+3. New WKMD = the §C.4 steps 2 and 3 over new_input (the phone stage, then the hub stage and the bind, same cost parameters)
 4. New nonce generated via TRNG
 5. new_ukmd_ciphertext = AES-256-GCM encrypt(UKMD, new_WKMD, new_nonce)
 6. Config partition UKMD record atomically updated (LittleFS transaction)
 7. Zero new_WKMD from SRAM
-8. UHDR partition ciphertext unchanged — only the 32-byte wrapper is re-encrypted
+8. UHDR partition ciphertext unchanged — only the wrapped 64-byte UKMD is re-encrypted
 ```
 
 The UHDR partition (up to 6.9 GiB) is **never re-encrypted** during a biometric change. Only the 192-byte UKMD record in the Config partition changes. This operation completes in milliseconds.
@@ -224,6 +351,199 @@ The UHDR partition (up to 6.9 GiB) is **never re-encrypted** during a biometric 
 ### C.6 PIN fallback
 
 PIN-based WKMD derivation is always available as a fallback when biometric is unavailable (device restart, biometric hardware failure, biometric lockout). The same Argon2id derivation applies with the PIN as input. There is no separate "PIN key" — the architecture is PIN-or-biometric → WKMD → UKMD.
+
+### C.7 Unlock attempt limit (added Rev 12; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004 Finding M10)
+
+**Why.** §C.6 makes the PIN a permanent fallback, and hardware binding (privacy review Finding 1) stops
+only the *offline* guess from an eMMC image. Without a limit the PIN can be guessed *online*, through the
+unlock path, as fast as the KDF runs: for a short PIN that is a matter of hours, and it reads UHDR without
+the person (CLAUDE.md §5.1). `NP-FW-NVRAM-001` §3 already allocates "auth lockout state" in the Config
+partition and lists it on the `EMMC-CFG-02` runtime-write whitelist; nothing implemented it.
+
+**What.** The count of failed attempts is persisted in Config. It holds a count only: no time stamp, no
+credential bytes, nothing about which credential was tried. It is device-local, read before the UHDR
+partition can be unlocked, and never written to SHDR or uploaded (`docs/reference/data-architecture-detail.md`
+§5.1). The device has no RTC backup (CLAUDE.md §4.5), so the wait is counted in monotonic uptime from the
+later of boot and the last charged attempt: a power cycle restarts the wait rather than ending it.
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-01` | The UHDR unlock limits online credential guessing: (a) each attempt that reaches the KDF is charged to the persisted failed-attempt count before the credential is tested, and an attempt whose charge cannot be persisted is refused untested; (b) a successful authentication clears the count; (c) once the count reaches `NP_UHDR_UNLOCK_FREE_ATTEMPTS`, an attempt made before the back-off `min(BASE << (n − FREE), MAX)` has elapsed is refused without running the KDF and without being charged; (d) the back-off is counted in uptime from the later of boot and the last charged attempt, so neither a power cycle nor a new context ends it; (e) a missing or unreadable count refuses the attempt and is never read as zero. *Fails without it:* the PIN fallback (§C.6) can be guessed online without limit, and UHDR is read without the person (CLAUDE.md §5.1). | CLAUDE.md §5.1 (UHDR never read without the person; protection only goes up); `NP-FW-NVRAM-001` §3 (auth lockout state in Config); NIST SP 800-63B-3 §5.2.2 (rate-limit failed authentication attempts) |
+
+The figures (`NP_UHDR_UNLOCK_FREE_ATTEMPTS` = 5, `NP_UHDR_UNLOCK_BACKOFF_BASE_MS` = 30 s,
+`NP_UHDR_UNLOCK_BACKOFF_MAX_MS` = 24 h, in `firmware/uhdr_key/include/np_uhdr_key_config.h`) are
+**PROVISIONAL**: nothing derives them, and NIST SP 800-63B-3 §5.2.2 bounds consecutive failures at 100 but
+does not state them (register row UC-203). Lowering FREE or raising BASE or MAX only strengthens the limit.
+No attempt count wipes or permanently locks the partition: that would destroy the person's data on a
+guess by someone else, and it is a decision for the principal, not a detail (brief §4).
+
+**Built** (`firmware/uhdr_key/src/np_uhdr_key.c`, host-tested in `np_uhdr_key_tests`): the count, the
+charge-before-test, the clear on success, the back-off, `np_uhdr_key_unlock_wait_ms()` for the app's
+"try again in" message, and `NP_UHDR_ERR_LOCKOUT`. Three new platform seams carry it
+(`np_uhdr_hal_attempts_read`, `np_uhdr_hal_attempts_write`, `np_uhdr_hal_uptime_ms`); on target they trap
+until the Config store and the uptime clock are wired. **Known limit:** an attacker who can rewrite the
+Config partition on a removed eMMC can reset the count. A monotonic counter in OTP or the SNVS would close
+that; it is in the reviewer's scope (brief §3).
+
+### C.8 Per-person keys on a shared helmet (decided 2026-11-23, not built)
+
+> **Rev 13 (2026-11-23).** The principal's rulings on `OI-PRIV-34` (NP-PRIV-ANALYSIS-004) are recorded
+> in `docs/human-input/oi-priv-34-several-users-one-helmet.md` §8 and §10. This subsection is the design those rulings
+> fix. **Nothing in it is built.** §C.1 to §C.7 describe the code as it is, and remain true of it until this design
+> replaces them. No requirement row is written yet: each is written with the code that meets it (`CLAUDE.md` §21).
+> **Rev 14 (2026-11-23).** The first increment, the per-person key store, is built (§C.8.6).
+> §C.1 to §C.7 still describe the code that writes UHDR today.
+
+#### C.8.1 What the rulings require
+
+| Ruling (the principal, 2026-11-23) | Consequence for this section |
+|---|---|
+| Helmets are shared. Each person's UHDR is sealed from every other's | One key per person, never one per helmet |
+| The design is the one that makes backup and restore easiest. A person may move their UHDR to their own helmet | Each file is sealed on its own under its owner's key, so it is a self-contained object that can be copied and placed on any helmet (option A2). Not fixed partition slices (A1), which restore only whole, into a slice of the same size |
+| The warranty owner (a clinic) can back up and restore all the UHDR on a helmet without access to any of it | The helmet exports and imports sealed objects without anyone present. A person's key can be re-bound to another helmet only by that person |
+| The unlock credential is the person's phone (C1), with a passphrase as the fallback (C2) | The presence-gate pattern of `NP-APP-PRESENCE-001` (`REQ-PRES-06`) |
+| The recovery code is printed or saved by the person, and also kept in their phone's presence-gated store and its backup | The phone can re-bind its person automatically. Without the phone, the printed code does it |
+| A lost recovery code together with a lost helmet means that helmet copy is gone | No escrow of any kind. Neither NeurOne nor the clinic holds anything that opens a person's key |
+| The clinic's export may show roughly how much each person has recorded | Per-person exports are padded to coarse size buckets, not to one fixed size |
+
+#### C.8.2 Keys
+
+| Key | Generated | Stored as | Opens |
+|---|---|---|---|
+| **Profile key** `PK`, one per person, 32 bytes | By the TRNG, when the person's profile is created on a helmet | Never in the clear. Wrap 1 and wrap 2 below, in that person's profile record in Config | That person's files, each sealed with an AEAD under a key derived from `PK` and the file's own random identifier |
+| **Wrap 1** (unlock) | — | `PK` under `hw_bind(KDF(credential, salt), fused key)`, as today's WKMD (§C.2, privacy review F1) | Opening `PK` on **this** helmet. A copy is useless elsewhere, so an eMMC image cannot be attacked offline |
+| **Wrap 2** (recovery) | — | `PK` under a key derived from the person's recovery code | Re-binding `PK` to another helmet. It travels with every export |
+| **Recovery code** | By the helmet's TRNG when the profile is created; never chosen by the person | Shown once to the person to print or save, and handed to their phone's presence-gated store. Never written to the helmet in the clear and never to SHDR | Wrap 2 |
+| **Helmet store key** | By the TRNG at first provisioning | Bound to the fused key; opened by the helmet with no one present | The UHDR partition's outer layer only, so file names, sizes and the profile list are protected against an eMMC image. It opens no one's files |
+
+- **The recovery code has at least 128 bits of entropy.** Whoever holds an export can try codes against wrap 2 offline,
+  and a clinic holds every patient's export. 128 bits is the security strength `NIST SP 800-57 Part 1` assigns to
+  AES-128 and above, so the code is never the weakest key. Checking that citation against the source belongs to the
+  cryptography review (`OI-EMMC2-02`).
+- **The unlock credential (C1, C2) is derived on the phone or tablet, not on the hub.** The hub's RAM cannot hold the
+  64 MiB Argon2id, so the phone runs it and the hub runs a 256 KiB stage and the fused-key bind over the result, as
+  §C.4 does for the device-wide key (`REQ-EMMC2-08`; settled 2026-11-24, `OI-PRIV-35` (NP-PRIV-ANALYSIS-004)). Wrap 1
+  keeps the fused-key binding whatever the KDF.
+- **The profile record names its person by an opaque profile identifier, never a name.** The app's active-user tag
+  (`NP-SW-FAULTMSG-001` §9.2) may **select** a profile record, but it never **opens** one: only the credential does
+  (the tag is unauthenticated, `OI-PRIV-29` (NP-PRIV-ANALYSIS-004)).
+
+#### C.8.3 Files
+
+- **Each UHDR file belongs to one profile and is sealed on its own.** Its name is random, not the device session count,
+  so a listing does not interleave people's sessions (`OI-PRIV-41` (NP-PRIV-ANALYSIS-004) treats the shared counter).
+- **The hub mediates every access.** No app lists the partition. An app is served only the files of the profile its
+  credential opened.
+- **A UHDR write needs an open profile.** How a session run with no profile open is logged is open: for example, a
+  Mode 3 session after a power cycle, before anyone has unlocked. Today such a session cannot write UHDR at all
+  (`np_log_backend.h`: UHDR is first opened after an unlock). One construction is a per-session key sealed to a public
+  key of the profile last opened, so the hub can write a profile it cannot read. The choice belongs to `OI-EMMC2-02`.
+
+#### C.8.4 Export and import
+
+- **Clinic backup.** On a request from the warranty owner's app over the encrypted transport (`CLAUDE.md` §23), with no
+  one present, the helmet exports every profile: its sealed files, wrap 2, and its record without wrap 1. Each profile's
+  export is padded up to a coarse size bucket. The clinic stores the export as one object, separate from the warranty
+  owner's own backup (`CLAUDE.md` §6.0, `REQ-SHDR-10`). It can read nothing in it.
+- **Clinic restore.** The clinic imports the export into a replacement helmet. Each profile stays sealed until its
+  person presents their recovery code, by their phone or from the printed copy. The helmet then opens `PK` with wrap 2,
+  writes a new wrap 1 under its own fused key and the person's credential, and the profile is live.
+- **A person moving to their own helmet.** The same export, of one profile, started by that person with their
+  credential. On their own helmet it becomes their profile. If they already have one there, the helmet re-seals the
+  imported files under it once both are open, and then deletes the imported key.
+- **Deleting a profile** destroys that profile's record. Its files are then unreadable by anyone and are deleted. That
+  is an erase, which `CLAUDE.md` §5.1 does not count as a weakening.
+
+#### C.8.5 What changes elsewhere, and what remains open
+
+| Item | Where it is handled |
+|---|---|
+| The single `ukmd.rec` record (§C.3) is replaced by one record per profile | This section, when built |
+| The XTS key length (32 bytes for AES-256-XTS) | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004), for the helmet store key |
+| The KDF and its cost | `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
+| The failed-unlock limit for profiles: **per profile**, decided by the principal on 2026-11-24 (an attacker gets the free attempts once per profile but does not know how many profiles hold data). Built in §C.8.7's change: the count is in each profile's record (`REQ-EMMC2-05`) | Decided |
+| The wrap and file-sealing constructions (§C.8.6, §C.8.7) | `OI-EMMC2-02`, the cryptography review, whose scope now includes this section |
+| How a Mode 3 session's UHDR is kept when no profile is open | The principal (raised 2026-11-24, `OI-PRIV-34` (NP-PRIV-ANALYSIS-004)); then `OI-EMMC2-02` for any construction |
+| The size buckets | `OI-PRIV-34` (NP-PRIV-ANALYSIS-004), with the file export |
+| The maximum number of profiles per helmet: `NP_UHDR_PROFILE_MAX` = **24**, the principal, 2026-11-24. Profiles are loaded from the app as needed, so the most a helmet holds at once is a clinic day's patients, assumed at most 24 sessions a day (UC-204, `ASSUMED`). Each profile costs one 216-byte Config record and 8 bytes of RAM | Decided; the assumption is UC-204 |
+| Who may request an export (the warranty owner's pairing role) | `OI-SIMFW-71` Q8 |
+| The partition layout clauses of `NP-FW-EMMC-001` | An ECR, since that document is a `.docx` (`OI-CONV-04`) |
+
+#### C.8.6 Built: the per-person key store (increment 1)
+
+> **Rev 14 (2026-11-23).** The first increment of this design is built and host-tested:
+> `firmware/uhdr_key/src/np_uhdr_profile.c` (`np_uhdr_profile.h`), tests in `np_uhdr_profile_tests`. It is
+> the key store only. **Not built:** sealing files under a profile key, the file export and import and its
+> size buckets, the helmet store key and the change to the UHDR mount, and the Mode 3 write (§C.8.3). Until
+> those land, UHDR files are still written under the §C.3 key, and nothing calls this module.
+
+**What it does.** One Config record per profile (`np_uhdr_profile_record_t`, 216 bytes since §C.8.7's change, at most
+`NP_UHDR_PROFILE_MAX` slots), holding the profile id, wrap 1 and wrap 2 of §C.8.2. `create` generates the
+profile key, the id and the recovery code from the TRNG, writes both wraps and hands the code out once.
+`unlock` opens wrap 1. `rebind` opens wrap 2 with the recovery code and writes a fresh wrap 1 under this
+helmet's fused key and a new credential, which serves an imported profile and a forgotten credential alike.
+`export` returns the record with every wrap-1 byte zeroed and the state DORMANT, and needs no credential.
+`import` writes such a record into an empty slot only. `delete` destroys the record. Wrap 1's AAD binds the
+profile id, the salt and the KDF parameters; wrap 2's binds the profile id, the recovery salt and the
+record format.
+
+**Seams.** Four, trap-defined on target until the Config store and the CAAM KDF are wired:
+`np_uhdr_hal_profile_read`, `_profile_write`, `_profile_erase` (`OI-UHDRK-10` to `-12`) and
+`np_uhdr_hal_recovery_kdf` (`OI-UHDRK-13`). The recovery KDF's construction is the reviewer's
+(`OI-EMMC2-02`); the code carries 128 bits from the TRNG, so it needs no stretching. The SW-02 seam count
+goes 123 → 127. The twin does not link this module, so the four seams are `absent` there.
+
+**Kept out of SHDR.** The SHDR schema gate (`ci/test_shdr_schema.py`, KEYMAT-01) now also refuses columns
+named for the profile id, the profile key, the recovery code or its salt, and the two wraps. The profile
+id travels in every export, so it names one person across helmets: UHDR-class (`CLAUDE.md` §5.1).
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-02` | Each person on a helmet has their own profile key: (a) a profile is created only in an empty slot, with its own random key, id and recovery code, and an occupied slot is never overwritten; (b) a profile's key opens only with that profile's credential, and changing the credential keeps the key and wrap 2; (c) the recovery code is handed out once and appears nowhere in the stored record, and a create that fails hands out no code; (d) deleting a profile destroys its record, after which neither its credential nor its recovery code opens anything. *Fails without it:* on a shared helmet one person reads another's UHDR, or a person's key is overwritten and their record lost. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q1, Q3b); `CLAUDE.md` §5.1 (UHDR is the person's; an erase is not a weakening) |
+| `REQ-EMMC2-03` | A profile's unlock wrap is bound to its helmet: (a) a record copied to another helmet does not open with the right credential; (b) an export carries no byte of wrap 1, its salt or its parameters, and exporting leaves the helmet's own record live; (c) wrap 1 authenticates the profile id, the salt and the KDF parameters, and parameters below the floor are refused before any KDF runs. *Fails without it:* an eMMC image or a clinic's export can be attacked offline with the credential's small key space, or a rolled-back record weakens the KDF. | `NP-FW-EMMC-002` §C.2 (privacy review Findings 1 and 2); `CLAUDE.md` §5.1 (protection only goes up) |
+| `REQ-EMMC2-04` | A profile can be backed up and moved without access to it: (a) an export needs no credential, and an imported profile does not open with any credential; (b) an export imports only into an empty slot, only as DORMANT, and an export carrying any wrap-1 byte, a LIVE state or a malformed header is refused; (c) the recovery code opens a profile's key and binds it to this helmet under a new credential, so the person's files stay readable; (d) a wrong recovery code, or a wrap 2 moved onto another profile's record, opens nothing and leaves the record dormant. *Fails without it:* a clinic cannot replace a helmet, a person cannot move to their own helmet, or whoever holds an export reads it. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q2, the added warranty-owner requirement, Q3b); `CLAUDE.md` §6.0 (`REQ-SHDR-10`) |
+| `REQ-EMMC2-05` | Profile unlock and rebind are rate-limited per profile (the principal, 2026-11-24): (a) each attempt that reaches a KDF is charged to that profile's own persisted count before the secret is tested, and to no other profile's and not to the helmet-wide count; a success clears it; once the count passes the free attempts, the §C.7 back-off, measured from that profile's last charged attempt in this boot, refuses both without running a KDF or charging; a power cycle restarts the wait and keeps the count; and an attempt whose charge cannot be persisted is refused untested; (b) an unlock of a dormant profile is refused without running the KDF and without being charged; (c) an export carries no count and an import stores a zero count, and neither helps a guesser, because a re-imported profile takes no credential until its recovery code re-binds it. *Fails without it:* the per-person path becomes a way round the guessing limit `REQ-EMMC2-01` sets, or one person's wrong guesses lock every other person on the helmet out of their own record. | `REQ-EMMC2-01`; the principal, 2026-11-24 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004): the limit is per user); `CLAUDE.md` §5.1 (protection only goes up) |
+
+#### C.8.7 Built: per-file sealing (increment 2)
+
+> **Rev 17 (2026-11-24).** Sealing a UHDR file under its owner's profile key is built and
+> host-tested as a buffer library: `firmware/uhdr_key/src/np_uhdr_seal.c` (`np_uhdr_seal.h`), tests in
+> `np_uhdr_seal_tests`. **It has no caller yet.** The log backend starts sealing in increment 3, with the
+> helmet store key and the change to the UHDR mount, because a sealed write needs an open profile and nothing
+> on the helmet opens one yet. **Not built:** that wiring, the file export and import with their size
+> buckets, and the Mode 3 write (§C.8.3, still open).
+
+**Format.** A sealed file is a 32-byte clear header (magic, format, the file's random 16-byte id, the chunk
+size) followed by chunks. On the medium each chunk is `NP_UHDR_SEAL_BLOCK_BYTES` (512), one log staging block
+(`NP_LOG_STAGE_BYTES`, `np_log_backend.h`), so a staged write is exactly one sealed chunk. Its plaintext,
+`NP_UHDR_SEAL_CHUNK_PT_BYTES`, is derived: the block less the 16-byte tag (496). The two constants are tied by a
+compile-time check when the backend starts sealing (increment 3). Every chunk but the last is full; the last is
+shorter, possibly only a tag, and carries a final flag.
+
+**Keys and binding.** Each file has its own key, `FK = file_kdf(PK, profile id, file id)`, so the chunk
+index can serve as the nonce and never repeats under one key. Each chunk is AES-256-GCM with nonce = the chunk
+index and AAD = header ‖ chunk index ‖ final flag. A changed, reordered, dropped, duplicated or appended chunk
+fails. A file cut after any chunk is refused because no final chunk is read. A file opened under another
+profile, or given another file's header, derives another key and opens nothing. The construction (GCM chunks
+with a final flag, in the manner of the STREAM construction) and the file KDF are the reviewer's
+(`OI-EMMC2-02`).
+
+**Names.** A file's name is the hex of its random id. It carries no session count, no profile id and no time
+(§C.8.3; compare `OI-PRIV-41` (NP-PRIV-ANALYSIS-004), the shared counter). The clear header does not carry
+the owner's profile id either.
+
+**Seam.** One: `np_uhdr_hal_file_kdf` (`OI-UHDRK-14`), trap-defined on target until the CAAM KDF is wired. The
+SW-02 seam count goes 127 → 128; it is `absent` in the twin.
+
+**Changed with this increment (the principal, 2026-11-24).** The failed-attempt limit for profiles is now
+**per profile**: each record carries its own count (`failed_attempts`, not authenticated, zero in every export), the
+back-off is the §C.7 schedule measured from that profile's last charged attempt, and the record grows from 212 to
+216 bytes (`REQ-EMMC2-05`, rewritten). The profile cap is now **24** (UC-204). Nothing was deployed, so the record
+format number is unchanged.
+
+| ID | Requirement | Traced to |
+|---|---|---|
+| `REQ-EMMC2-07` | Each UHDR file is sealed on its own under its owner's profile: (a) a file is sealed under a key derived from its owner's open profile key and its own random id, its owner reads it back exactly, and another profile, another file's header, or a closed profile opens nothing and writes nothing; (b) every chunk authenticates the header, its own position and whether it is the last, so a changed, reordered, dropped, duplicated or appended chunk, or a changed or malformed header, is refused; (c) a file without its final chunk is refused, and a shortened chunk cannot pose as the final one; (d) a file's name is derived from its random id only, and neither the name nor the clear header carries the owner's profile id, a session count or a time; (e) the file key is zeroed when a writer finishes, aborts or fails and when a reader finishes or fails, and a failed writer or reader accepts nothing more. *Fails without it:* on a shared helmet one person's files open under another's key, a stored file is altered or cut without detection, or a file's name or header tells whose it is or when it was made. | The principal, 2026-11-23 (`OI-PRIV-34` (NP-PRIV-ANALYSIS-004) Q1, Q2: a key per person over per-file sealing); `NP-FW-EMMC-002` §C.8.3; `CLAUDE.md` §5.1 (UHDR is the person's; protection only goes up) |
 
 ---
 
@@ -324,6 +644,16 @@ NP-PRIV-001 Rev 1 MEDIUM-05 identified that EDF+ files generated by clinical EEG
 
 All EDF+ files generated by NeurOne firmware must conform to the following header policy:
 
+> **Rev 8 (2026-11-21, `OI-PRIV-26` (NP-PRIV-ANALYSIS-004), GitHub #954): this is the LOCAL header only.** It is the
+> header of the file kept in the person's UHDR and exported by the person: a valid EDF+ header with the exact
+> start date and time and the device's `NP` code. That code is the same in every file the device writes, and the
+> exact times identify a session, so **a file with this header never goes into a research extract.** A research
+> extract carries the research header of §E.5, which §E.4's gate checks. The table below was written as if it
+> served both paths ("startdate preserved"); it serves the local path only. The local check also now reads the
+> whole patient-ID field: the code must be 14 lowercase hex characters after `NP`, the subfields single-spaced,
+> and nothing but spaces may follow the name (the name check used to stop at the first space, so
+> `NeurOne_User Jane Doe` passed).
+
 ```
 Header field         Required value                    Prohibited values
 ---------------------------------------------------------------------------
@@ -389,6 +719,20 @@ The function must:
 
 ### E.4 Header validation in research anonymisation pipeline
 
+> **Rev 8 (2026-11-21, `OI-PRIV-26` (NP-PRIV-ANALYSIS-004), GitHub #954): the gate checks the research header of §E.5,
+> not the local header of §E.2.** The validator below is the original text and is kept for the record. It checked
+> sex, birth date and a name heuristic only, so it passed the exact start date and time, an unchecked recording
+> ID, and the device `NP` code that joins any two extracts to one person, against `CLAUDE.md` §5.3 (date rounding
+> of at least a week, no linkage). The gate is now
+> `np_edf_anon_gate_filter(headers, count, policy, included, fault_cb, user, result)`, and each header must pass
+> `np_edf_validate_research_header(header, policy)` under the study's policy (§E.5). A local header fails it.
+> The exclude-not-abort rule and the SHDR event below are unchanged. Verified by `REQ-SW02-12`
+> (`firmware/edf/tests/np_edf_tests.c`).
+> **Rev 11 (`OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2):** the SHDR event is retired, and with it the
+> gate's `fault_cb` and `user` parameters. The gate is now
+> `np_edf_anon_gate_filter(headers, count, policy, included, result)`; see the paragraph after the code below
+> (`REQ-SW02-14`).
+
 Before any EDF+ file is included in a research extract, a header validator must run:
 
 ```c
@@ -403,7 +747,48 @@ np_status_t np_edf_validate_privacy_header(const np_edf_header_t *header) {
 }
 ```
 
-Any EDF+ file that fails this validation is excluded from the research extract and a `SHDR` fault event is logged: `EDF_PRIVACY_HEADER_VIOLATION`. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded).
+Any EDF+ file that fails this validation is excluded from the research extract. The anonymisation task continues with remaining files (the pipeline is not aborted — only the offending file is excluded). **Nothing about the exclusion is written to `SHDR`** (Rev 11, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 2, `REQ-SW02-14`). Earlier revisions logged one `SHDR` fault, `EDF_PRIVACY_HEADER_VIOLATION`, per excluded file. Any such record says that this device ran a research extract, and the per-file count gives its size: study participation under the device-linked token, which `CLAUDE.md` §5.1's defining test puts in `UHDR` (compare the pipeline's `failed_step`, `data-architecture-detail.md` §5.1). The event and its code (`0xE1`) are retired, not reused. Whether *any* record of a research extract may enter `SHDR` is `OI-PRIV-07`.
+
+### E.5 Research EDF+ header (added Rev 8, 2026-11-21, `OI-PRIV-26` (NP-PRIV-ANALYSIS-004))
+
+A file that goes into a research extract carries a research header, built from the local header by
+`np_edf_make_research_header(local, policy, out)` (`firmware/edf/src/np_edf_research.c`). The local file is not
+changed. The research header is still valid EDF+, so research tools read it.
+
+```
+Field                Research value                              Refused
+-------------------------------------------------------------------------------------------------
+local patient id     X X X X                                     the device NP code, another
+                     or NS<14 hex> X X X  (this study's code)    study's code, any other byte
+local recording id   Startdate X X X X                           hospital, technician or
+                     or Startdate DD-MMM-YYYY X X X              equipment text; anything after
+startdate            01.01.85 when blank; otherwise the first    a date finer than the window;
+                     day of the study's rounding window          disagreement with the rec. ID
+starttime            00.00.00                                    any time of day
+version, reserved,   copied from the local header; reserved     any other text
+counts, duration     blank or EDF+C / EDF+D, numbers only
+```
+
+- **Policy.** One per study: `np_edf_research_policy_t { study_code, date_rounding_days }`. `study_code` is NULL
+  (the code must be `X`) or a per-study code. `date_rounding_days` is 0 (the date must be blank) or the
+  descriptor's `date_rounding_days`, at least 7 (`CLAUDE.md` §5.3, `NP-FW-ANON-001` §4); 1 to 6 is refused, and
+  the gate then excludes every file.
+- **Per-study code.** `np_edf_make_study_code(random_bytes, out)` writes `NS` + 14 hex characters from 7 bytes the
+  caller draws from the TRNG once per device and study and keeps only in that study's record. They are never
+  derived from the UHDR or warranty token. The `NS` prefix keeps it distinct from the local `NP` code. Within one
+  study the code links one person's files; across studies nothing does.
+- **Dates.** Windows are counted from Monday 1970-01-05, so a 7-day window is an ISO 8601 week (`NP-FW-ANON-001`
+  FAI-ANON-06). The start date is floored to its window; a date that cannot be read, or that falls outside the
+  EDF two-digit-year range 1985 to 2084, is written blank (`Startdate X`, header startdate `01.01.85`, the EDF+
+  convention for an unknown date). The start time is always 00.00.00.
+- **The check.** `np_edf_validate_research_header(header, policy)` parses every byte of the 256-byte main header
+  and accepts only the forms above.
+
+**Not yet covered (`OI-PRIV-26` (NP-PRIV-ANALYSIS-004) remainder).** (1) The per-signal header records and the EDF+ annotation channel
+that follow the main header are not checked, and both can hold free text. (2) No caller builds research headers
+yet: the anonymisation-pipeline site that draws and keeps the per-study bytes and calls the gate is not written.
+(3) `NP-FW-ANON-001` §3.2 prohibits raw EEG waveforms in any study descriptor, so whether an EDF+ file can enter
+a research extract at all is for that document to settle; this gate is the control if one does.
 
 ---
 
@@ -967,6 +1352,18 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 1 | 2026-06-02 (§G: 2026-06-03) | Initial release. §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F. §G added 2026-06-03. |
 | 6 | 2026-11-21 | **§G, §H: the accelerometer characterisation bins and `impact_event_count` are 32-bit and never saturate, so the sum always holds; the fleet columns are `BIGINT` (`OI-UINT16-01`).** |
 | 7 | 2026-11-21 | **§H.3.4: the spent budget is persisted before the extended record is written, and a failed budget write sends nothing and returns `NP_ACCEL_ERR_BUDGET`; a failed record write leaves the slot spent (CHAR-2; `OI-PRIV-36` (NP-PRIV-ANALYSIS-004), GitHub #964).** |
+| 8 | 2026-11-21 | **§E.2 marked as the local header only and its check widened to the whole patient-ID field; §E.4 gate now checks the research header under the study's policy; §E.5 added (research EDF+ header, per-study code, date rounding, what is not yet covered) (OI-PRIV-26 (NP-PRIV-ANALYSIS-004), GitHub #954).** |
+| 9 | 2026-11-21 | **§B.3: R-5 named "SANITIZE (CMD38, SANITIZE_START)", which is a plain erase; corrected to CMD6 SWITCH writing 1 to EXT_CSD[165] (support in EXT_CSD[231] bit 6), moved to a new step R-7a after the erases so it also purges SHDR and Config, with no fallback to a plain erase; the 240 s bound is `UC-202`; R-1/R-2 have no implementation (`OI-PRIV-27`, `NP-PRIV-ANALYSIS-004`).** |
+| 10 | 2026-11-22 | **§C.2: a callout records the scheme's scope (one UKMD, one credential, one partition key, session files named by the device-wide counter) and that no per-user separation exists on a shared helmet; the decision brief is in docs/human-input (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962). No requirement or code changed.** |
+| 11 | 2026-11-23 | **§E.4: an excluded EDF+ file leaves nothing in SHDR; EDF_PRIVACY_HEADER_VIOLATION (0xE1) retired (OI-PRIV-38 (NP-PRIV-ANALYSIS-004) part 2, REQ-SW02-14).** |
+| 12 | 2026-11-23 | **New §C.7 and `REQ-EMMC2-01`: every unlock attempt that reaches the KDF is charged to a failed-attempt count persisted in Config before the credential is tested, a success clears it, and after 5 failures an exponential back-off in uptime (30 s doubling to 24 h, PROVISIONAL, UC-203) refuses attempts without running the KDF; a reboot restarts the wait and a storage fault refuses the attempt. §C.4 gains step 0. §C.2 gains a note that a 32-byte UKMD is not an XTS-AES-256 key and that 64 MiB of Argon2id is 64 times the device's on-chip RAM with no SDRAM fitted; neither is changed here, both go to the `OI-EMMC2-02` reviewer (`docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md`) (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
+| 13 | 2026-11-23 | **§C.2: the callout records the rulings of 2026-11-23. New §C.8: the design they fix (keys, wraps, the recovery code, per-file sealing, hub-mediated access, clinic export and import, a person moving to their own helmet) and what stays open in OI-PRIV-35, OI-EMMC2-02 and OI-SIMFW-71. §C.1 to §C.7 still describe what is built. No requirement or code changed (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 14 | 2026-11-23 | **New §C.8.6 and REQ-EMMC2-02 to -05: the first increment of §C.8, the per-person key store (np_uhdr_profile.c), is built and host-tested: one Config record per profile, a device-bound unlock wrap and a portable recovery wrap, a helmet-generated 128-bit recovery code handed out once, credential-free export with no unlock wrap, import into an empty slot as dormant, re-binding by recovery code, deletion, and the §C.7 attempt limit shared. Four new seams (SW-02 count 123 to 127). §C.8.5 records the profile cap (8, PROVISIONAL, UC-204) and the per-profile attempt-limit question. File sealing, the file export and the mount change are not built (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 15 | 2026-11-23 | **§C.2: the UKMD is 64 random bytes, K1 ‖ K2, following `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04 (the 32 bytes printed here contradicted it with no recorded decision); new `REQ-EMMC2-06` (the whole key is wrapped, recovered and mounted; K1 = K2 is refused at provisioning and at unlock). §C.3: `ukmd_ciphertext[64]`, `reserved[52]`, record still 192 bytes, now printed as the code defines it (`OI-UHDRK-08`). §C.4 steps 4 and 5 and §C.5 step 8 follow. The Rev 12 note's Argon2id question stays open, and EMMC-UHDR-06's AES-256-from-AES-128 clause is flagged for the `OI-EMMC2-02` reviewer (`OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
+| 16 | 2026-11-24 | **§B.2: a callout records the principal's ruling (2026-11-23, `OI-PRIV-27` (NP-PRIV-ANALYSIS-004)): only the warranty owner may start a factory reset, which wipes every person's UHDR on a shared helmet; every attempt first lists every user with data on the helmet; each row is associable with a user and shows none of their data; users current on the helmet start selected for export and the rest deselected (2026-11-24), none selected wiping everything; the export (§C.8.4) is followed by the wipe (§B.3), and a failed export erases nothing; the command is a signed reset blob on the upload path. It supersedes §B.2's user trigger and gate. Not built; built with §C.8.** |
+| 17 | 2026-11-24 | **New §C.8.7 and REQ-EMMC2-07: increment 2 of §C.8, per-file sealing (np_uhdr_seal.c), is built and host-tested as a buffer library with no caller yet: a 32-byte clear header with a random file id, 512-byte chunks (one log staging block, 496 bytes of plaintext), a per-file key derived from the profile key and the file id, AES-256-GCM per chunk with the index as nonce and a final flag in the AAD, refusal of any changed, reordered, dropped, duplicated, appended or truncated chunk, and names from the random id only. One new seam (file KDF, SW-02 count 127 to 128). §C.8.5 records the Mode 3 question as the principal's. With the principal's rulings of 2026-11-24, the profile attempt limit becomes per profile (REQ-EMMC2-05 rewritten; the record grows to 216 bytes) and the profile cap becomes 24 (UC-204, ASSUMED). The backend wiring, the mount change and the file export are increment 3 (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
+| 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
+| 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 
 Open items created by this document:
 
@@ -979,7 +1376,7 @@ Open items created by this document:
 | ~~OI-EMMC2-05~~ | ✅ **CLOSED 2026-07-14 (commit `81f5bf5`; status recorded here 2026-09-26).** `firmware/edf/tests/np_edf_tests.c` `test_write_100_headers()` generates 100 EDF+ headers from 100 distinct UHDR tokens with `np_edf_write_header()` and asserts each passes `np_edf_validate_privacy_header()`. It runs as ctest `np_edf_tests` (host-test partition B, `firmware-cross-build.yml`), and it passed 100/100 on 2026-09-26. ~~EDF+ writer unit test: generate 100 EDF+ files and confirm all pass header validator~~ | — (closed) |
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
 | ~~OI-EMMC2-07~~ | ✅ **CLOSED 2026-06-05 (GitHub #100; PRs #102, #103, #110, #111; status recorded here 2026-09-26).** `ci/test_shdr_schema.py` parses `ci/shdr/shdr_fleet_schema.sql` and is run by `shdr-schema-ci.yml`. It has grown well past §G.5's sketch: on 2026-09-26 it ran 15 checks over 227 columns in 23 tables with 0 violations. `ci/test_shdr_schema_selftest.py` (5/5) proves the no-raw-accelerometer assertion can fail (#201). **Closing this item does not clear the schema freeze.** `OI-EMMC2-08` and `OI-EMMC2-11` still block it, and neither is detectable by this gate, which matches names and types. ~~SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema~~ | — (closed; the freeze is still blocked by `OI-EMMC2-08`, `-11`) |
-| OI-EMMC2-08 | **Module UID re-linking channel — principal decision required.** Schema Rev 4 (2026-08-10) re-keys PBM and thermal fleet telemetry on `(socket_number, module_uid)`, storing the raw 8-byte module UID so a module's degradation history follows the part across sockets **and across devices** (clinic pools). Consequence: a persistent per-module hardware UID **defeats the factory-reset de-linking mechanism** that `devices.device_transferred` exists to provide — after a reset the device re-uploads the same ~80 module UIDs, and joining the old token's `module_inventory` to the new token's on `module_uid` re-links the two pseudonymous identities with ~80-way corroboration. It equally links a clinic's devices to each other and a resold device to its previous owner's token. **Neither CI gate can detect this**: both are name/type matchers, and OI-EMMC2-06 guards SHDR↔warranty joins while saying nothing about SHDR↔SHDR self-joins across tokens. Mitigations already applied in Rev 4: `module_life` is keyed `(warranty_token, module_uid)` so no row spans devices, and the linkage is device↔device never device↔person (warranty_token→person still requires the consented warranty_db). **Conservative alternative, costed and not taken:** store `module_ref = HMAC(device-local key, uid)` — stable within a device, incomparable across devices — which closes the channel entirely at the cost of the cross-device part history that motivated Rev 4. Drop-in column swap if the principal judges the channel unacceptable. Secondary, same class: `*_mate_cycles_observed` are cumulative physical-handling counters, structurally the same object as the `drop_count` this schema bans by name, and the placement-event rate distinguishes a clinic swapping modules between patients from a home user who never touches them. | **BLOCKING for SHDR fleet DB schema freeze** |
+| OI-EMMC2-08 | **Module UID re-linking channel — principal decision required.** Schema Rev 4 (2026-08-10) re-keys PBM and thermal fleet telemetry on `(socket_number, module_uid)`, storing the raw 8-byte module UID so a module's degradation history follows the part across sockets **and across devices** (clinic pools). Consequence: a persistent per-module hardware UID **defeats the factory-reset de-linking mechanism** that `devices.device_transferred` exists to provide — after a reset the device re-uploads the same ~80 module UIDs, and joining the old token's `module_inventory` to the new token's on `module_uid` re-links the two pseudonymous identities with ~80-way corroboration. It equally links a clinic's devices to each other and a resold device to its previous owner's token. **Neither CI gate can detect this**: both are name/type matchers, and OI-EMMC2-06 guards SHDR↔warranty joins while saying nothing about SHDR↔SHDR self-joins across tokens. Mitigations already applied in Rev 4: `module_life` is keyed `(warranty_token, module_uid)` so no row spans devices, and the linkage is device↔device never device↔person (warranty_token→person still requires the consented warranty_db). **Conservative alternative, costed and not taken:** store `module_ref = HMAC(device-local key, uid)` — stable within a device, incomparable across devices — which closes the channel entirely at the cost of the cross-device part history that motivated Rev 4. Drop-in column swap if the principal judges the channel unacceptable. Secondary, same class: `*_mate_cycles_observed` are cumulative physical-handling counters, structurally the same object as the `drop_count` this schema bans by name, and the placement-event rate distinguishes a clinic swapping modules between patients from a home user who never touches them. **Same class, recorded 2026-11-22 (`OI-PRIV-58`, `NP-PRIV-ANALYSIS-005` F8):** a join on ordinary fields neither gate can see. The warranty registry keeps `serial_number` and `device_model`; SHDR's `devices` row keeps `device_model`, `hw_revision`, `factory_id` and the date of manufacture. The serial format is not defined, and if it encodes the factory, line or date of manufacture the two narrow each other with no shared identifier. Since SHDR schema Rev G the manufacture dates (`devices.manufacture_date`, `module_life.module_manufacture_date`) are month-granular by CHECK, so the most such a serial can do is pick out the devices of one model, revision and factory made in one month; a serial that encodes nothing about manufacture removes even that. | **BLOCKING for SHDR fleet DB schema freeze** |
 | OI-EMMC2-09 | **§G.2's two thresholds are unvalidated placeholders.** `NP_ACCEL_DROP_THRESHOLD_G = 15.0f` and `NP_ACCEL_MAINT_THRESHOLD = 3` were chosen before any hardware existed and have never been compared against a device that failed. Labelled as placeholders in this document, `firmware/shdr/include/np_accel_shdr.h` and `ci/shdr/shdr_fleet_schema.sql`. Closed only by the §H.4 review gate | §H.4 review gate; production threshold values |
 | OI-EMMC2-10 | **The rolling maintenance window's unit changed from days to session gaps.** Rev 1 specified "3 drops in any rolling 7-day window"; that is not implementable, because the headset has no clock that survives a disconnect (§H.3.1). `firmware/shdr/` counts `NP_ACCEL_MAINT_WINDOW_GAPS = 7` gaps instead, which approximates 7 days only for a once-daily user and is about half a day for a clinic. **This changes what `maintenance_alert` means.** §H.4 must resolve the unit along with the values | §H.4 review gate |
 | OI-EMMC2-11 | **§G.3's prohibition is already defeated by aggregation, independently of §H.** `shdr_accel_records` is append-per-gap with a non-unique `warranty_token`, so `count(*) FILTER (WHERE drop_detected)` per token IS the prohibited "drop count as an integer", and the `gap_index` values where it is true ARE the prohibited inter-drop timing. A column-level control cannot express a row-set-level hazard. **Principal decision required**: the obvious remedy (collapse to one upserted row per device, as `consumable_counts` does) would destroy the per-gap sequencing §H is built on, so the two must be decided together. See §H.7 | SHDR fleet DB schema freeze; decide with §H.4 |

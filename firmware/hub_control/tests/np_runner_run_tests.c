@@ -284,8 +284,8 @@ static np_chan_decl_t           g_unused_decl;
 
 np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len)
 {
-    (void)buf; (void)len;
-    return NP_HUB_ERR_NOT_PRESENT;
+    memset(buf, 0x5A, len);             /* a provisioned serial; blob_begin stamps the same bytes (the guard fails closed, REQ-FWHUB-90) */
+    return NP_HUB_OK;
 }
 
 np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out)
@@ -314,6 +314,9 @@ bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
 void np_safety_spi_request_enable(uint16_t channel_mask)  { note(RUN_EV_ENABLE, channel_mask, 0U); }
 void np_safety_spi_request_disable(uint16_t channel_mask) { note(RUN_EV_DISABLE, channel_mask, 0U); }
 void np_safety_spi_disable_all(void)                      { note(RUN_EV_DISABLE_ALL, 0U, 0U); }
+/* REQ-FWHUB-89 (c): the safety SPI's grant-withdrawal latch, set by a test, taken (read and cleared) by the runner. */
+static bool g_grant_withdrawn;
+bool np_safety_spi_take_grant_withdrawn(void)             { bool w = g_grant_withdrawn; g_grant_withdrawn = false; return w; }
 void np_safety_spi_set_geom_required(bool v)              { if (v) { note(RUN_EV_GEOM_CLIN, 0U, 0U); } }
 void np_safety_spi_set_geom_required_tdcs(bool v)         { if (v) { note(RUN_EV_GEOM_TDCS, 0U, 0U); } }
 void np_safety_spi_set_geom_required_bes(bool v)          { if (v) { note(RUN_EV_GEOM_BES, 0U, 0U); } }
@@ -527,6 +530,7 @@ static void blob_begin(blob_t *b, uint32_t duration_ms)
     memcpy(b->buf + 0, &magic, 4);
     memcpy(b->buf + 4, &version, 2);
     memcpy(b->buf + 24, &compiled_at, 4);
+    memset(b->buf + 28, 0x5A, NP_GATT_DEVICE_SERIAL_LEN);   /* device_serial: the stub HAL's */
     memcpy(b->buf + 60, &duration_ms, 4);
     b->buf[64] = 1U;                            /* hardware_version; the rules stamp (68..106) is zero: not stated */
     b->len = 107U;
@@ -612,6 +616,7 @@ static void fresh(void)
     g_panic_rc = NP_HUB_OK;
     memset(&g_end_uhdr, 0, sizeof g_end_uhdr);
     memset(&g_end_shdr, 0, sizeof g_end_shdr);
+    g_grant_withdrawn = false;
     g_lease_held_at_end = g_lease_held_at_flush = g_lease_held_at_cons = false;
     g_cons_mask = 0U;
     (void)g_unused_decl;
@@ -824,6 +829,8 @@ static void post_abort_seizure(void)  { np_runner_abort(NP_ABORT_EEG_SEIZURE); }
 static void do_pause_now(void)        { g_pause_rc = np_runner_pause(); }
 static void do_resume_now(void)       { g_resume_rc = np_runner_resume(); }
 static void try_resume_now(void)      { g_resume_rc = np_runner_resume(); }
+static np_hub_status_t g_resume_rc_first;
+static void try_resume_first(void)    { g_resume_rc_first = np_runner_resume(); }
 static void do_panic_now(void)        { g_panic_rc = np_runner_panic(); }
 static void do_halt_discharge_now(void) { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_DISCHARGE); }
 static void do_halt_blind_now(void)     { g_panic_rc = np_runner_halt(NP_HOLD_DETECTOR_BLIND); }
@@ -874,10 +881,32 @@ static void test_each_stop_event_ends_the_session_with_its_own_reason_and_the_wo
         char name[128];
         snprintf(name, sizeof name, "reasons: %s: recorded in the UHDR record", cases[i].name);
         check(g_end_uhdr.abort_reason == cases[i].expect, name);
-        snprintf(name, sizeof name, "reasons: %s: the run reports a fault and ends FAULT", cases[i].name);
-        check(rc == NP_HUB_ERR_SAFETY_FAULT && np_runner_get_state() == NP_SESSION_FAULT, name);
+        /* REQ-FWHUB-85: a stop by the person is not a fault (NP_HUB_ERR_STOPPED, no red indicator); every fault reason
+         * is.  The state stays FAULT for both (OI-PRIV-37 records that as undecided). */
+        const np_hub_status_t want = (cases[i].expect == NP_ABORT_USER) ? NP_HUB_ERR_STOPPED : NP_HUB_ERR_SAFETY_FAULT;
+        snprintf(name, sizeof name, "reasons: %s: the run reports %s and ends FAULT", cases[i].name,
+                 want == NP_HUB_ERR_STOPPED ? "a stop, not a fault," : "a fault");
+        check(rc == want && np_runner_get_state() == NP_SESSION_FAULT, name);
         snprintf(name, sizeof name, "reasons: %s: it ended early and shut down once", cases[i].name);
         check(count_of(RUN_EV_DISABLE_ALL) == 1U && !g_runaway && g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms < 60000U, name);
+    }
+}
+
+/* @verifies REQ-FWHUB-85#a,b */
+static void test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status(void)
+{
+    /* The closed list: every reason in np_abort_reason_t, so a reason added later is caught here as a fault until
+     * someone decides it is not. */
+    check(np_runner_end_status(NP_ABORT_NONE) == NP_HUB_OK, "end status: a completed session is OK");
+    check(np_runner_end_status(NP_ABORT_USER) == NP_HUB_ERR_STOPPED, "end status: a stop by the person is STOPPED, not a fault");
+    check(np_runner_end_status(NP_ABORT_PAUSE_TIMEOUT) == NP_HUB_ERR_STOPPED, "end status: a pause timeout is STOPPED, not a fault");
+    const np_abort_reason_t faults[] = { NP_ABORT_SAFETY_MCU, NP_ABORT_WATCHDOG, NP_ABORT_THERMAL, NP_ABORT_POWER,
+                                         NP_ABORT_EEG_SEIZURE, NP_ABORT_MOD_FAULT, NP_ABORT_LOG_FAIL, (np_abort_reason_t)10,
+                                         (np_abort_reason_t)0xFF };
+    for (size_t i = 0U; i < sizeof faults / sizeof faults[0]; i++) {
+        char name[96];
+        snprintf(name, sizeof name, "end status: abort reason %u is a fault", (unsigned)faults[i]);
+        check(np_runner_end_status(faults[i]) == NP_HUB_ERR_SAFETY_FAULT, name);
     }
 }
 
@@ -900,6 +929,62 @@ static void test_an_abort_keeps_the_reason_it_was_given(void)
     (void)load_and_run(&b);
     check(g_end_uhdr.abort_reason == NP_ABORT_USER,
           "abort: np_runner_abort(USER) is recorded as a user stop");
+}
+
+/* A grant the safety MCU takes away, and a channel the cervical driver stops, set the same moment-free bit. */
+static void post_grant_withdrawn(void) { g_grant_withdrawn = true; }
+static void post_early_stop(void)      { np_runner_note_early_stop(); }
+
+/* @verifies REQ-FWHUB-89#c */
+static void test_shdr_learns_that_a_session_stopped_early_and_never_why(void)
+{
+    blob_t b;
+
+    fresh();
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: a session that runs to its end leaves the flag 0");
+
+    fresh();
+    long_session(&b, 60000U);
+    script_at(300U, post_abort_user);
+    (void)load_and_run(&b);
+    const uint8_t by_user = g_end_shdr.stopped_early;
+    fresh();
+    long_session(&b, 60000U);
+    script_at(300U, post_abort_seizure);
+    (void)load_and_run(&b);
+    const uint8_t by_halt = g_end_shdr.stopped_early;
+    check(by_user == 1U && by_halt == 1U, "stopped early: an abort sets it, a person's stop and a halt alike");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_grant_withdrawn);
+    (void)load_and_run(&b);
+    check(np_runner_get_state() == NP_SESSION_COMPLETE && g_end_shdr.stopped_early == 1U,
+          "stopped early: a grant the safety MCU withdrew sets it though the session ran to its end");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_early_stop);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 1U,
+          "stopped early: a channel stopped by its driver (a cervical VNS fault, any reason) sets it");
+
+    fresh();
+    g_grant_withdrawn = true;            /* left over from before this session */
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: a withdrawal from before the session does not count");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_early_stop);
+    (void)load_and_run(&b);
+    fresh();
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: the flag does not carry into the next session");
 }
 
 /* @verifies SWR-SS-06 SWR-SS-05 */
@@ -1072,7 +1157,8 @@ static void test_a_pause_that_outlasts_the_owners_limit_ends_the_session(void)
     const int pause_at = find_a(RUN_EV_LOG_PAUSE, 1U, 0);
     check(pause_at >= 0, "limit: the session paused");
     check(g_end_uhdr.abort_reason == NP_ABORT_PAUSE_TIMEOUT, "limit: it ended because the pause outlasted the limit");
-    check(rc == NP_HUB_ERR_SAFETY_FAULT && np_runner_get_state() == NP_SESSION_FAULT, "limit: and ends FAULT");
+    check(rc == NP_HUB_ERR_STOPPED && np_runner_get_state() == NP_SESSION_FAULT,
+          "limit: and reports a stop, not a fault (REQ-FWHUB-85), in state FAULT");
     const uint32_t ended = g_log[first_of(RUN_EV_DISABLE_ALL)].at_ms;
     const uint32_t p = g_log[pause_at].at_ms;
     check(ended + RUN_SLACK_MS >= p + 2000U && ended <= p + 2000U + RUN_SLACK_MS * 2U, "limit: after the 2 s, measured from the start of the pause");
@@ -1366,15 +1452,13 @@ static void test_the_hold_cause_says_who_held_the_session_and_clears_when_it_run
     script_at(5000U, do_panic_now);
     script_at(6000U, do_resume_now);
     script_at(8000U, do_halt_discharge_now);
-    script_at(9000U, do_resume_now);
-    script_at(11000U, do_halt_blind_now);
-    script_at(12000U, post_abort_user);
+    script_at(9000U, do_halt_blind_now);        /* blindness outranks a discharge (np_hold_outranks) */
+    script_at(12000U, post_abort_user);      /* a detector hold ends only with a stop (REQ-FWHUB-67) */
     (void)load_and_run(&b);
     const unsigned n = hold_seq(seq, 8U);
-    check(n == 8U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_NONE &&
+    check(n == 7U && seq[0] == NP_HOLD_USER_PAUSE && seq[1] == NP_HOLD_NONE &&
           seq[2] == NP_HOLD_USER_PANIC && seq[3] == NP_HOLD_NONE &&
-          seq[4] == NP_HOLD_DETECTOR_DISCHARGE && seq[5] == NP_HOLD_NONE &&
-          seq[6] == NP_HOLD_DETECTOR_BLIND && seq[7] == NP_HOLD_NONE,
+          seq[4] == NP_HOLD_DETECTOR_DISCHARGE && seq[5] == NP_HOLD_DETECTOR_BLIND && seq[6] == NP_HOLD_NONE,
           "hold: a pause, a panic, a detector discharge and a detector blindness each say so, and each clears when the session runs again or ends");
 }
 
@@ -1398,6 +1482,36 @@ static void test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it(
     bool lowered = false;
     for (unsigned i = 2U; i + 1U < n; i++) { if (seq[i] == NP_HOLD_USER_PANIC) { lowered = true; } }
     check(!lowered, "hold: and a person's panic afterwards does not lower it");
+}
+
+/* @verifies REQ-FWHUB-67 REQ-FWHUB-69 */
+static void test_a_detector_hold_is_never_resumed_and_ends_only_with_a_stop(void)
+{
+    static void (*const HALT[2])(void) = { do_halt_discharge_now, do_halt_blind_now };
+    static const char *const NAME[2] = { "discharge", "blind" };
+    for (unsigned k = 0U; k < 2U; k++) {
+        fresh();
+        blob_t b;
+        blob_begin(&b, 20000U);
+        blob_slot(&b, NP_MOD_EEG, NP_HUB_SLOT_EEG, 0U, 20000U, RUN_EEG_PARAMS, RUN_EEG_PARAMS_LEN);
+        module_present(NP_HUB_SLOT_EEG);
+        script_at(2000U, HALT[k]);
+        script_at(3000U, try_resume_first);    /* refused: the detector holds it */
+        script_at(3500U, look_midrun);
+        script_at(4000U, do_panic_now);        /* a person's panic does not lower the cause ... */
+        script_at(5000U, try_resume_now);      /* ... so a resume is still refused */
+        script_at(5500U, look_midrun);
+        script_at(7000U, post_abort_user);     /* the only second step: Stop */
+        (void)load_and_run(&b);
+        char msg[160];
+        snprintf(msg, sizeof msg, "detector hold (%s): a resume is refused (NP_HUB_ERR_PPX_HALT), before and after a panic", NAME[k]);
+        check(g_resume_rc_first == NP_HUB_ERR_PPX_HALT && g_resume_rc == NP_HUB_ERR_PPX_HALT &&
+              g_mid_n == 2U && g_mid_state == NP_SESSION_PAUSED, msg);
+        snprintf(msg, sizeof msg, "detector hold (%s): nothing is started again while it is held", NAME[k]);
+        check(find_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 2) < 0 || when_a(RUN_EV_CONTROL, NP_HUB_SLOT_EEG, 2) >= 7000U, msg);
+        snprintf(msg, sizeof msg, "detector hold (%s): Stop ends the session", NAME[k]);
+        check(count_of(RUN_EV_LOG_END) == 1U, msg);
+    }
 }
 
 /* @verifies SWR-SS-09 */
@@ -1448,7 +1562,9 @@ int main(void)
     test_a_refused_command_is_logged_refused_and_not_counted_delivered();
     test_a_device_local_driver_status_is_never_written_to_the_shdr_fault_log();
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();
+    test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status();
     test_an_abort_keeps_the_reason_it_was_given();
+    test_shdr_learns_that_a_session_stopped_early_and_never_why();
     test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended();
     test_waiting_on_the_event_group_does_not_spin();
     test_shutdown_drops_the_enables_first_then_stops_the_modules_then_waits_then_records();
@@ -1463,6 +1579,7 @@ int main(void)
     test_panic_during_a_resume_ramp_holds_what_the_gate_had_not_started_for_the_next_resume();
     test_the_hold_cause_says_who_held_the_session_and_clears_when_it_runs_again();
     test_a_detector_cause_outranks_a_persons_and_is_never_lowered_by_it();
+    test_a_detector_hold_is_never_resumed_and_ends_only_with_a_stop();
     test_panic_is_refused_only_with_no_session();
     test_a_session_stopped_while_paused_reports_the_time_it_was_running();
     test_a_delivery_divergence_is_flagged_once_to_shdr_with_its_own_code();

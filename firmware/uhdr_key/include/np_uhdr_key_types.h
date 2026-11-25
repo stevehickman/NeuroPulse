@@ -20,7 +20,10 @@ typedef enum {
     NP_UHDR_ERR_MOUNT    = -6,  /* UHDR partition XTS mount failed             */
     NP_UHDR_ERR_STATE    = -7,  /* Precondition violated (e.g. not unlocked)   */
     NP_UHDR_ERR_INVALID  = -8,  /* Invalid argument (null/length/range)        */
-    NP_UHDR_ERR_PARAM    = -9   /* Stored KDF params below floor (tamper/rollback) */
+    NP_UHDR_ERR_PARAM    = -9,  /* Stored KDF params below floor (tamper/rollback) */
+    NP_UHDR_ERR_LOCKOUT  = -10, /* Unlock back-off not yet elapsed (§C.7)      */
+    NP_UHDR_ERR_EMPTY    = -11, /* Profile slot holds no record (§C.8)         */
+    NP_UHDR_ERR_EXISTS   = -12  /* Profile slot already holds a record (§C.8)  */
 } np_uhdr_status_t;
 
 /*
@@ -40,28 +43,32 @@ typedef enum {
  * path at the firmware layer.
  *
  * The layout is byte-exact and packed so the on-flash image is stable across
- * toolchains: 32 + 12 + 16 + 32 + 4 + 4 + 4 + 4 + 84 = 192 bytes.
+ * toolchains: 64 + 12 + 16 + 32 + 4 + 4 + 4 + 4 + 52 = 192 bytes.
  *
- * SPEC DISCREPANCY (flagged — OI-UHDRK-08): NP-FW-EMMC-002 Rev 1 §C.3 prints
- * `reserved[44]` while its own comment states "Pad to 192 bytes".  Those two
- * are inconsistent: the named fields before `reserved` sum to 108 bytes, so
- * reaching the stated 192-byte record requires reserved = 84, not 44 (44 would
- * yield a 152-byte record).  We honour the explicit stated record size (192) —
- * the allocation intent for the Config slot at offset 0x1000 — and size
- * `reserved` to 84.  If the spec author confirms 152 was intended, shrink
- * `reserved` to 44 and set NP_UHDR_UKMD_RECORD_SIZE to 152; nothing reads the
- * reserved region, so either resolution is functionally safe.
+ * 2026-11-23 (OI-PRIV-35, NP-PRIV-ANALYSIS-004 M9): `ukmd_ciphertext` grew from
+ * 32 to 64 bytes because the UKMD is now the full XTS-AES-256 key K1 || K2
+ * (NP-FW-EMMC-001 EMMC-UHDR-04).  The 32 bytes came out of `reserved`
+ * (84 -> 52), so the record keeps its stated 192 bytes and its place in
+ * Config.  No record has been minted on a device (the Config seams trap on
+ * target), so no stored record has the old layout.
+ *
+ * SPEC DISCREPANCY (OI-UHDRK-08), as it stands after the change: NP-FW-EMMC-002
+ * §C.3 printed `reserved[44]` beside "Pad to 192 bytes", which disagreed before
+ * (108 + 44 = 152).  The code keeps the stated record size (192) and §C.3 now
+ * prints the same layout as this struct.  If 152 had been meant, the record
+ * would now need `reserved[12]`; nothing reads the reserved region, so either
+ * resolution is functionally safe.
  */
 typedef struct __attribute__((packed)) {
-    uint8_t  ukmd_ciphertext[32];   /* AES-256-GCM(UKMD, WKMD, nonce=ukmd_nonce) */
+    uint8_t  ukmd_ciphertext[64];   /* AES-256-GCM(UKMD K1||K2, WKMD, ukmd_nonce)  */
     uint8_t  ukmd_nonce[12];        /* AES-GCM nonce — random, unique per wrap    */
     uint8_t  ukmd_tag[16];          /* AES-GCM authentication tag                 */
     uint8_t  argon2id_salt[32];     /* Salt for WKMD derivation — device-unique   */
     uint32_t argon2id_version;      /* 0x13 = Argon2id version 1.3                */
-    uint32_t argon2id_m_cost;       /* Memory: 65536 KiB (64 MiB)                 */
+    uint32_t argon2id_m_cost;       /* Memory, KiB: 256 (hub stage, §C.4)         */
     uint32_t argon2id_t_cost;       /* Iterations: 4                              */
     uint32_t argon2id_parallelism;  /* p = 1                                      */
-    uint8_t  reserved[84];          /* Pad to 192 bytes — future use (see above)  */
+    uint8_t  reserved[52];          /* Pad to 192 bytes — future use (see above)  */
 } np_ukmd_record_t;
 
 #endif /* NP_UHDR_KEY_TYPES_H */

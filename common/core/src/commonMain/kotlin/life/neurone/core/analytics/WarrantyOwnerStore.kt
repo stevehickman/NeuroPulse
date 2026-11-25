@@ -46,6 +46,12 @@ class WarrantyOwnerStore(
     private val store: KeyValueStore,
     randomBytes: (Int) -> ByteArray = ::secureRandomBytes,
     sha256: (ByteArray) -> ByteArray = Digests::sha256,
+    /**
+     * Where the hub's SHDR record waits for upload, one record per helmet (`REQ-SHDR-08` (f)); `null` on a host with no hub path
+     * that stages one. The record is the helmet's, under its owner's consent, so it is kept with that owner's decisions: it is
+     * named by this store's key for the helmet, read only for that helmet, and deleted when the owner revokes or custody ends.
+     */
+    private val staging: ShdrStaging? = null,
 ) {
     private val table = HubTokenTable(
         read = { store.getString(RECORDS_KEY) },
@@ -67,6 +73,42 @@ class WarrantyOwnerStore(
     /** Change this helmet's record, starting from one that grants nothing when there is none. */
     fun update(hub: String, change: (WarrantyOwnerRecord) -> WarrantyOwnerRecord) {
         table.save(hub, encode(change(record(hub) ?: WarrantyOwnerRecord())))
+    }
+
+    /**
+     * Forget this helmet: its record and its staged SHDR record go, so it reads as never asked (`REQ-SHDR-09` (d)). A change of
+     * custody ends the old owner's decisions; the new owner is asked again, and their first enrolment is epoch 1.
+     */
+    fun forget(hub: String) {
+        clearStaged(hub)
+        table.remove(hub)
+    }
+
+    /**
+     * The SHDR record staged for this helmet, or `null`. Only the file named by this helmet's key is read, so one helmet's record
+     * is never read for another (`REQ-SHDR-08` (f)). With no record kept for any helmet there is no salt, and nothing is read.
+     */
+    fun staged(hub: String): ByteArray? {
+        val key = table.keyOf(hub) ?: return null
+        return staging?.read(key)
+    }
+
+    /**
+     * Stage [record] for this helmet, for the host's hub path to call. Refused (false) when the host has no staging or the helmet
+     * has no record here: a helmet whose owner was never asked has nothing to name its file by, and nothing to send it under.
+     */
+    fun stage(hub: String, record: ByteArray): Boolean {
+        val s = staging ?: return false
+        if (record(hub) == null) return false
+        val key = table.keyOf(hub) ?: return false
+        s.stage(key, record)
+        return true
+    }
+
+    /** Delete this helmet's staged record, if there is one. Every other helmet's stays. */
+    fun clearStaged(hub: String) {
+        val key = table.keyOf(hub) ?: return
+        staging?.clear(key)
     }
 
     private fun encode(r: WarrantyOwnerRecord): String =

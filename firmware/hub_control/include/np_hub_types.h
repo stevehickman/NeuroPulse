@@ -124,6 +124,12 @@ typedef enum {
      * upload-check frame; nothing is started. */
     NP_HUB_ERR_CVNS_BLOCK_TOO_SHORT = -41,
     NP_HUB_ERR_CVNS_BLOCK_TOO_LONG  = -42,
+    /* REQ-FWHUB-85 (a), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  NOT A FAULT.  np_runner_run() returns it for a session that
+     * ended early because the person stopped it (NP_ABORT_USER) or because a pause outlasted the owner's limit
+     * (NP_ABORT_PAUSE_TIMEOUT).  Both ends were asked for, so neither lights the red fault indicator.  Every other abort
+     * reason is a fault and still returns NP_HUB_ERR_SAFETY_FAULT.  It is a session-end status only: it never reaches the
+     * upload-check frame or any log record (the record carries abort_reason, unchanged). */
+    NP_HUB_ERR_STOPPED              = -43,
 } np_hub_status_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -598,7 +604,7 @@ typedef struct {
     uint8_t  active_mode;       /* current mode — SHDR */
     bool     goggle_seated;     /* Hall: goggles in wear position — SHDR */
     bool     eye_open;          /* IR proximity — UHDR */
-    bool     ppx_halt;          /* photoparoxysmal halt in effect — SHDR */
+    bool     ppx_halt;          /* photoparoxysmal halt in effect — UHDR, never SHDR (REQ-FWHUB-88) */
 } np_telem_visual_t;
 
 typedef struct {
@@ -664,14 +670,18 @@ typedef struct {
                                   * uint32 required — NP_MOD_VIBROTACTILE = 0x10 */
 } np_session_uhdr_record_t;
 
-/* The SHDR session-end record: the device session count and the firmware
- * version, and nothing else (REQ-FWHUB-89, OI-PRIV-21 (NP-PRIV-ANALYSIS-004)).
- * Duration, abort reason and the modalities that ran describe the person's
+/* The SHDR session-end record: the device session count, the firmware version
+ * and whether the session stopped early, and nothing else (REQ-FWHUB-89,
+ * OI-PRIV-21 and OI-PRIV-22 (NP-PRIV-ANALYSIS-004)).  Duration, abort reason,
+ * the modalities that ran and the cause of any stop describe the person's
  * session and are UHDR only (np_session_uhdr_record_t above;
  * data-architecture-detail.md §5.1).  Add nothing here without a §5.1 ruling. */
 typedef struct {
     uint32_t device_session_count; /* unsigned; no timestamp (SHDR) */
     uint8_t  firmware_version[4];  /* semver packed */
+    uint8_t  stopped_early;        /* 1 if the session or any channel stopped before
+                                    * its scheduled end, for ANY cause; never the
+                                    * cause (REQ-FWHUB-89 (c)) */
 } np_session_shdr_record_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

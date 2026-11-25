@@ -364,6 +364,16 @@ np_hold_cause_t np_runner_hold_cause(void)
     return s_hold_cause;
 }
 
+/* A hold the photoparoxysmal detector made (a discharge, or it could not see): its only second step is a stop (REQ-FWHUB-67,
+ * REQ-FWHUB-69; the principal, 2026-11-23, OI-PRIV-24 (NP-PRIV-ANALYSIS-004) Q2).  Pairing is not authenticated (OI-SIMFW-72),
+ * so "whoever can pair" is not a person who may restart photic stimulation after a detected discharge.  Revisit when an
+ * authenticated link exists. */
+static bool held_by_detector(void)
+{
+    const np_hold_cause_t c = s_hold_cause;
+    return c == NP_HOLD_DETECTOR_DISCHARGE || c == NP_HOLD_DETECTOR_BLIND;
+}
+
 static bool s_panic_from_start;   /* a start gate was closed by a panic: its resume must mark the ramped modalities as used */
 
 static bool is_ramped_start(const np_session_cmd_t *c, uint8_t *which)
@@ -880,6 +890,19 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
     return NP_HUB_OK;
 }
 
+/* Set by np_runner_note_early_stop() when a channel stops before its scheduled end
+ * without the session ending (a cervical VNS fault, whatever its reason).  With the
+ * safety MCU's grant-withdrawal latch and an abort of the session, it becomes the
+ * SHDR session-end record's stopped_early flag: SHDR learns that a stop happened,
+ * which changes the hardware's usage, and never which stop or why (REQ-FWHUB-89 (c);
+ * the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004), 2026-11-23). */
+static volatile bool s_early_stop;
+
+void np_runner_note_early_stop(void)
+{
+    s_early_stop = true;
+}
+
 np_hub_status_t np_runner_run(void)
 {
     /* OI-CVNS-HUB-01: hard-reset the CVNS re-enable manager at session start —
@@ -888,6 +911,9 @@ np_hub_status_t np_runner_run(void)
      * heartbeat where the session is not RUNNING, and
      * np_safety_spi_disable_all() clears the SPI-level bit on session end.) */
     np_cvns_reenable_session_reset();
+
+    s_early_stop = false;
+    (void)np_safety_spi_take_grant_withdrawn();   /* nothing from before this session counts */
 
     s_ctx.state      = NP_SESSION_RUNNING;
     np_session_clock_start(&s_ctx.clock, clock_now_ms());
@@ -1020,7 +1046,10 @@ np_hub_status_t np_runner_run(void)
                 loop_wait(gate_sleep_ms(), 0U);
             } else if (ev & NP_EV_SESSION_RESUME) {
                 xEventGroupClearBits(s_events, NP_EV_SESSION_RESUME | NP_EV_SESSION_PAUSE);
-                do_resume();
+                /* Checked again here: a resume posted before a detector halt that the loop takes after it is dropped. */
+                if (!held_by_detector()) {
+                    do_resume();
+                }
             } else {
                 static uint32_t paused_ms;
                 paused_ms += NP_RUNNER_TICK_MS;
@@ -1170,7 +1199,16 @@ np_hub_status_t np_runner_run(void)
     s_ctx.uhdr.duration_s   = total_ms / 1000U;
     s_ctx.uhdr.abort_reason = (uint8_t)s_ctx.abort_reason;
     /* The SHDR record gets none of these: duration, abort reason and the
-     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21). */
+     * modalities that ran are UHDR only (REQ-FWHUB-89, OI-PRIV-21).  It gets one
+     * cause-free bit: did the session, or any channel in it, stop before its
+     * scheduled end?  An abort for any reason, a cervical VNS fault for any reason
+     * and a grant the safety MCU withdrew for any reason all set the same bit
+     * (REQ-FWHUB-89 (c), OI-PRIV-22). */
+    {
+        const bool withdrawn = np_safety_spi_take_grant_withdrawn();
+        s_ctx.shdr.stopped_early =
+            (s_early_stop || withdrawn || s_ctx.abort_reason != NP_ABORT_NONE) ? 1U : 0U;
+    }
 
     /* OI-FWHUB-10: each lattice socket's final dose into this session's file,
      * and this session's PBM counts to SHDR — every session, PBM or not, so the
@@ -1214,7 +1252,20 @@ np_hub_status_t np_runner_run(void)
      * probe again (OI-FWHUB-17). */
     np_lease_release();
 
-    return (s_ctx.abort_reason == NP_ABORT_NONE) ? NP_HUB_OK : NP_HUB_ERR_SAFETY_FAULT;
+    return np_runner_end_status(s_ctx.abort_reason);
+}
+
+/* REQ-FWHUB-85 (a)(b), OI-PRIV-37 (NP-PRIV-ANALYSIS-004).  A session the person stopped, or one a pause timed out, is
+ * not a fault and must not light the red indicator; it used to return SAFETY_FAULT, as every non-NONE reason did.  The
+ * list of non-faults is closed: a reason added to np_abort_reason_t is a fault until someone decides otherwise here. */
+np_hub_status_t np_runner_end_status(np_abort_reason_t reason)
+{
+    switch (reason) {
+    case NP_ABORT_NONE:          return NP_HUB_OK;
+    case NP_ABORT_USER:          return NP_HUB_ERR_STOPPED;
+    case NP_ABORT_PAUSE_TIMEOUT: return NP_HUB_ERR_STOPPED;
+    default:                     return NP_HUB_ERR_SAFETY_FAULT;
+    }
 }
 
 void np_runner_abort(np_abort_reason_t reason)
@@ -1258,6 +1309,9 @@ np_hub_status_t np_runner_resume(void)
 {
     if (np_runner_get_state() != NP_SESSION_PAUSED) {
         return NP_HUB_ERR_NO_SESSION;
+    }
+    if (held_by_detector()) {
+        return NP_HUB_ERR_PPX_HALT;   /* a detector hold is ended only by a stop */
     }
     if (s_gate.open) {
         return NP_HUB_ERR_RAMPING;   /* already resuming */

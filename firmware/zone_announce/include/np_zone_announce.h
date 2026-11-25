@@ -46,13 +46,13 @@ extern "C" {
  *                          after audio — see np_za_insert_cb_t).
  * @param remove_cb         Called on confirmed removal.
  * @param shdr_cb           Called on each auth event for SHDR partition write.
- * @param device_session_count  Current unsigned session counter from SHDR.
+ *                          The entry carries no session count (OI-PRIV-38
+ *                          (NP-PRIV-ANALYSIS-004), ruled 2026-11-23).
  * @return NP_ZA_OK or error code.
  */
 np_za_status_t np_za_init(np_za_insert_cb_t insert_cb,
                            np_za_remove_cb_t remove_cb,
-                           np_za_shdr_cb_t   shdr_cb,
-                           uint32_t          device_session_count);
+                           np_za_shdr_cb_t   shdr_cb);
 
 /*
  * Tear down audio hardware (call on system sleep or shutdown).

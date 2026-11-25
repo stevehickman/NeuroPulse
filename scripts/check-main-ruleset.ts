@@ -9,10 +9,12 @@
  * run by hand by whoever remembered. A context removed in the settings page, the pull-request rule
  * switched off, or the admin bypass put back to "always" would each have left every check green.
  *
- * Two files state the expected protection:
+ * Three files state the expected protection:
  *
  *   ci/required-checks.txt   the required contexts, one per line (scripts/check-ci-scope.ts
  *                            correspondence C proves each is reportable; it is not restated here)
+ *   ci/required-statuses.txt the required contexts that a workflow posts as a commit status
+ *                            (NP-SW-CI-001 §6.20); read with the file above, as one list
  *   ci/main-ruleset.json     everything else: the rule types in force, the pull-request rule's
  *                            parameters, the bypass actors, and the App the contexts are bound to
  *
@@ -27,6 +29,9 @@
  *       exists. A bypass does not outlive the workflow it was granted for
  *   R5  the manifest is not empty, has no duplicate, and the contexts are bound to one App id
  *   R6  the expected pull-request rule states every parameter this gate compares
+ *   R7  the merge queue (NP-SW-CI-001 §6.19) is expected exactly when its parameters are stated:
+ *       `merge_queue` in rule_types and a non-empty `merge_queue` object go together, so a queue
+ *       switched on in the settings page is recorded with what it was set to
  *
  * `--live` (weekly in build-all.yml, and by hand after any settings change). GitHub must equal the
  * expected state, in both directions, and each direction says what it costs:
@@ -37,7 +42,7 @@
  *   L3  a context bound to another App id, or to none (any App could then satisfy it)
  *   L4  a rule type expected but not in force on `main` (the protection shrank), or in force but
  *       not expected (the settings changed with no record)
- *   L5  a pull-request parameter or the strict flag that differs
+ *   L5  a pull-request parameter, a merge-queue parameter or the strict flag that differs
  *   L6  enforcement, target or branch conditions that differ
  *   L7  the bypass list differs. GitHub returns it only to a token that may edit the ruleset, so a
  *       read with less says "not visible" and passes, unless --require-bypass is given
@@ -57,7 +62,7 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-main-ruleset.ts --self-test
- * CI-Scans: the expected protection of main (ci/main-ruleset.json, ci/required-checks.txt) and the workflow each bypassing App names
+ * CI-Scans: the expected protection of main (ci/main-ruleset.json, ci/required-checks.txt, ci/required-statuses.txt) and the workflow each bypassing App names
  * CI-Scan-Paths: ci/** .github/workflows/** scripts/check-main-ruleset.ts
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "fs";
@@ -66,6 +71,9 @@ import { tmpdir } from "os";
 
 export const EXPECTED_FILE = "ci/main-ruleset.json";
 export const MANIFEST_FILE = "ci/required-checks.txt";
+/** Commit-status contexts a workflow posts (NP-SW-CI-001 §6.20). Required like the job contexts; optional file. */
+export const STATUS_FILE = "ci/required-statuses.txt";
+const MANIFESTS = `${MANIFEST_FILE} or ${STATUS_FILE}`;
 const CORE_RULES = ["deletion", "non_fast_forward", "pull_request", "required_status_checks"];
 const PR_PARAMS = [
   "required_approving_review_count", "dismiss_stale_reviews_on_push", "require_code_owner_review",
@@ -84,6 +92,12 @@ export type Expected = {
   rule_types: string[];
   status_checks: { strict: boolean; integration_id: number };
   pull_request: Record<string, unknown>;
+  /**
+   * The merge-queue rule's parameters, as GitHub returns them, when `merge_queue` is in rule_types
+   * (NP-SW-CI-001 §6.19). Copied from a live read rather than named here: L5 compares every key on
+   * either side, so a parameter GitHub adds later is seen without a change to this file.
+   */
+  merge_queue?: Record<string, unknown>;
   bypass_actors: Bypass[];
 };
 
@@ -123,6 +137,10 @@ export function checkExpected(e: Expected, contexts: string[], has: (rel: string
   if (!Number.isInteger(e.status_checks?.integration_id)) v.push("R5: status_checks.integration_id is not a number: a context bound to no App can be reported by any App");
   if (typeof e.status_checks?.strict !== "boolean") v.push("R5: status_checks.strict is not stated");
   for (const p of PR_PARAMS) if (!(p in (e.pull_request ?? {}))) v.push(`R6: pull_request.${p} is not stated, so a change to it on GitHub would not be seen`);
+  const mqRule = (e.rule_types ?? []).includes("merge_queue");
+  const mqParams = e.merge_queue !== undefined && e.merge_queue !== null && Object.keys(e.merge_queue).length > 0;
+  if (mqRule && !mqParams) v.push("R7: rule 'merge_queue' is expected but its parameters are not stated, so a change to the queue on GitHub would not be seen: copy them from `gh api repos/O/R/rules/branches/main`");
+  if (!mqRule && e.merge_queue !== undefined) v.push("R7: merge_queue parameters are stated but rule 'merge_queue' is not expected: one of the two is stale");
   return v;
 }
 
@@ -139,10 +157,10 @@ export function compareLive(
   const live = checks.flatMap((r) => (r.parameters?.required_status_checks ?? []) as { context: string; integration_id?: number | null }[]);
   const liveNames = live.map((c) => c.context);
   for (const c of liveNames) {
-    if (!contexts.includes(c)) v.push(`L1: GitHub requires '${c}', which ${MANIFEST_FILE} does not list: nothing proves a job reports it, and a required context nobody reports blocks every merge`);
+    if (!contexts.includes(c)) v.push(`L1: GitHub requires '${c}', which neither ${MANIFESTS} lists: nothing proves a job reports it, and a required context nobody reports blocks every merge`);
   }
   for (const c of contexts) {
-    if (!liveNames.includes(c)) v.push(`L2: '${c}' is in ${MANIFEST_FILE} but GitHub does not require it: that gate does not apply to main`);
+    if (!liveNames.includes(c)) v.push(`L2: '${c}' is in ${MANIFESTS} but GitHub does not require it: that gate does not apply to main`);
   }
   for (const c of live) {
     if (c.integration_id !== e.status_checks.integration_id) v.push(`L3: '${c.context}' is bound to App ${c.integration_id ?? "none"}, expected ${e.status_checks.integration_id}`);
@@ -158,6 +176,15 @@ export function compareLive(
     const keys = new Set([...Object.keys(e.pull_request), ...Object.keys(r.parameters ?? {})]);
     for (const k of keys) {
       if (!same(e.pull_request[k], r.parameters?.[k])) v.push(`L5: pull_request.${k} is ${JSON.stringify(r.parameters?.[k])}, expected ${JSON.stringify(e.pull_request[k])}`);
+    }
+  }
+  // Only when both sides have the rule: a queue missing on either side is already an L4.
+  if (e.merge_queue) {
+    for (const r of rules.filter((x) => x.type === "merge_queue")) {
+      const keys = new Set([...Object.keys(e.merge_queue), ...Object.keys(r.parameters ?? {})]);
+      for (const k of keys) {
+        if (!same(e.merge_queue[k], r.parameters?.[k])) v.push(`L5: merge_queue.${k} is ${JSON.stringify(r.parameters?.[k])}, expected ${JSON.stringify(e.merge_queue[k])}`);
+      }
     }
   }
   if (ruleset.enforcement !== e.enforcement) v.push(`L6: enforcement is '${ruleset.enforcement}', expected '${e.enforcement}'`);
@@ -259,7 +286,12 @@ function load(root: string): { expected: Expected; contexts: string[] } {
   }
   return {
     expected: JSON.parse(readFileSync(join(root, EXPECTED_FILE), "utf8")) as Expected,
-    contexts: manifestContexts(readFileSync(join(root, MANIFEST_FILE), "utf8")),
+    // Both manifests: a required context is a job's check run or a posted commit status, and GitHub requires both kinds
+    // in the one list. A context in both files is a duplicate (R5).
+    contexts: [
+      ...manifestContexts(readFileSync(join(root, MANIFEST_FILE), "utf8")),
+      ...(existsSync(join(root, STATUS_FILE)) ? manifestContexts(readFileSync(join(root, STATUS_FILE), "utf8")) : []),
+    ],
   };
 }
 
@@ -373,6 +405,12 @@ function selfTest(): never {
   expect("R5-duplicate", off(() => {}, ["Scope", "Scope"]), /^R5: .*more than once/);
   expect("R5-unbound", off((e) => { (e.status_checks as any).integration_id = null; }), /^R5: status_checks.integration_id/);
   expect("R6-param-unstated", off((e) => { delete e.pull_request.required_approving_review_count; }), /^R6: pull_request.required_approving_review_count/);
+  // §6.19. The parameter names in these fixtures are placeholders: the checker names none of GitHub's.
+  const MQ = { merge_method: "MERGE", wait_minutes: 5 };
+  expect("R7-queue-recorded", off((e) => { e.rule_types.push("merge_queue"); e.merge_queue = clone(MQ); }), null);
+  expect("R7-queue-unstated", off((e) => { e.rule_types.push("merge_queue"); }), /^R7: rule 'merge_queue' is expected but its parameters/);
+  expect("R7-queue-empty", off((e) => { e.rule_types.push("merge_queue"); e.merge_queue = {}; }), /^R7: rule 'merge_queue' is expected but its parameters/);
+  expect("R7-params-stale", off((e) => { e.merge_queue = clone(MQ); }), /^R7: merge_queue parameters are stated but rule/);
 
   // The manifest reader: comments and blank lines are not contexts, and a context keeps its punctuation.
   const m = manifestContexts("# header\n\nScope\n# note\nHost tests (Class C)\r\n");
@@ -417,6 +455,20 @@ function selfTest(): never {
   expect("L5-merge-methods", live((_rs, rl) => { prr(rl).allowed_merge_methods = ["squash"]; }), /^L5: pull_request.allowed_merge_methods/);
   expect("L5-new-parameter", live((_rs, rl) => { prr(rl).require_extra_approval_for_unattributed_changes = true; }), /^L5: pull_request.require_extra_approval_for_unattributed_changes is true, expected undefined/);
   expect("L5-strict", live((_rs, rl) => { sc(rl).strict_required_status_checks_policy = true; }), /^L5: strict_required_status_checks_policy is true/);
+  {
+    // §6.19: with the queue expected, the live queue must match it parameter by parameter.
+    const Eq = clone(E); Eq.rule_types.push("merge_queue"); Eq.merge_queue = clone(MQ);
+    const lq = (mut: (rl: LiveRule[]) => void): string[] => {
+      const rl = clone(RL); rl.push({ type: "merge_queue", ruleset_id: 7, parameters: clone(MQ) }); mut(rl);
+      return compareLive(Eq, C, clone(RS), rl).violations;
+    };
+    const mqp = (rl: LiveRule[]): any => rl.find((r) => r.type === "merge_queue")!.parameters!;
+    expect("L5-queue-clean", lq(() => {}), null);
+    expect("L5-queue-param", lq((rl) => { mqp(rl).wait_minutes = 60; }), /^L5: merge_queue.wait_minutes is 60, expected 5/);
+    expect("L5-queue-new-param", lq((rl) => { mqp(rl).grouping = "HEADGREEN"; }), /^L5: merge_queue.grouping is "HEADGREEN", expected undefined/);
+    expect("L4-queue-off", lq((rl) => { rl.splice(rl.findIndex((r) => r.type === "merge_queue"), 1); }), /^L4: rule 'merge_queue' is expected but not in force/);
+  }
+  expect("L4-queue-unrecorded", live((_rs, rl) => { rl.push({ type: "merge_queue", ruleset_id: 7, parameters: {} }); }), /^L4: rule 'merge_queue' is in force.*no record/);
   expect("L6-disabled", live((rs) => { rs.enforcement = "disabled"; }), /^L6: enforcement is 'disabled'/);
   expect("L6-exclude", live((rs) => { rs.conditions!.ref_name!.exclude = ["refs/heads/main"]; }), /^L6: the ruleset excludes/);
   expect("L6-retargeted", live((rs) => { rs.conditions!.ref_name!.include = ["refs/heads/dev"]; }), /^L6: the ruleset includes/);
@@ -475,6 +527,19 @@ function selfTest(): never {
     if (run("--live-from", "rs.json", "rl.json") !== 0) { failed++; console.error("FAIL e2e-live-clean: matching responses must exit 0"); }
     writeFileSync(join(box, "rl.json"), JSON.stringify(RL.filter((r) => r.type !== "pull_request")));
     if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-live-shrunk: a missing pull_request rule must exit 1"); }
+    // §6.20: a posted status is a required context too. Listed, GitHub must require it (L2); GitHub requiring it, it
+    // must be listed (L1 otherwise); in both manifests it is a duplicate (R5).
+    writeFileSync(join(box, "rl.json"), JSON.stringify(RL));
+    writeFileSync(join(box, STATUS_FILE), "# s\nmain is green\n");
+    if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-status-not-required: a listed status GitHub does not require must exit 1"); }
+    const withStatus = clone(RL); sc(withStatus).required_status_checks.push({ context: "main is green", integration_id: 15368 });
+    writeFileSync(join(box, "rl.json"), JSON.stringify(withStatus));
+    if (run("--live-from", "rs.json", "rl.json") !== 0) { failed++; console.error("FAIL e2e-status-required: a listed status GitHub requires must exit 0"); }
+    rmSync(join(box, STATUS_FILE));
+    if (run("--live-from", "rs.json", "rl.json") !== 1) { failed++; console.error("FAIL e2e-status-unlisted: a required status in neither manifest must exit 1"); }
+    writeFileSync(join(box, STATUS_FILE), "Scope\n");
+    if (run() !== 1) { failed++; console.error("FAIL e2e-status-duplicate: a context in both manifests must exit 1"); }
+    rmSync(join(box, STATUS_FILE));
     writeFileSync(join(box, MANIFEST_FILE), "# only a comment\n");
     if (run() !== 1) { failed++; console.error("FAIL e2e-empty-manifest: an empty manifest must exit 1"); }
   } finally {
@@ -482,7 +547,7 @@ function selfTest(): never {
   }
 
   if (failed) { console.error(`check-main-ruleset: ${failed} self-test assertion(s) FAILED`); process.exit(1); }
-  console.log(`check-main-ruleset: self-test OK (${cases} rule cases, each the passing fixture or one mutation of it, and 5 end-to-end runs)`);
+  console.log(`check-main-ruleset: self-test OK (${cases} rule cases, each the passing fixture or one mutation of it, and 9 end-to-end runs)`);
   process.exit(0);
 }
 

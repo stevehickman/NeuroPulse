@@ -43,7 +43,7 @@
  * HAL stubs:
  *   OI-HUB-MAIN-01: np_hal_proto_queue_receive(buf, buf_len, recv_len_out, timeout_ms)
  *     Blocks until a protocol blob arrives from BLE GATT or USB-C CDC transport.
- *   OI-HUB-MAIN-02: np_hal_status_led_set(state) — left-temple power LED.
+ *   OI-HUB-MAIN-02: np_hal_status_led_set(state) — left-temple power LED, driven only through np_status_led.c.
  *   OI-HUB-MAIN-03: RETIRED 2026-09-24 (OI-LFS-12) — the device session count
  *                   is np_session_count_load() from the Config partition.
  */
@@ -70,6 +70,7 @@
 #include "np_gatt_server.h"     /* OI-WA-03: BLE GATT service */
 #include "np_consumables.h"     /* OI-ACC-08: CONSUMABLE_STATUS producer */
 #include "np_pause_limit.h"     /* SWR-SS-05: the owner's pause time limit */
+#include "np_status_led.h"      /* REQ-FWHUB-85/-85: the indicators and stealth mode (OI-PRIV-37) */
 #include "np_ppx_config.h"      /* REQ-FWHUB-71: the detector's clinician switches */
 #include "np_cardiac_sens.h"    /* REQ-FWHUB-74: the cardiac cutoff's sensitivity */
 #include "np_factory_reset.h"   /* OI-NVRAM-17: interrupted-reset boot check */
@@ -163,30 +164,12 @@ static void log_crit_exit(uint32_t saved)
 
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
-/*
- * log_cvns_event — write the SHDR record, if any, for a CVNS re-enable
- * lifecycle event.  np_cvns_reenable_shdr_code() decides which events reach
- * SHDR: the cutoff flag only (NP-FW-CVNS-001 §8.2: "cutoff occurred flag";
- * OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-91).  The rest of the lifecycle says what the wearer
- * did after a cardiac event and is not written to SHDR at all.
- *
- * Privacy: the code is a flag only.  The 0 passed as the timestamp argument is
- * belt-and-braces — np_log_shdr_fault() discards `session_ms` for every caller
- * and every fault type, because fault event timing is UHDR.  That suppression
- * is UNCONDITIONAL and therefore leaks nothing about which fault occurred; do
- * NOT make it conditional on the event being cardiac (CLAUDE.md §5.1 — a
- * redaction applied conditionally on a sensitive predicate leaks that
- * predicate).  Dropping the non-cutoff events is not such a redaction: they
- * are never written, whatever happened, so their absence says nothing.
- */
-static void log_cvns_event(np_cvns_reenable_event_t ev)
-{
-    uint8_t code = np_cvns_reenable_shdr_code(ev);
-    if (code == 0U) {
-        return;
-    }
-    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, code, 0U /* ts suppressed */);
-}
+/* No cervical VNS re-enable lifecycle event is written to SHDR, the cutoff
+ * included (REQ-FWHUB-91; the principal's ruling on OI-PRIV-22
+ * (NP-PRIV-ANALYSIS-004), 2026-11-23: a safety interlock that trips on a
+ * reading of the wearer → UHDR).  The cutoff withdraws the CVNS grant, which
+ * the safety SPI latches cause-free into the session-end record's
+ * stopped_early flag (REQ-FWHUB-89 (c)). */
 
 /* Active user posted by np_hub_set_active_user() (app-transport task), sent to
  * the safety MCU by task_safety_heartbeat.  Single writer each way. */
@@ -223,12 +206,11 @@ static void task_safety_heartbeat(void *arg)
 
         uint8_t  mcu_status = np_safety_spi_get_status();
         uint32_t now_ms     = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-        np_cvns_reenable_event_t ev = np_cvns_reenable_on_heartbeat(
+        (void)np_cvns_reenable_on_heartbeat(
             mcu_status,
             (state == NP_SESSION_RUNNING),
             now_ms);
         np_safety_spi_set_cvns_reenable(np_cvns_reenable_bit_active());
-        log_cvns_event(ev);
 
         /* NP-SW-FAULTMSG-001 §9.6: publish CVNS_FAULT_STATUS when it changes
          * (re-enable state, the safety MCU's per-user flags, a new fault) and
@@ -306,7 +288,7 @@ static void task_safety_heartbeat(void *arg)
                 ((fault_status & NP_CVNS_NONRECOVERABLE_FAULTS) == 0U);
 
             if (!cardiac_recoverable) {
-                np_hal_status_led_set(NP_LED_FAULT);
+                np_status_led_fault();   /* REQ-FWHUB-86: shows whatever stealth says */
                 xEventGroupSetBits(g_hub_events, NP_EV_SAFETY_FAULT);
             }
         } else if (rc == NP_HUB_ERR_TIMEOUT) {
@@ -370,11 +352,13 @@ static void task_hub_control(void *arg)
                              NP_EV_POWER_FAULT | NP_EV_SESSION_PAUSE |
                              NP_EV_SESSION_RESUME | NP_EV_SESSION_PANIC);
 
-        np_hal_status_led_set(NP_LED_SESSION);
+        np_status_led_session_started();   /* SESSION, or dark in stealth (REQ-FWHUB-86) */
 
         np_hub_status_t rc = np_runner_run();
 
-        np_hal_status_led_set((rc == NP_HUB_OK) ? NP_LED_IDLE : NP_LED_FAULT);
+        /* REQ-FWHUB-85: a stop by the person or a pause timeout (NP_HUB_ERR_STOPPED) goes back to idle like a completed
+         * session; every other status is a fault and lights red, stealth or not (OI-PRIV-37). */
+        np_status_led_session_ended(rc);
 
         /* Check incoming protocol queue for next session while idle. */
         /* (Falls through to the xEventGroupWaitBits at the top of the loop.) */
@@ -666,7 +650,8 @@ void np_hub_control_app_main(void)
     np_progress_set_source(np_runner_progress);                    /* SWR-SS-07 */
     np_hold_set_source(np_runner_hold_cause);                      /* SWR-SS-09: why a session is held */
 
-    np_hal_status_led_set(NP_LED_IDLE);
+    np_status_led_bind(np_hal_status_led_set);   /* OI-HUB-MAIN-02: the LED HAL */
+    np_status_led_init();                        /* IDLE, stealth off: stealth is RAM only (REQ-FWHUB-86 (f)) */
 
     /* Create FreeRTOS tasks. */
     BaseType_t ok;

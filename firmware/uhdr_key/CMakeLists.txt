@@ -32,6 +32,8 @@ endif()
 # ── Sources ────────────────────────────────────────────────────────────────────
 set(UHDR_KEY_SOURCES
     src/np_uhdr_key.c
+    src/np_uhdr_profile.c   # NP-FW-EMMC-002 §C.8: per-person key store
+    src/np_uhdr_seal.c      # NP-FW-EMMC-002 §C.8.7: per-file sealing
 )
 
 # ── Cross-compiled static library (target firmware) ─────────────────────────────
@@ -83,4 +85,42 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST
     )
     target_link_libraries(np_uhdr_key_tests PRIVATE np_crypto)
+endif()
+
+# Per-person key store (NP-FW-EMMC-002 §C.8; OI-PRIV-34).  Links both sources:
+# the TRNG / Argon2id / hw_bind / GCM host stubs live in np_uhdr_key.c, the
+# slot table and recovery-KDF stubs in np_uhdr_profile.c.
+if(NP_BUILD_TESTS)
+    add_executable(np_uhdr_profile_tests
+        tests/np_uhdr_profile_tests.c
+        src/np_uhdr_key.c
+        src/np_uhdr_profile.c
+    )
+    target_include_directories(np_uhdr_profile_tests PRIVATE
+        include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
+    )
+    target_compile_options(np_uhdr_profile_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST
+    )
+    target_link_libraries(np_uhdr_profile_tests PRIVATE np_crypto)
+endif()
+
+# Per-file sealing (NP-FW-EMMC-002 §C.8.7; OI-PRIV-34).  Needs the key-store
+# and key stubs as well: a file is sealed under an open profile.
+if(NP_BUILD_TESTS)
+    add_executable(np_uhdr_seal_tests
+        tests/np_uhdr_seal_tests.c
+        src/np_uhdr_key.c
+        src/np_uhdr_profile.c
+        src/np_uhdr_seal.c
+    )
+    target_include_directories(np_uhdr_seal_tests PRIVATE
+        include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../crypto/include
+    )
+    target_compile_options(np_uhdr_seal_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST
+    )
+    target_link_libraries(np_uhdr_seal_tests PRIVATE np_crypto)
 endif()

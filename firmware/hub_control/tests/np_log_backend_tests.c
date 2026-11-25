@@ -617,7 +617,7 @@ static void test_count_committed_before_file(void)
 #define START_REC_BYTES (1U + NP_HUB_PROTO_UUID_LEN + sizeof(uint32_t) + sizeof(uint32_t))
 #define VNS_REC_BYTES   (1U + sizeof(uint32_t) + 3U * sizeof(float) + sizeof(uint32_t))   /* impedance_ohm is 32-bit (OI-UINT16-01) */
 #define ADAPT_REC_BYTES (1U + sizeof(np_adaptation_event_t))
-#define ZONE_REC_BYTES  (1U + sizeof(uint32_t) + 3U)
+#define ZONE_REC_BYTES  (1U + 3U)   /* tag, slot, type, pass: no session count (REQ-NASAL-16) */
 #define EEG_HDR_BYTES   7U
 #define OPEN_REC_BYTES  (1U + sizeof(uint32_t))
 #define CMD_HDR_BYTES   (1U + sizeof(uint32_t) + 4U + sizeof(uint16_t))
@@ -779,7 +779,7 @@ static void test_shdr_overflow_syncs_after_append(void)
     size_t before_record = 0U;
     size_t handed_down = 0U;
     bool overflowed = false;
-    for (unsigned i = 0U; i < 1000U && !overflowed; i++) {
+    for (unsigned i = 0U; i < 4096U && !overflowed; i++) {   /* bound: one byte per record would still overflow */
         before_record = logged;
         np_log_shdr_zone_auth((uint8_t)i, NP_MOD_PBM_BASE, true);
         logged += ZONE_REC_BYTES;
@@ -926,12 +926,13 @@ static bool shdr_has_count_record(uint8_t tag, uint32_t want)
 
 /* ── OI-PRIV-21 (NP-PRIV-ANALYSIS-004): SHDR session records carry nothing about the session ── */
 
-#define END_REC_BYTES (1U + sizeof(uint32_t) + 4U)   /* tag, count, firmware version */
+#define END_REC_BYTES (1U + sizeof(uint32_t) + 4U + 1U)   /* tag, count, firmware version, stopped_early */
 
 /* Run one whole session through the logger and return the SHDR bytes it wrote
  * after the OPEN marker. */
 static size_t shdr_session_end_bytes(uint32_t boot_count, uint32_t duration_s,
                                      uint8_t abort_reason, uint32_t mods_mask,
+                                     uint8_t stopped_early,
                                      uint8_t *out, size_t out_max)
 {
     np_log_test_reset();
@@ -949,6 +950,7 @@ static size_t shdr_session_end_bytes(uint32_t boot_count, uint32_t duration_s,
     memset(&sh, 0, sizeof sh);
     sh.firmware_version[0] = 1U; sh.firmware_version[1] = 2U;
     sh.firmware_version[2] = 3U; sh.firmware_version[3] = 4U;
+    sh.stopped_early = stopped_early;
     np_log_session_end(&u, &sh);
     np_log_flush();
     const size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR) - base;
@@ -965,17 +967,33 @@ static void test_shdr_session_end_is_count_and_version_only(void)
     uint8_t b[64];
     /* A short clean session with one modality, then a long one stopped by a
      * seizure halt with every modality bit set: SHDR must not tell them apart. */
-    const size_t na = shdr_session_end_bytes(7U, 5U, (uint8_t)NP_ABORT_NONE, 0x1U, a, sizeof a);
-    const size_t nb = shdr_session_end_bytes(7U, 3600U, (uint8_t)NP_ABORT_EEG_SEIZURE, 0xFFFFFFFFU,
+    const size_t na = shdr_session_end_bytes(7U, 5U, (uint8_t)NP_ABORT_NONE, 0x1U, 1U, a, sizeof a);
+    const size_t nb = shdr_session_end_bytes(7U, 3600U, (uint8_t)NP_ABORT_EEG_SEIZURE, 0xFFFFFFFFU, 1U,
                                              b, sizeof b);
 
     uint32_t count = 0U;
     memcpy(&count, a + 1U, sizeof count);
     check(na == END_REC_BYTES && a[0] == NP_LOG_TAG_SHDR_SESSION_END && count == 8U &&
           a[5] == 1U && a[6] == 2U && a[7] == 3U && a[8] == 4U,
-          "shdr end: 9 bytes, the tag, this session's count and the firmware version, nothing else");
+          "shdr end: 10 bytes, the tag, this session's count, the firmware version and the stop flag, nothing else");
     check(nb == na && memcmp(a, b, na) == 0,
           "shdr end: duration, abort reason and the modalities that ran change no SHDR byte");
+}
+
+/* @verifies REQ-FWHUB-89#c */
+static void test_shdr_session_end_stop_flag_is_one_byte_in_every_record(void)
+{
+    uint8_t clean[64], stopped[64], odd[64];
+    const size_t nc = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_NONE, 0x1U, 0U, clean, sizeof clean);
+    const size_t ns = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_USER, 0x1U, 1U, stopped, sizeof stopped);
+    const size_t no = shdr_session_end_bytes(7U, 600U, (uint8_t)NP_ABORT_NONE, 0x1U, 0x5AU, odd, sizeof odd);
+    check(nc == END_REC_BYTES && ns == END_REC_BYTES,
+          "stop flag: a clean session and a stopped one write the same length");
+    check(clean[END_REC_BYTES - 1U] == 0U && stopped[END_REC_BYTES - 1U] == 1U &&
+          memcmp(clean, stopped, END_REC_BYTES - 1U) == 0,
+          "stop flag: the last byte is 0 or 1 and is the only byte that differs");
+    check(no == END_REC_BYTES && odd[END_REC_BYTES - 1U] == 1U,
+          "stop flag: any non-zero value is written as 1, so the byte carries one bit");
 }
 
 /* @verifies REQ-FWHUB-89#b */
@@ -1019,7 +1037,7 @@ static void test_session_telemetry_writes_no_shdr(void)
     np_log_session_end(&g_rec, &sh);
     np_log_flush();
     check(np_log_test_captured_len(NP_LOG_PART_SHDR) == sbase + END_REC_BYTES,
-          "telemetry: a session of any length leaves OPEN and one 9-byte END in SHDR");
+          "telemetry: a session of any length leaves OPEN and one 10-byte END in SHDR");
 }
 
 /* @verifies REQ-FWHUB-40 */
@@ -1413,6 +1431,102 @@ static void test_fault_queue_full_keeps_oldest(void)
           "fault queue: np_log_init() clears the drop count");
 }
 
+/* @verifies REQ-NASAL-16#a */
+static void test_zone_auth_record_has_no_session_count(void)
+{
+    logger_session_open();              /* session 1: a count of 1 would show as 01 00 00 00 */
+    const size_t base = np_log_test_captured_len(NP_LOG_PART_SHDR);
+
+    np_log_shdr_zone_auth(NP_HUB_SLOT_INTRANASAL, NP_MOD_INTRANASAL, true);
+    np_log_shdr_zone_auth(NP_HUB_SLOT_INTRANASAL, NP_MOD_INTRANASAL, false);
+    np_log_flush();
+
+    const uint8_t *cap = np_log_test_captured(NP_LOG_PART_SHDR) + base;
+    const size_t n = np_log_test_captured_len(NP_LOG_PART_SHDR) - base;
+    const uint8_t expect[2U * ZONE_REC_BYTES] = {
+        NP_LOG_TAG_SHDR_ZONE_AUTH, NP_HUB_SLOT_INTRANASAL, (uint8_t)NP_MOD_INTRANASAL, 1U,
+        NP_LOG_TAG_SHDR_ZONE_AUTH, NP_HUB_SLOT_INTRANASAL, (uint8_t)NP_MOD_INTRANASAL, 0U,
+    };
+    check(n == sizeof expect && memcmp(cap, expect, sizeof expect) == 0,
+          "zone auth: tag, slot, type and pass only, no session count, and a "
+          "pass and a fail are the same length");
+}
+
+/* ── The photoparoxysmal halt is UHDR, never SHDR (REQ-FWHUB-88, OI-PRIV-22 of NP-PRIV-ANALYSIS-004) ── */
+
+#define VISUAL_REC_BYTES (1U + sizeof(uint32_t) + 1U + 1U)   /* tag, session_ms, eye_open, ppx_halt */
+
+static void log_visual(uint32_t session_ms, bool eye_open, bool ppx_halt)
+{
+    np_telem_record_t t;
+    memset(&t, 0, sizeof t);
+    t.mod_type   = NP_MOD_VISUAL;
+    t.slot       = NP_HUB_SLOT_VISUAL;
+    t.session_ms = session_ms;
+    t.data.visual.eye_open = eye_open;
+    t.data.visual.ppx_halt = ppx_halt;
+    np_log_telemetry(&t);
+}
+
+/* What one visual record adds to each stream, after the session's own start records. */
+static void visual_tick(bool ppx_halt, size_t *uhdr_added, size_t *shdr_added, uint8_t *uhdr_rec)
+{
+    logger_session_open();
+    np_log_flush();
+    const size_t u0 = np_log_test_captured_len(NP_LOG_PART_UHDR);
+    const size_t s0 = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    log_visual(1000U, true, ppx_halt);
+    np_log_flush();
+    *uhdr_added = np_log_test_captured_len(NP_LOG_PART_UHDR) - u0;
+    *shdr_added = np_log_test_captured_len(NP_LOG_PART_SHDR) - s0;
+    if (*uhdr_added == VISUAL_REC_BYTES) {
+        memcpy(uhdr_rec, np_log_test_captured(NP_LOG_PART_UHDR) + u0, VISUAL_REC_BYTES);
+    }
+}
+
+/* @verifies REQ-FWHUB-88#a */
+static void test_ppx_halt_writes_nothing_to_shdr(void)
+{
+    size_t u_clear, s_clear, u_halt, s_halt;
+    uint8_t rec[VISUAL_REC_BYTES];
+    visual_tick(false, &u_clear, &s_clear, rec);
+    call_end();
+    visual_tick(true, &u_halt, &s_halt, rec);
+    check(s_clear == 0U && s_halt == 0U,
+          "ppx: a visual record writes nothing to SHDR, with the halt clear or set");
+
+    /* The halt latches and the runner logs telemetry every second: many halted ticks still write nothing to SHDR. */
+    const size_t s0 = np_log_test_captured_len(NP_LOG_PART_SHDR);
+    for (uint32_t i = 2U; i <= 30U; i++) { log_visual(i * 1000U, true, true); }
+    np_log_flush();
+    check(np_log_test_captured_len(NP_LOG_PART_SHDR) == s0,
+          "ppx: a latched halt across 29 more ticks adds no SHDR record, so no count of them exists");
+    call_end();
+}
+
+/* @verifies REQ-FWHUB-88#b */
+static void test_ppx_halt_is_a_byte_of_every_uhdr_visual_record(void)
+{
+    size_t u_clear, s_clear, u_halt, s_halt;
+    uint8_t clear[VISUAL_REC_BYTES], halt[VISUAL_REC_BYTES];
+    memset(clear, 0xA5, sizeof clear);
+    memset(halt, 0xA5, sizeof halt);
+    visual_tick(false, &u_clear, &s_clear, clear);
+    call_end();
+    visual_tick(true, &u_halt, &s_halt, halt);
+    call_end();
+    check(u_clear == VISUAL_REC_BYTES && u_halt == VISUAL_REC_BYTES,
+          "ppx: the UHDR visual record has one length, with the halt clear or set");
+    uint32_t ms;
+    memcpy(&ms, halt + 1U, sizeof ms);
+    check(halt[0] == NP_LOG_TAG_UHDR_VISUAL && ms == 1000U && halt[5] == 1U,
+          "ppx: the UHDR visual record carries session_ms and eye_open in the unchanged order");
+    check(halt[6] == 1U && clear[6] == 0U,
+          "ppx: the last byte of the UHDR visual record is the halt, 1 when set and 0 when clear");
+    check(memcmp(clear, halt, VISUAL_REC_BYTES - 1U) == 0,
+          "ppx: the halt changes that byte and no other");
+}
+
 int main(void)
 {
     printf("── np_log_backend_tests (OI-LOG-01..04) ──\n");
@@ -1444,8 +1558,10 @@ int main(void)
     test_session_end_keeps_queued_adapt_events();
     test_session_open_marker_is_durable_before_return();
     test_shdr_session_end_is_count_and_version_only();
+    test_shdr_session_end_stop_flag_is_one_byte_in_every_record();
     test_session_telemetry_writes_no_shdr();
     test_command_record_layout();
+    test_zone_auth_record_has_no_session_count();
     test_hrv_session_record();
     test_every_entry_takes_the_lock();
     test_heartbeat_fault_mid_sync_is_queued();
@@ -1455,6 +1571,8 @@ int main(void)
     test_pause_and_resume_are_marked_in_uhdr();
     test_session_end_wipes_uhdr_plaintext();
     test_session_end_wipes_when_no_file();
+    test_ppx_halt_writes_nothing_to_shdr();
+    test_ppx_halt_is_a_byte_of_every_uhdr_visual_record();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

@@ -115,6 +115,11 @@ static void upload(const char *unsigned_hex, int flip_a_bit)
 {
     char *cmd = malloc(strlen(unsigned_hex) + 16U);
     (void)snprintf(cmd, strlen(unsigned_hex) + 16U, "proto_sign %s", unsigned_hex);
+    /* The app stamps the DEVICE_SERIAL it read at link into the header (bytes 28 to 59) before signing; the goldens carry none, and the
+     * hub's replay guard fails closed (REQ-FWHUB-90), so stamp the TEST device's serial (0x5a in every byte, np_sim_proto.c). */
+    if (strlen(unsigned_hex) >= 120U) {
+        for (size_t i = 0U; i < 64U; i += 2U) { cmd[11U + 56U + i] = '5'; cmd[11U + 56U + i + 1U] = 'a'; }
+    }
     g_cap_n = 0;
     runl(cmd);
     free(cmd);
@@ -265,8 +270,9 @@ static void test_a_pause_a_resume_and_a_stop_reach_the_runner_and_the_lease_is_r
     hub_run_ms(500);
     check(runner_is("stopping"), "a stop moved the runner to stopping (modules ramp down for up to 5 s)");
     hub_run_ms(5500);
-    check(runner_is("fault") && strstr(last_with("\"ev\":\"hub_led\""), "\"led\":\"fault\"") != NULL,
-          "then the runner ended in the state the device's runner gives any abort, a stop included (np_runner_run_tests.c pins it), and the LED followed");
+    check(runner_is("fault"), "then the runner ended in the state the device's runner gives any abort, a stop included (np_runner_run_tests.c pins it)");
+    check(strstr(last_with("\"ev\":\"hub_led\""), "\"led\":\"idle\"") != NULL && count2("\"ev\":\"hub_led\"", "\"led\":\"fault\"") == 0,
+          "but a stop is not a fault: the LED went back to idle and never showed red (REQ-FWHUB-85, OI-PRIV-37)");
     check(active_mask() == 0U, "nothing is active");
     /* The lease: a second protocol is taken in only because np_runner_run released it. */
     upload(golden("visual"), 0);
