@@ -1,8 +1,8 @@
 # NP-COND-LINK-001 — Condition external-link UI
 
 **Document:** NP-COND-LINK-001
-**Revision:** 1
-**Date:** 2026-07-18
+**Revision:** 2
+**Date:** 2026-11-22
 **Status:** ACTIVE
 **Applies to:** iOS, macOS, Android, Windows, Web
 **Related:** NP-NPPS-REF-001 (grammar), `protocols/predefined/00-conditions.npps` (registry)
@@ -57,7 +57,7 @@ Evaluation order, after trimming leading/trailing whitespace:
 | 5 | Authority is non-empty | `missing_host` |
 | 6 | Authority has no userinfo component (`user:pass@host`) | `embedded_credentials` |
 | 7 | Host survives port/bracket stripping as non-empty | `missing_host` |
-| 8 | Host is not loopback, link-local, `.local`, RFC1918, or single-label | `local_or_private_host` |
+| 8 | Host is not loopback, link-local, `.local`, RFC1918, CGNAT (100.64/10), multicast or reserved, or single-label; a numeric host is a canonical dotted quad; an IPv6 literal parses, carries no zone identifier, and any IPv4 address it embeds passes this rule | `local_or_private_host` |
 
 Rules 3–8 matter because the link string arrives from a parsed `.npps` file,
 and `.npps` files are user-authorable. Handing an arbitrary string to a platform
@@ -68,6 +68,17 @@ those. Rule 8 additionally prevents a crafted registry from poking at
 `127.0.0.1`-bound local services, and rejects single-label hosts such as
 `https://intranet/...`, which resolve through the machine's DNS search suffix
 onto the LAN rather than the public internet.
+
+Rule 8 classifies the address a browser would reach, not the string. Browsers
+read `127.1`, `0x7f.0.0.1`, `0177.0.0.1` and `2130706433` as 127.0.0.1 (the
+WHATWG IPv4 parser accepts shorthand, hex and octal), so a host whose last label
+is a number and which is not a canonical dotted quad is refused rather than
+re-parsed. An IPv6 literal is parsed to its eight groups, so the IPv4 address
+inside an IPv4-mapped (`::ffff:127.0.0.1`), IPv4-compatible, NAT64 or 6to4
+literal is held to the IPv4 rule; a literal that does not parse, or has a zone
+identifier, is refused. One trailing dot (the DNS root) names the same host and
+is ignored for classification; an empty label anywhere else is refused
+(NP-PRIV-ANALYSIS-007 L14, `OI-PRIV-66`).
 
 ### 3.1 Why the scheme and authority are scanned by hand
 
@@ -129,3 +140,11 @@ Per-platform code is limited to the view and the one-line OS open call:
 
 `noopener,noreferrer` on web is required: it drops the `Referer` header, so the
 destination does not learn which page the user came from.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-22 | NeurOne Software Engineering | **§3 rule 8: a numeric host must be a canonical dotted quad; CGNAT (100.64/10), multicast and reserved IPv4 are refused; an IPv6 literal must parse, carry no zone identifier, and any IPv4 address it embeds passes the rule; one trailing dot is ignored (`OI-PRIV-66` (1), NP-PRIV-ANALYSIS-007 L14).** |

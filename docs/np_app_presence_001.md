@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 16
+**Revision:** 17
 **Date:** 2026-11-22
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
@@ -63,12 +63,12 @@ Each row answers `CLAUDE.md` §18's two questions. *Fails without it* is what go
 
 ## 4. The device tier (accepted by the principal, 2026-10-21 — `OI-PRES-01`)
 
-`CLAUDE.md` §5.1 says a field is UHDR until it is positively shown to say nothing about the person. Today every stored key is sealed as UHDR (`sealed_at_rest()` returns all of them). The ruling that reminders and the fleet upload work locked needs a short list moved out. **The principal accepted the first three on 2026-10-21 and added the last two on 2026-11-21 (below); the list is `deviceTier` in `common/npps/migration-keys.json`, read by the core:**
+`CLAUDE.md` §5.1 says a field is UHDR until it is positively shown to say nothing about the person. Today every stored key is sealed as UHDR (`sealed_at_rest()` returns all of them). The ruling that reminders and the fleet upload work locked needs a short list moved out. **The principal accepted the first three on 2026-10-21 and added the last two on 2026-11-21 (below); the list is `deviceTier` in `common/npps/migration-keys.json`, read by the core, and the core keeps only keys its in-code allowlist `DEVICE_TIER_RULINGS` names with their ruling (`OI-PRIV-66` (3)). One of the first three has since left the tier (row below):**
 
 | Key | Why it may be device-tier | Why it might not |
 |-----|---------------------------|------------------|
 | `np.shdr.device-token` | An opaque random token naming the install to the fleet; SHDR is linked to the device and nothing else (`REQ-SHDR-02`). | None found: it is already argued not to be the person's (`EncryptedKeyValueStore.SHDR_DEVICE_TOKEN_KEY`). |
-| `np.warranty.consent-granted` | The warranty owner's consent to fleet telemetry; the warranty owner is not assumed to be the wearer (`CLAUDE.md` §6.0). | A clinic's choice could be read as saying something about its patients. |
+| ~~`np.warranty.consent-granted`~~ | **Retired from the tier 2026-11-22 (`OI-PRIV-66` (3)); it is UHDR-tier again.** No host reads it: the shared core keeps per-helmet consent in `np.warranty-owner.records` (`REQ-SHDR-08`) and only deletes this flag as a legacy key, and the Swift app that read it is retired (#946). Leaving the tier only raises its protection. The row as accepted: the warranty owner's consent to fleet telemetry; the warranty owner is not assumed to be the wearer (`CLAUDE.md` §6.0). | A clinic's choice could be read as saying something about its patients. |
 | `ble.last-hub-id` | The helmet's identifier, to find it again without the person scanning. | It ties a person to a device (`sealed_at_rest()` already says so). |
 | `np.analytics.distinct-id` | **Added by the principal, 2026-11-21.** A random 128-bit value the analytics backend makes for the install (`PostHogAnalyticsBackend.newId`); it is derived from nothing about the person or the device and is linked to no account (`NP-APP-TELEMETRY-001`). Reading it from the phone tells the reader nothing about the person. The only thing it names is the vendor's usage events, which carry the allowlisted properties of `NP-APP-TELEMETRY-001` §3 and no health data, and the access needed to read them is not on the phone. With the erasure relay, the only thing a holder of the ID can do is erase those events. | It is the key to the person's usage history at the vendor (an engagement tier, feature names), which is behaviour, the reason the consumable snooze counts stay UHDR. Whoever reads the ID **and** has the vendor's access can read that history. |
 | `np.analytics.pending-erasures` | **Added by the principal, 2026-11-21.** Holds only IDs of that kind, each waiting to be erased, and nothing else. | The same as the ID. |
@@ -130,3 +130,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 14 | 2026-11-21 | NeurOne Software Engineering | **§3: REQ-PRES-01 (d) now also covers the consent store, the limits store, the protocol library, the research suggestion store, the wavelength rules store, the consumable tracker, the launch count, the cloud credential vault, the backup place, the replacement queue and the fault ledger (now one sealed value), and states what a change made while locked means: held as an operation and replayed on the sealed value, with grants, approvals, acceptances, descriptors and whole-state commits refused while locked (the principal, 2026-11-21; OI-PRIV-19).** |
 | 15 | 2026-11-21 | NeurOne Software Engineering | **§6: `OI-PRES-05` is closed: the Swift app was retired instead of given the gate, and `app/ios` is deleted (`OI-UI-KMP-05` PR B, 2026-11-21).** |
 | 16 | 2026-11-22 | NeurOne Software Engineering | **New `REQ-PRES-10`: the passphrase record (Argon2 parameters, salt, wrapped data key) is written only sealed under the host keystore key the device tier uses, stays readable before presence and outside the UHDR tier, and a record in the clear is refused (`OI-PRIV-65` (1)). Increment 5 notes the change.** |
+| 17 | 2026-11-22 | NeurOne Software Engineering | **§4: the core keeps only device-tier keys its allowlist `DEVICE_TIER_RULINGS` names with their ruling; `np.warranty.consent-granted` is retired from the tier in place (no host reads it since #946), so it is UHDR-tier again (`OI-PRIV-66` (3)).** |

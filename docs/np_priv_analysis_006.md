@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 1
-**Date:** 2026-11-21  
+**Revision:** 2
+**Date:** 2026-11-25  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -333,7 +333,7 @@ F-12 to F-16 follow these.
 
 ## 8. Repairs made after the analysis
 
-> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
+> **Rev 2 (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
 > requirement row and tests. The SwiftUI parts were not changed: that app was removed by pull request #946, which closes F-01, F-02,
 > F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
 
@@ -351,3 +351,11 @@ F-12 to F-16 follow these.
 - Hub-side EDF content (the `patientID` field) and what the hub writes into the SHDR blob.
 - Production hosting headers for the web app; Windows file ACLs.
 - `common/` internals, reviewed separately on 2026-11-15.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-25 | NeurOne Software Engineering | **§8 added: F-07, F-09, F-10 and F-11 repaired in the Compose app and the React web app, with their requirements, tests and what remains; `OI-PRIV-77` raised from F-09.** |

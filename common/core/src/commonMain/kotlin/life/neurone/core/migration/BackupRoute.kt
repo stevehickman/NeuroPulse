@@ -25,7 +25,12 @@ interface RouteDescriptor {
 
     /** A phone-to-phone link, which the core offers only with an authenticated pairing (SWR-MG-10). */
     val direct: Boolean get() = false
-    val authenticatedPairing: Boolean get() = true
+
+    /**
+     * Whether the route's link is authenticated by a pairing. False unless a route says so: a direct route that does not is withheld,
+     * not offered as paired (NP-PRIV-ANALYSIS-007 L19, `OI-PRIV-66`).
+     */
+    val authenticatedPairing: Boolean get() = false
 }
 
 /**
@@ -61,7 +66,7 @@ class InMemoryBackupRoute(
     override val id: String = "memory",
     override val atomicClaim: Boolean = true,
     override val direct: Boolean = false,
-    override val authenticatedPairing: Boolean = true,
+    override val authenticatedPairing: Boolean = false,
 ) : BackupRoute {
     private var bundle: ByteArray? = null
     private var claim: JsonObject? = null
@@ -119,7 +124,7 @@ class ObjectStoreRoute(
     override val id: String,
     override val atomicClaim: Boolean,
     override val direct: Boolean = false,
-    override val authenticatedPairing: Boolean = true,
+    override val authenticatedPairing: Boolean = false,
 ) : RouteDescriptor
 
 /** The descriptor a flow's `route` param carries: the core offers or withholds the route from it (SWR-MG-10). */

@@ -17,6 +17,7 @@ import kotlinx.datetime.todayIn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlin.math.floor
 import kotlin.math.round
@@ -233,6 +234,8 @@ class SessionHistoryStore(
         nextInsertionIndex = 0
         waiting.clear()
         store.remove(PersistedKeys.SESSION_HISTORY_KEY)
+        // A history kept because it could not be read is part of the history, and goes with it.
+        store.remove(PersistedKeys.SESSION_HISTORY_QUARANTINE_KEY)
     }
 
     // ── Presence ─────────────────────────────────────────────────────────
@@ -291,11 +294,14 @@ class SessionHistoryStore(
     private fun load() {
         if (lock != null && !lock.isUnlocked) return
         val blob = store.getString(PersistedKeys.SESSION_HISTORY_KEY)
-        // Corrupt blob is non-fatal — start clean rather than crash on launch.
-        records = if (blob == null) emptyList() else runCatching {
+        // A history that cannot be read starts the list clean rather than crash on launch, but its text is kept first: the next
+        // write replaces the record, and without the copy that write would destroy the person's sealed history (`REQ-SW03-35`).
+        val decoded = if (blob == null) emptyList() else runCatching {
             json.decodeFromString(ListSerializer(SessionRecord.serializer()), blob)
                 .map(::asShown).sortedWith(newestFirst)
-        }.getOrDefault(emptyList())
+        }.getOrNull()
+        if (decoded == null && blob != null && !quarantine(blob)) return
+        records = decoded ?: emptyList()
         nextInsertionIndex = (records.maxOfOrNull { it.insertionIndex } ?: -1) + 1
         _retention.value = HistoryRetention.parse(store.getString(PersistedKeys.SESSION_HISTORY_RETENTION_KEY))
         loaded = true
@@ -304,6 +310,28 @@ class SessionHistoryStore(
         if (kept.size != records.size) {
             records = kept
             persist()
+        }
+    }
+
+    /**
+     * Keep [blob], a stored history that could not be read, under [PersistedKeys.SESSION_HISTORY_QUARANTINE_KEY] as found, before
+     * anything can write over it (`REQ-SW03-35`; NP-PRIV-ANALYSIS-007 L16, `OI-PRIV-66`). The quarantine is a list of texts, each
+     * kept once; a quarantine that itself cannot be read is kept as its first entry rather than replaced. False when the write could
+     * not be made, and then the history is not treated as read, so nothing is written over it either.
+     */
+    private fun quarantine(blob: String): Boolean {
+        val texts = ListSerializer(String.serializer())
+        val existing = store.getString(PersistedKeys.SESSION_HISTORY_QUARANTINE_KEY)
+        val kept = when (existing) {
+            null -> emptyList()
+            else -> runCatching { json.decodeFromString(texts, existing) }.getOrElse { listOf(existing) }
+        }
+        if (blob in kept) return true
+        return try {
+            store.putString(PersistedKeys.SESSION_HISTORY_QUARANTINE_KEY, json.encodeToString(texts, kept + blob))
+            true
+        } catch (e: SecretKeyUnavailableException) {
+            false
         }
     }
 

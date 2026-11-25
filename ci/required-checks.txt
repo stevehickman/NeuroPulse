@@ -57,3 +57,7 @@ Simulator build and tests (host only)
 
 # tooling-ci.yml — the §5.1 redaction-shape gate (NP-SW-CI-001 §6.18)
 reporting paths cannot leak a sensitive predicate (§5.1)
+
+# shdr-schema-ci.yml, warranty-nojoin-ci.yml — the §5 privacy gates (NP-SW-CI-001 §6.21)
+SHDR Schema Privacy Gate
+Warranty No-Join Privacy Gate

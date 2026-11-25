@@ -197,10 +197,11 @@ class PresenceLockTests {
     }
 
     // @verifies REQ-PRES-05
-    @Test fun the_device_tier_the_core_names_is_the_five_the_principal_accepted() {
-        // The first three on 2026-10-21; the analytics ID and its erasure queue on 2026-11-21 (OI-ANALYTICS-01 (5) (b)).
+    @Test fun the_device_tier_the_core_names_is_the_four_the_principal_accepted_and_no_host_retired() {
+        // Three on 2026-10-21 and the analytics ID and its erasure queue on 2026-11-21 (OI-ANALYTICS-01 (5) (b)); the warranty flag,
+        // one of the three, left the tier on 2026-11-22 when no host read it any longer (OI-PRIV-66 (3)).
         assertEquals(
-            setOf("np.shdr.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.analytics.distinct-id", "np.analytics.pending-erasures"),
+            setOf("np.shdr.device-token", "ble.last-hub-id", "np.analytics.distinct-id", "np.analytics.pending-erasures"),
             EncryptedKeyValueStore.deviceTierKeys(),
         )
         assertTrue(EncryptedKeyValueStore.deviceTierKeys().all { it in EncryptedKeyValueStore.uhdrKeys() })
