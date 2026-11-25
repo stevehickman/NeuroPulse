@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 48
+**Revision:** 49
 **Date:** 2026-11-25  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -4542,3 +4542,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 46 | 2026-11-24 | NeurOne Software Engineering | **§6.7 and §6.7.8: `windows-ci.yml` is deleted with the Windows project, and `ios-ci.yml` is struck as deleted with the SwiftUI app, in the lists of path-filtered workflows (`OI-UI-KMP-05`).** |
 | 47 | 2026-11-24 | NeurOne Software Engineering | **New §6.21: Q1 B (audit of the App's pushes, `check-main-pushes.ts`), Q2 set P (`SHDR Schema Privacy Gate`, `Warranty No-Join Privacy Gate`), Q3 A, Q4 A, Q5 A; the OI-SWCI-54 row updated. The ruleset half of Q2 is the principal's. §7 and §6.15.3: OI-SWCI-51 closed (codeql.yml and dependency-scan.yml keep what they have).** |
 | 48 | 2026-11-25 | NeurOne Software Engineering | **New §6.21.5: the ruleset half of Q2 is in force (read live on 2026-11-25), the App id `5585393` is `RevNumberFixer` (confirmed by the principal), and what is still open. §6.17 and the OI-SWCI-54 row updated. No workflow, script or setting changed.** |
+| 49 | 2026-11-25 | NeurOne Tooling | **§6.20.5: step 2 (the sending account's secrets) and step 3 (a mail rule in Apple Mail and on the iPhone) are done, reported by the principal on 2026-11-25; step 6 stays open. §6.21.5 step 5: the first `main-pushes-audit` run stopped on a `TypeError` in `check-main-pushes.ts` (`jq` writes `previous_filename: null`); the script treats null as absent, with two new self-test cases; the audit's result is the next run after this merges.** |
