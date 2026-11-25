@@ -20,7 +20,7 @@
  * HAL stubs:
  *   OI-AUDIO-01: np_mod_audio_hal_codec_init()
  *   OI-AUDIO-02: np_mod_audio_hal_set_binaural(carrier_hz, beat_mhz, level_half_db)
- *   OI-AUDIO-03: np_mod_audio_hal_set_isochronic(freq_hz, level_half_db)
+ *   OI-AUDIO-03: np_mod_audio_hal_set_isochronic(carrier_hz, rate_mhz, level_half_db)
  *   OI-AUDIO-04: np_mod_audio_hal_set_noise(type, level_half_db)  — 0=pink, 1=brown
  *   OI-AUDIO-05: np_mod_audio_hal_stop_planar()
  *   OI-AUDIO-06: np_mod_audio_hal_bone_set(freq_hz, level_half_db) — bone conduction
@@ -140,7 +140,7 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
         np_mod_audio_hal_set_binaural(p->carrier_hz, p->beat_mhz, p->level_half_db);
         break;
     case 1: /* isochronic */
-        np_mod_audio_hal_set_isochronic(p->carrier_hz, p->level_half_db);
+        np_mod_audio_hal_set_isochronic(p->carrier_hz, p->beat_mhz, p->level_half_db);
         break;
     case 2: /* pink noise */
         np_mod_audio_hal_set_noise(0U, p->level_half_db);

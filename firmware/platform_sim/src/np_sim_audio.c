@@ -67,14 +67,14 @@ void np_mod_audio_hal_set_binaural(uint16_t carrier_hz, uint32_t beat_mhz, uint8
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_BINAURAL, args, (int)NP_HUB_OK, "default");
 }
 
-void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db)
+void np_mod_audio_hal_set_isochronic(uint16_t carrier_hz, uint32_t rate_mhz, uint8_t level_half_db)
 {
     np_sim_module_t *m = resolve("audio_isochronic");
     if (m == NULL) { return; }
-    char args[32];
-    (void)snprintf(args, sizeof args, "[%u,%u]", freq_hz, level_half_db);
+    char args[48];
+    (void)snprintf(args, sizeof args, "[%u,%lu,%u]", carrier_hz, (unsigned long)rate_mhz, level_half_db);
     if (swallowed(m, NP_SIM_OP_AUDIO_ISOCHRONIC, args)) { return; }
-    m->audio_mode = 2U; m->audio_carrier_hz = freq_hz; m->audio_level_half_db = level_half_db;
+    m->audio_mode = 2U; m->audio_carrier_hz = carrier_hz; m->audio_beat_mhz = rate_mhz; m->audio_level_half_db = level_half_db;
     m->driven = (level_half_db != 0U);
     np_sim_report_hal(m, NP_SIM_OP_AUDIO_ISOCHRONIC, args, (int)NP_HUB_OK, "default");
 }
