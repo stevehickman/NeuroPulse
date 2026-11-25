@@ -228,8 +228,8 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 > JSON are not specified (§7).
 
 **What the server keeps, and nothing else:** the push channels of subscribed devices (platform and token), and the
-superseded notices it has been sent (key id, count, signature) until they expire. No user, no consent, no study, no
-history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
+superseded notices it has been sent (key id, count, signature), each with a sequence number, and never expires one
+(ruled 2026-11-21, `OI-PRIV-68`). No user, no consent, no study, no history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
 database.
 
 **Five calls, all with fixed response shapes (§5).**
@@ -247,7 +247,12 @@ database.
 3a. **`fetch`** (device to server, through the relay): the device sends its cursors and receives the study
     descriptors and the notices after them, in pages (§6a, junk notices). It fetches only because a push woke it.
     The app does not fetch on opening, which would be a poll. A push that is dropped, or does not wake the app,
-    means the request is missed (deliver-once).
+    means the request is missed (deliver-once). **A device whose notice cursor is behind the latest notice sequence
+    extracts for no one until it has fetched up to it** (ruled 2026-11-21; `SWR-MG-35`). Each notice in a page is
+    checked by the core (`supersededCatchUp`): one at or below the cursor is skipped, every one above it moves the
+    cursor whether or not it verifies, so junk cannot stall a device, and a person is retired only by a notice that
+    verifies against the key the device holds and carries a higher count than the device knows. A device records its
+    own move's count before it fetches, so its own notice, an equal count, retires no one.
 4. **`supersede`** (device to server, then broadcast to every subscribed channel): the signed form below. The
    person's current-device key signs it. The server holds no key and does not verify it; it stores it and
    broadcasts it. A device that holds the key checks the signature and the count; a notice that does not verify is
@@ -264,11 +269,20 @@ made for this form can be read as nothing else the key signs. The signature is E
 each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
 notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Ruled 2026-11-21 (`OI-PRIV-68`), not yet written into the calls above:** the server keeps the highest-count notice per key id with
+**Ruled 2026-11-21 (`OI-PRIV-68`), written into the calls above (Rev {NP-SW-PORTAL-API-001 to}):** the server keeps notices with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
-the notices after its cursor before it extracts; junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
-flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own and still need checking against their sources); and the
-desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-68`, not ruled: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
+the notices after its cursor before it extracts (the device's half is built in the core, `SWR-MG-35`). **Open
+(found 2026-11-25, `OI-PRIV-68`; brief `docs/human-input/oi-priv-68-forged-high-count.md`):** the ruling also says the server
+keeps **only the highest-count notice per key id** and drops one a higher count replaces. The server holds no key and
+cannot verify, and every key id is broadcast to every subscribed device, so anyone who has seen one can send a junk
+notice for it with a count at the top of the range; the server keeps the junk and drops the person's real notice, and
+every later move by that person is dropped in turn, so their old device is never retired. That contradicts the
+ruling that a real notice is never lost. Until it is ruled, nothing here says which notices per key id the server
+keeps. Junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
+flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own); (all four
+limits now read at their sources: APNs, WNS, RFC 8030, and FCM's 4096 bytes on Firebase's "message types" page,
+2026-11-25); and the
+desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-68`, not ruled, except that web is eligible with a neutral notice on every publish, ruled 2026-11-22: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
 its signature are cryptographic and are written once in `common/npps-core` (`CLAUDE.md` §22).
 
 ## §7 — What this leaves open
