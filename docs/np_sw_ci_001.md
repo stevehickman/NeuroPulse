@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 44
-**Date:** 2026-11-22  
+**Revision:** 45
+**Date:** 2026-11-25  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4462,3 +4462,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 42 | 2026-11-22 | NeurOne Tooling | **New §6.19: the four workflows holding required contexts trigger on `merge_group`; `ci-changed-scope.sh` diffs a merge group against its `base_sha` and never a last-green base; the revision-fragment and wavelength-register guards run in the queue (merge method `MERGE`); correspondence C requires the trigger; `check-main-ruleset.ts` R7 and L5 cover a `merge_queue` rule; the settings runbook (§6.19.3) and Q6 on `strict`. OI-SWCI-55 raised; no setting changed.** |
 | 43 | 2026-11-22 | NeurOne Tooling | **§6.19.3 notes the merge queue is offered only on organization-owned repositories; new §6.19.4 records the options and the principal's choice to keep `strict: true` for now (OI-SWCI-55 deferred). New §6.20: `main-health.yml` and `scripts/main-health.ts` email the owner on each change of colour on `main` and post the required status `main is green, or this PR is up to date with main` (the up-to-date requirement while `main` is red); `ci/required-statuses.txt`; `check-ci-scope.ts` correspondence F and posted statuses in C; `check-main-ruleset.ts` reads both manifests; `ci-changed-scope.sh` diffs a push to `main` from its last green head; runbook §6.20.3. §6.18.4 marked replaced. OI-SWCI-10 closed; OI-SWCI-54 Q5 answered again (`strict: false` with the hold).** |
 | 44 | 2026-11-22 | NeurOne Tooling | **New §6.20.5: the principal added the required status and unticked *Require branches to be up to date*; `--live` reported only the strict flag, which confirms the posted status is bound to GitHub Actions (§6.20.4 item 5 closed). `ci/main-ruleset.json` now says `strict: false`.** |
+| 45 | 2026-11-25 | NeurOne Tooling | **§6.18.4 step 5 observed on #1002 (context `skipped`, PR `clean`, required per the principal's `--live` run); `OI-SWCI-54` row no longer lists step 5.** |
