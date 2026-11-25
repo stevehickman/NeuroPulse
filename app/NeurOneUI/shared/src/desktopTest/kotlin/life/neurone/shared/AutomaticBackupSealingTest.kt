@@ -2,7 +2,6 @@ package life.neurone.shared
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +18,10 @@ import life.neurone.core.migration.ObjectStoreRoute
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral
 import life.neurone.shared.migration.MemoryObjectStore
+import life.neurone.shared.migration.MigrationBackupModel
 import life.neurone.shared.migration.ScheduledBackup
 import life.neurone.shared.resources.*
-import life.neurone.shared.ui.MigrationBackupScreen
+import life.neurone.shared.ui.AutomaticBackupChoice
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
@@ -38,8 +38,6 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class AutomaticBackupSealingTest {
     private val used = listOf(
-        Res.string.migration_backup_kind_uhdr_title,
-        Res.string.migration_backup_continue,
         Res.string.migration_backup_auto_option,
         Res.string.migration_backup_auto_unavailable_unsealed,
     )
@@ -95,18 +93,18 @@ class AutomaticBackupSealingTest {
         assertFalse(app.scheduledBackup.isOn)
     }
 
+    /** The backup screen's model as the screen makes it for the host's own folder (an unattended place). */
+    private fun screenModel(app: AppServices) =
+        MigrationBackupModel(app.backupPlace.value, app.keyValueStore, scheduled = app.scheduledBackup)
+
     // @verifies SWR-MG-13#e
     @Test
     fun theBackupScreenSaysWhyTheAutomaticBackupIsNotOfferedOnAnUnsealedRun() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), null)
+        val model = screenModel(services(InMemoryKeyValueStore(), null))
         setContent {
             strings = used.associateWith { stringResource(it) }
-            MigrationBackupScreen(app, onDone = {})
+            AutomaticBackupChoice(model)
         }
-        waitForIdle()
-        onNodeWithText(text(Res.string.migration_backup_kind_uhdr_title)).performClick()
-        waitForIdle()
-        onNodeWithText(text(Res.string.migration_backup_continue)).performClick()
         waitForIdle()
         onNodeWithText(text(Res.string.migration_backup_auto_unavailable_unsealed)).assertExists()
         onNodeWithText(text(Res.string.migration_backup_auto_option)).assertDoesNotExist()
@@ -115,15 +113,11 @@ class AutomaticBackupSealingTest {
     // @verifies SWR-MG-13#e
     @Test
     fun theBackupScreenOffersTheAutomaticBackupOnASealedRun() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), InMemorySecretKeyStore())
+        val model = screenModel(services(InMemoryKeyValueStore(), InMemorySecretKeyStore()))
         setContent {
             strings = used.associateWith { stringResource(it) }
-            MigrationBackupScreen(app, onDone = {})
+            AutomaticBackupChoice(model)
         }
-        waitForIdle()
-        onNodeWithText(text(Res.string.migration_backup_kind_uhdr_title)).performClick()
-        waitForIdle()
-        onNodeWithText(text(Res.string.migration_backup_continue)).performClick()
         waitForIdle()
         onNodeWithText(text(Res.string.migration_backup_auto_option)).assertExists()
         onNodeWithText(text(Res.string.migration_backup_auto_unavailable_unsealed)).assertDoesNotExist()
