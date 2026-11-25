@@ -158,6 +158,12 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > **R-1 and R-2 have no implementation yet.** No wire command or handler reaches
 > `np_factory_reset_execute()`. The authenticated command is a wire and design change, briefed in
 > `docs/human-input/oi-priv-27-factory-reset-command.md`.
+>
+> **Rev {NP-FW-EMMC-002 to} (2026-11-25): R-1 and R-2 now have a wire format, not built.** The signed reset blob,
+> its fields, its verification order and its refusals are `NP-FW-HUB-001` §4.7. It reuses the one-time upload
+> challenge of `OI-PRIV-31` (NP-PRIV-ANALYSIS-004), carries one signed entry per profile marked exported or destroy, and
+> is refused unless every exported profile's digest matches an export the hub sent on the same link, so the hub itself
+> holds §B.2's rule that a failed export erases nothing. Built with §C.8 or after it.
 
 ### B.4 Power-loss resilience
 
