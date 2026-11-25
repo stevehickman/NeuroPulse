@@ -101,6 +101,7 @@ set(NP_SIM_PBM_FIRMWARE
     # the hub's GATT server (np_gatt_server.c) and the producers its table names (OI-SIMFW-38: the app reaches the hub over GATT)
     ../hub_control/src/np_gatt_server.c
     ../hub_control/src/np_consumables.c
+    ../hub_control/src/np_module_usage.c         # REQ-FWHUB-93: the per-module running totals the runner and the fault logger feed
     ../hub_control/src/np_cardiac_sens.c
     ../hub_control/src/np_pause_limit.c
     ../hub_control/src/np_status_led.c          # the indicators and stealth mode the GATT table and the hub's main loop name

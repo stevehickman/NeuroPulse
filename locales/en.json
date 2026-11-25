@@ -1107,6 +1107,7 @@
   "VALIDATE_LIMIT_WITH_SOURCE": "{0} ({1})",
   "VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ": "Binaural beat {0} Hz exceeds limit of {1} Hz.",
   "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ": "Isochronic tone {0} Hz exceeds limit of {1} Hz.",
+  "VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ_2": "Isochronic tone {0} Hz must be greater than {1} Hz.",
   "VALIDATE_MSG_AUDIO_ENTRAINMENT_TONEHZ": "Tone frequency {0} Hz (the carrier, or the carrier plus the beat or pulse rate) is above the limit of {1} Hz.",
   "VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEDB": "Audio level {0} dB SPL exceeds limit of {1} dB SPL.",
   "VALIDATE_MSG_BES_TACS_FREQUENCYHZ": "BES frequency {0} Hz is outside hardware range {1}–{2} Hz.",

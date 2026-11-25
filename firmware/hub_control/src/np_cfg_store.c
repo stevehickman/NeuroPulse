@@ -87,6 +87,14 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     /* REQ-FWHUB-74: the cervical VNS cardiac cutoff's sensitivity level.  One 2-byte record, rewritten only when the owner
      * changes it, so REPLICATED costs nothing and one lost entry does not silently turn a setting back to its default.  It
      * bounds no emission (REQ-LFS-01): the cutoff is the safety MCU's. */
+    /* REQ-FWHUB-93, NP-FW-NVRAM-001 §8.5: the per-module running totals (sessions present and the time present,
+     * sessions used and the time used, faults per code).  Nothing re-answers them, and a total that went backwards
+     * after a torn write would understate a module's wear, so REPLICATED.  One fixed-size record, rewritten once per
+     * session end: upserted, never appended (an appended row per session would be a per-session history).  It bounds
+     * no emission (REQ-LFS-01). */
+    [NP_CFG_FILE_MODULE_USAGE] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/modusage.rec",
+                             NP_CFG_REPLICA_DIR_B "/modusage.rec" } },
     [NP_CFG_FILE_CARDIAC_SENS] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/cardsens.rec",
                              NP_CFG_REPLICA_DIR_B "/cardsens.rec" } },
@@ -130,7 +138,7 @@ static np_cfg_store_stats_t     s_stats;
  */
 #define NP_CFG_REPLICA_HDR     12U
 #define NP_CFG_REPLICA_CRC     4U
-#define NP_CFG_REPLICA_MAX     (NP_CFG_REPLICA_HDR + NP_CFG_REPLICA_MAX_PAYLOAD \
+#define NP_CFG_REPLICA_MAX     (NP_CFG_REPLICA_HDR + NP_CFG_REPLICA_TABLE_MAX_PAYLOAD \
                                 + NP_CFG_REPLICA_CRC)
 
 static const uint8_t REPLICA_MAGIC[4] = { 'N', 'P', 'R', 'R' };
@@ -635,7 +643,19 @@ np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
 
 /* ── REPLICATED ────────────────────────────────────────────────────────────── */
 
+/* Read buffers for the two copies, and the write envelope.  Sized for the
+ * largest record (the module usage table) and static, never on a task's
+ * stack; every use is under the store lock (WITH_STORE). */
 static uint8_t s_env[2][NP_CFG_REPLICA_MAX];
+static uint8_t s_wenv[NP_CFG_REPLICA_MAX];
+
+/* The largest payload `file` may hold: 256 bytes, except the module usage
+ * table (np_cfg_store.h). */
+static size_t replica_max_payload(np_cfg_file_t file)
+{
+    return (file == NP_CFG_FILE_MODULE_USAGE) ? (size_t)NP_CFG_REPLICA_TABLE_MAX_PAYLOAD
+                                              : (size_t)NP_CFG_REPLICA_MAX_PAYLOAD;
+}
 
 /* Returns true and the generation if copy `env` is a valid envelope carrying
  * exactly `len` payload bytes. */
@@ -750,7 +770,7 @@ np_hub_status_t np_cfg_store_replicated_read(np_cfg_file_t file,
                                              uint8_t *payload, size_t len)
 {
     if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REPLICATED ||
-        payload == NULL || len == 0U || len > NP_CFG_REPLICA_MAX_PAYLOAD ||
+        payload == NULL || len == 0U || len > replica_max_payload(file) ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
@@ -773,7 +793,7 @@ static np_hub_status_t replicated_write_locked(np_cfg_file_t file,
         }
     }
 
-    uint8_t env[NP_CFG_REPLICA_MAX];
+    uint8_t *env    = s_wenv;
     size_t  env_len = envelope_build(env, newest + 1U, payload, len);
 
     /* A first, then B.  Each is an atomic in-place replacement, so at every
@@ -796,7 +816,7 @@ np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
                                               size_t len)
 {
     if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_REPLICATED ||
-        payload == NULL || len == 0U || len > NP_CFG_REPLICA_MAX_PAYLOAD ||
+        payload == NULL || len == 0U || len > replica_max_payload(file) ||
         s_lfs == NULL) {
         return NP_HUB_ERR_INVALID_ARG;
     }
