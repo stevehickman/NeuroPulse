@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-AUDIO-001
-**Revision:** 21
-**Date:** 2026-11-24
+**Revision:** 22
+**Date:** 2026-11-25
 **Status:** DRAFT — **requirements-grade. Every geometric and acoustic value an FAI would inspect is absent, and §8 says which, rather than supplying a placeholder.**
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -1289,3 +1289,4 @@ envelope budgets (`OI-AUDIOHW-05`). The restatements of 40 mm elsewhere in the r
 | 19 | 2026-11-21 | NeurOne Systems Engineering | **§5.3: the Built paragraph records that the shared validator reports a tone above 1,000 Hz before compile, and that the bound is one shared constant held to the hub's by the wire-format gate; the requirement text is unchanged.** |
 | 20 | 2026-11-21 | NeurOne Firmware Engineering | **§8.2 table and `REQ-AUDIO-18`: the adaptive beat is the dominant EEG frequency, not a band's preset; the requirement names `np_mod_audio_set_eeg_dominant_freq()`.** |
 | 21 | 2026-11-24 | NeurOne Firmware Engineering | **§5.3 requirements table: new `REQ-AUDIO-27`: the hub refuses an isochronic command whose pulse rate is 0 with `NP_HUB_ERR_INVALID_ARG` before any state changes (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`). A binaural beat of 0 is not refused.** |
+| 22 | 2026-11-25 | NeurOne Firmware Engineering | **§5.3 requirements table: new `REQ-AUDIO-28` (an isochronic command reaches the output stage with its carrier and its pulse rate). §9: new `OI-AUDIOHW-17`, fixed in the same change.** |
