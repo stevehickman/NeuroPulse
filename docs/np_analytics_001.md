@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -628,3 +628,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 8 | 2026-11-20 | NeurOne Software Engineering | **§3.4 and §7.1: the principal set event retention to 30 days on 2026-11-20 (`NP-APP-TELEMETRY-001` §5 promises deletion of a withdrawn person's ID within 30 days). It is `EVENT_RETENTION_DAYS`, applied as a ClickHouse TTL by `apply_event_retention.py` and checked with `--check`; the policy is cited beside the value, and a value above 30 is flagged as breaking it. Not run against a real stack.** |
 | 9 | 2026-11-21 | NeurOne Software Engineering | **The network-address paragraph: the analytics proxy removes nine client-address headers before PostHog and the erasure relay, and its logs keep no request header (`OI-PRIV-51`).** |
 | 10 | 2026-11-25 | NeurOne Software Engineering | **New §7.7: the analytics access policy decided on OI-PRIV-47, with its alerts. Analytics Lead accounts approved by the CEO; separate ClickHouse users; every read recorded (PostHog through a sign-in proxy); a minimised log in write-once storage owned by the Privacy Lead, kept 12 months (CNIL 2021-122, UK NCSC); quarterly review; review records kept apart for at most 3 years. §7.6: the erasure relay's 202 for queued, decided on OI-PRIV-48 and built in both halves; the relay answers from its queue and the store and deletes in batches.** |
+| 11 | 2026-11-25 | NeurOne Software Engineering | **§7.6 Known residues: container logs are bounded by size, not age (P10, `UC-211`); ClickHouse's own server log is unbounded (`OI-PRIV-46` (2)).** |

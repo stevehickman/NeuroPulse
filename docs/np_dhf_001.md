@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 430
-**Date:** 2026-11-22
+**Revision:** 431
+**Date:** 2026-11-25
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 430 | 2026-11-22 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 431 | 2026-11-25 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 218 | 2026-11-22 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -266,7 +266,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE | PRIV |
 | NP-LEGAL-BAA-001 | Business Associate Agreement Template | 1 | 2026-06-03 | [np_legal_baa_001.md](./np_legal_baa_001.md) | DRAFT | PRIV |
 | NP-PRIV-AUDIT-001 | NeurOne App Privacy Audit | 1 | 2026-06-03 | [np_priv_audit_001.md](./np_priv_audit_001.md) | ACTIVE | PRIV |
-| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 4 | 2026-11-22 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-005 | Privacy Analysis — CI Privacy Gates and the Infrastructure They Check | 5 | 2026-11-25 | [np_priv_analysis_005.md](./np_priv_analysis_005.md) | DRAFT | PRIV |
 | NP-PRIV-NOTICE-001 | NeurOne Privacy Notice | 4 | 2026-08-16 | [np_priv_notice_001.md](./np_priv_notice_001.md) | ACTIVE | PRIV |
 | NP-INT-FHIR-001 | FHIR R4 ImplementationGuide: NeurOne T2 Clinical Profile | 1 | 2026-06-03 | [np_int_fhir_001.md](./np_int_fhir_001.md) | ACTIVE | PRIV |
 
@@ -306,7 +306,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 6 | 2026-11-24 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
-| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 10 | 2026-11-25 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
+| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 11 | 2026-11-25 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 2 | 2026-11-22 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
