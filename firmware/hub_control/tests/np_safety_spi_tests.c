@@ -250,6 +250,35 @@ static void test_a_corrupt_reply_zeroes_the_grant_not_the_request(void)
           "the requested mask is the runner's, whatever the MCU replies");
 }
 
+/* ── REQ-FWHUB-89 (c): a grant the MCU takes away is latched, without its cause ── */
+
+/* @verifies REQ-FWHUB-89#c */
+static void test_a_withdrawn_grant_is_latched_once_and_a_dropped_request_is_not(void)
+{
+    reset();
+    np_safety_spi_request_enable(0x0006U);
+    g_reply_granted = 0x0006U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x0006U, NULL, 0U);
+    check(!np_safety_spi_take_grant_withdrawn(), "withdrawn: a grant given is not a withdrawal");
+
+    g_reply_granted = 0x0004U;                     /* the MCU takes 0x0002 away, still requested */
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x0006U, NULL, 0U);
+    check(np_safety_spi_take_grant_withdrawn(), "withdrawn: a still-requested grant taken away is latched");
+    check(!np_safety_spi_take_grant_withdrawn(), "withdrawn: taking the latch clears it");
+
+    np_safety_spi_request_disable(0x0004U);        /* the hub stops 0x0004 itself */
+    g_reply_granted = 0U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0U, NULL, 0U);
+    check(!np_safety_spi_take_grant_withdrawn(), "withdrawn: a grant dropped after the hub's own stop is not latched");
+
+    np_safety_spi_request_enable(0x0002U);
+    g_reply_granted = 0x0002U;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x0002U, NULL, 0U);
+    g_corrupt_reply = true;
+    (void)np_safety_spi_heartbeat(NP_SESSION_RUNNING, 0x0002U, NULL, 0U);
+    check(np_safety_spi_take_grant_withdrawn(), "withdrawn: a corrupt reply that zeroes a live grant is latched too");
+}
+
 /* ── REQ-FWHUB-18 (step 2 of §7.3) ───────────────────────────────────────── */
 
 /* @verifies REQ-FWHUB-18#a */
@@ -481,6 +510,7 @@ int main(void)
     test_heartbeat_sends_the_requested_mask();
     test_granted_mask_never_feeds_back_into_the_request();
     test_a_corrupt_reply_zeroes_the_grant_not_the_request();
+    test_a_withdrawn_grant_is_latched_once_and_a_dropped_request_is_not();
     test_session_sig_is_its_own_frame_and_requests_nothing();
     test_fault_and_cutoff_replies_are_safety_faults();
     test_the_hr_report_carries_the_cardiac_sensitivity_level_and_a_bad_level_is_sent_as_the_validated_cutoff();

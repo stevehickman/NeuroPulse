@@ -1,12 +1,33 @@
 -- NeurOne SHDR Fleet Database Schema
 -- Document: NP-FW-EMMC-002 Rev 2 §G.4, §H.2 / NP-FW-EMMC-001 Rev 1 §7
--- Revision: F
--- Effective date: 2026-11-21
+-- Revision: G
+-- Effective date: 2026-11-22
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
 --
 -- (Schema revisions keep LETTERS. NP-CONV-001 §4.2: the integer-revision rule
 --  binds document revisions; a database schema revision is an on-disk format
 --  identity and renaming it would invalidate the migration record.)
+--
+-- Rev G (2026-11-22): NO FLEET-WIDE ORDER, AND NO DAY OF MANUFACTURE.
+--   * OI-PRIV-53 (NP-PRIV-ANALYSIS-005 F3). Every `id BIGSERIAL` (22 tables) is
+--     now `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`. A sequence numbers
+--     rows in insert order across the whole fleet, so within a month it ordered
+--     every device's dockings and grouped one docking's rows in every table; with
+--     any time anchor that is roughly day-level time again. A random (version 4)
+--     UUID carries no order. Ordering is per device only (session_index,
+--     gap_index, session_at_*). No foreign key or query used the ids. SEQ-01 in
+--     ci/test_shdr_schema.py forbids SERIAL, identity columns, sequences and any
+--     UUID default but gen_random_uuid() (a version 1 or 7 UUID embeds the time).
+--     The fleet database runs with track_commit_timestamp = off (the PostgreSQL
+--     default), which NP-INFRA-001 §3.4 states. What this does not remove: the
+--     system columns xmin and ctid still record insert order to anyone with SQL
+--     access; the ingest's batching is OI-PRIV-76.
+--   * OI-PRIV-58 (F8). devices.manufacture_date and module_life.
+--     module_manufacture_date are month-granular by CHECK. The warranty registry
+--     keeps the serial number; if a serial encodes the day of manufacture, a
+--     day-precise date here narrowed the SHDR row to the devices made that day.
+--     TIME-02 now requires the month CHECK on EVERY date column, with no
+--     exemption. NO MIGRATION DML, for the reason Rev D gives.
 --
 -- Rev F (2026-11-21): EVERY MONTH ANCHOR IS MONTH-GRANULAR BY CONSTRAINT (OI-PRIV-52,
 --   NP-PRIV-ANALYSIS-005 F2). Thirteen of the 22 month anchors (devices.last_seen_month
@@ -197,8 +218,8 @@
 --     the rows it was written to block.
 --   * ci/run_shdr_constraint_tests.sh — LIVE. Executes this schema against a
 --     real PostgreSQL and then runs ci/shdr/shdr_schema_constraint_tests.sql,
---     which proves each constraint rejects what it exists to reject (46
---     reject-cases) and still accepts the valid form (36 accept-cases, so a
+--     which proves each constraint rejects what it exists to reject (48
+--     reject-cases) and still accepts the valid form (38 accept-cases, so a
 --     uniformly hostile constraint cannot pass by refusing everything).
 --   Both are wired into .github/workflows/shdr-schema-ci.yml.
 --
@@ -210,12 +231,17 @@
 --      The warrant_db and shdr_db live in separate cloud projects with no shared
 --      IAM roles. A separate CI test (OI-EMMC2-06) confirms the join fails.
 --   4. No sub-day timestamps (TIME-01, TIME-02). SHDR carries no wall clock finer
---      than a month-granular DATE retention anchor (ingest_month / last_seen_month).
+--      than a month-granular DATE (ingest_month / last_seen_month, and the month of
+--      manufacture).
 --      Per-row ordering is an integer counter, never a clock. Enforced by CI:
 --      no TIMESTAMP / TIMESTAMPTZ / TIME / INTERVAL column and no clock-named
---      column of any type (TIME-01), and every DATE column but a manufacture date
---      carries CHECK (col = DATE_TRUNC('month', col)::date) (TIME-02, Rev F). A
---      DEFAULT alone is not enough: it applies only when the insert omits the column.
+--      column of any type (TIME-01), and every DATE column carries
+--      CHECK (col = DATE_TRUNC('month', col)::date) (TIME-02: Rev F for the
+--      retention anchors, Rev G for the two manufacture dates). A DEFAULT alone is
+--      not enough: it applies only when the insert omits the column.
+--   5. No fleet-wide order (SEQ-01, Rev G). Row keys are random UUIDs
+--      (gen_random_uuid()); no SERIAL, identity column or sequence, and no
+--      time-ordered UUID. Rows are ordered by per-device counters only.
 --
 -- PERMITTED accelerometer columns per NP-FW-EMMC-002 §G.2:
 --   drop_detected BOOLEAN, maintenance_alert BOOLEAN  — and nothing else.
@@ -254,7 +280,12 @@ CREATE TABLE devices (
     hw_revision             VARCHAR(16)  NOT NULL,   -- PCB revision string
 
     -- Manufacture record
-    manufacture_date        DATE         NOT NULL,
+    -- Month-granular (Rev G, OI-PRIV-58): the warranty registry holds the serial
+    -- number, and a serial that encodes the day of manufacture would otherwise
+    -- narrow this row to a handful of devices. Device age needs only the month.
+    manufacture_date        DATE         NOT NULL
+        CONSTRAINT ck_devices_manufacture_month
+        CHECK (manufacture_date = DATE_TRUNC('month', manufacture_date)::date),
     factory_id              VARCHAR(16)  NOT NULL,
 
     -- Lifecycle counters (no timestamps — session count is unsigned integer only)
@@ -279,7 +310,7 @@ CREATE TABLE devices (
 -- One row per firmware version installed on a device.
 -- ---------------------------------------------------------------------------
 CREATE TABLE firmware_history (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     fw_version          VARCHAR(32)  NOT NULL,
@@ -300,7 +331,7 @@ CREATE TABLE firmware_history (
 -- One row per OTA attempt (success or failure).
 -- ---------------------------------------------------------------------------
 CREATE TABLE ota_events (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     from_version        VARCHAR(32)  NOT NULL,
@@ -384,7 +415,7 @@ CREATE TABLE ota_events (
 -- has a wear history, and this row's module_uid is NULL in exactly that case.
 -- ---------------------------------------------------------------------------
 CREATE TABLE module_inventory (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     -- 1-BASED socket number (NUMBER-1). Lower bound is 1, never 0.
@@ -445,7 +476,7 @@ CREATE UNIQUE INDEX uq_module_inventory_one_socket_per_module
 -- fleet-wide cumulative counter is the natural field evidence for that OI.
 -- ---------------------------------------------------------------------------
 CREATE TABLE socket_life (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     socket_number           SMALLINT     NOT NULL CHECK (socket_number BETWEEN 1 AND 128),
@@ -506,7 +537,7 @@ CREATE TABLE socket_life (
 -- Note this is COUNTS BY KIND, not a dwell or duty figure — see DOSE-01.
 -- ---------------------------------------------------------------------------
 CREATE TABLE socket_part_type_wear (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     socket_number           SMALLINT     NOT NULL CHECK (socket_number BETWEEN 1 AND 128),
@@ -550,7 +581,7 @@ CREATE TABLE socket_part_type_wear (
 -- saves emitters. Both stocks must be countable or the trade is unfalsifiable.
 -- ---------------------------------------------------------------------------
 CREATE TABLE module_placement_events (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     socket_number       SMALLINT     NOT NULL CHECK (socket_number BETWEEN 1 AND 128),
@@ -677,7 +708,7 @@ CREATE TABLE module_placement_events (
 -- keyed duplicate row per upload, and do not "simplify" the key to module_uid.
 -- ---------------------------------------------------------------------------
 CREATE TABLE module_life (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     module_uid              BYTEA        NOT NULL CHECK (octet_length(module_uid) = 8),
@@ -687,8 +718,12 @@ CREATE TABLE module_life (
     -- Calendar-life anchor. The stated goal of rotation is to maximise average
     -- module CALENDAR lifespan, which needs a birth date to measure against.
     -- DATE, not TIMESTAMP: a manufacture date is a part property, not a clock
-    -- reading about the user, and carries no sub-day granularity.
-    module_manufacture_date DATE         NOT NULL,
+    -- reading about the user. Month-granular (Rev G, OI-PRIV-58): calendar age is
+    -- measured in months (NP-MOD-ID-001 §7), so the day adds nothing but a way
+    -- to tell one module's record from another's.
+    module_manufacture_date DATE         NOT NULL
+        CONSTRAINT ck_module_life_manufacture_month
+        CHECK (module_manufacture_date = DATE_TRUNC('month', module_manufacture_date)::date),
 
     -- Lifetime accumulators, additive across rows for the same module_uid.
     -- These survive every socket move — that is the point of keying on the UID.
@@ -811,7 +846,7 @@ GROUP BY module_uid;
 -- Per NP-FW-EMMC-001 Rev 1 §12: PD1/PD2 ratio → SHDR; raw irradiance → UHDR.
 -- ---------------------------------------------------------------------------
 CREATE TABLE pbm_module_telemetry (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     -- WHERE it was, and WHICH module it was. Both, always — the whole defect in
@@ -871,7 +906,7 @@ CREATE TABLE pbm_module_telemetry (
 -- EMF shielding attenuation ratio per session (fleet-level moat verification).
 -- ---------------------------------------------------------------------------
 CREATE TABLE emf_shielding_telemetry (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
     session_index           INTEGER      NOT NULL CHECK (session_index >= 0),
 
@@ -904,7 +939,7 @@ CREATE TABLE emf_shielding_telemetry (
 -- many tiles are populated rather than being pinned at five.
 -- ---------------------------------------------------------------------------
 CREATE TABLE module_thermal_telemetry (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     socket_number           SMALLINT     NOT NULL CHECK (socket_number BETWEEN 1 AND 128),
@@ -944,7 +979,7 @@ CREATE TABLE module_thermal_telemetry (
 -- what lets module_thermal_telemetry be NOT NULL on socket and module.
 -- ---------------------------------------------------------------------------
 CREATE TABLE hub_thermal_telemetry (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
     session_index           INTEGER      NOT NULL CHECK (session_index >= 0),
 
@@ -1009,7 +1044,7 @@ CREATE TABLE hub_thermal_telemetry (
 -- user's treatment geography, and so their indication — out of the fleet DB.
 -- ---------------------------------------------------------------------------
 CREATE TABLE module_rotation_advice (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     -- Monotonic per-device advice counter — ordering with no wall clock.
@@ -1081,7 +1116,7 @@ CREATE UNIQUE INDEX uq_rotation_advice_one_pending
 -- USB-C PD negotiation log and supercapacitor health.
 -- ---------------------------------------------------------------------------
 CREATE TABLE power_telemetry (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
     session_index           INTEGER      NOT NULL CHECK (session_index >= 0),
 
@@ -1109,7 +1144,7 @@ CREATE TABLE power_telemetry (
 -- Used for replacement reminders (measurement-triggered per spec).
 -- ---------------------------------------------------------------------------
 CREATE TABLE consumable_counts (
-    id                        BIGSERIAL    PRIMARY KEY,
+    id                        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token            BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     -- Counts are unsigned integers; no timestamps; no user activity inference.
@@ -1137,7 +1172,7 @@ CREATE TABLE consumable_counts (
 -- Only authenticated consumables (intranasal sleeves) generate entries.
 -- ---------------------------------------------------------------------------
 CREATE TABLE accessory_auth_log (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     accessory_type      VARCHAR(32)  NOT NULL,   -- 'intranasal_sleeve', etc.
@@ -1155,7 +1190,7 @@ CREATE TABLE accessory_auth_log (
 -- Factory-written K coefficients for PBM photodiodes; EEG ADS1299 gain/offset.
 -- ---------------------------------------------------------------------------
 CREATE TABLE calibration_history (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     sensor_id           VARCHAR(32)  NOT NULL,   -- 'EEG_CH1', 'PBM_ZM01_660', etc.
@@ -1175,7 +1210,7 @@ CREATE TABLE calibration_history (
 -- Per NP-FW-EMMC-001 Rev 1 §12: "raw EEG impedance → UHDR; derived trend slope → SHDR"
 -- ---------------------------------------------------------------------------
 CREATE TABLE eeg_impedance_trend (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     electrode_id        VARCHAR(8)   NOT NULL,   -- 'Fp1', 'C3', etc.
@@ -1219,7 +1254,7 @@ CREATE TABLE eeg_impedance_trend (
 -- the §H programme is built on, so the two have to be decided together.
 -- ---------------------------------------------------------------------------
 CREATE TABLE shdr_accel_records (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     -- ONLY THESE TWO ACCELEROMETER-DERIVED COLUMNS ARE PERMITTED
@@ -1302,7 +1337,7 @@ CREATE TABLE shdr_accel_records (
 -- trajectory that made the raw series health-inferrable.
 -- ---------------------------------------------------------------------------
 CREATE TABLE shdr_accel_characterisation (
-    id                    BIGSERIAL  PRIMARY KEY,
+    id                    UUID       PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token        BYTEA      NOT NULL REFERENCES devices(warranty_token),
 
     -- ── The four CHAR-01 structural markers ──────────────────────────────
@@ -1351,7 +1386,7 @@ CREATE TABLE shdr_accel_characterisation (
 -- IS upsert-in-place. Reviewed for schema freeze 2026-07-14 (Rev C).
 -- ---------------------------------------------------------------------------
 CREATE TABLE mode_f_telemetry (
-    id                      BIGSERIAL    PRIMARY KEY,
+    id                      UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token          BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     mode_f_enabled          BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -1368,14 +1403,16 @@ CREATE TABLE mode_f_telemetry (
 -- ---------------------------------------------------------------------------
 -- Table: fault_log
 -- Safety interlock and firmware fault events.
--- Per NP-FW-EMMC-002 §G.3: safety interlock log → SHDR (no HR values, no
--- raw impedance — only the binary cutoff flag and fault type).
+-- Per NP-FW-EMMC-002 §G.3 as narrowed by the principal (2026-11-23, OI-PRIV-22 of
+-- NP-PRIV-ANALYSIS-004): a safety interlock that reports the DEVICE → SHDR; one
+-- that trips on a reading of the wearer (a cardiac cutoff, a skin-contact check)
+-- → UHDR, never here.  No HR values, no raw impedance, no cutoff flag.
 -- ---------------------------------------------------------------------------
 CREATE TABLE fault_log (
-    id                  BIGSERIAL    PRIMARY KEY,
+    id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token      BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
-    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', 'CVNS_HR_CUTOFF', etc.
+    fault_type          VARCHAR(64)  NOT NULL,   -- 'WATCHDOG_TIMEOUT', etc.; 'CVNS_HR_CUTOFF' (later 'CVNS_CARDIAC_INTERLOCK_CUTOFF', OI-PRIV-41 Q2) retired 2026-11-23 (OI-PRIV-22)
     fault_source        VARCHAR(16)  NOT NULL CHECK (fault_source IN ('SAFETY_MCU', 'MAIN_PROC', 'APP')),
     fault_cleared       BOOLEAN      NOT NULL DEFAULT FALSE,
 
@@ -1391,7 +1428,7 @@ CREATE TABLE fault_log (
 -- eMMC write endurance monitoring (PRE_EOL_INFO, wear indicator, LittleFS usage).
 -- ---------------------------------------------------------------------------
 CREATE TABLE storage_health (
-    id                          BIGSERIAL    PRIMARY KEY,
+    id                          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     warranty_token              BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
     pre_eol_info                SMALLINT     NOT NULL CHECK (pre_eol_info IN (1, 2, 3)),

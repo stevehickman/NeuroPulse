@@ -68,6 +68,7 @@
 #include "np_safety_spi.h"       /* np_safety_hal_spi_*    (1) */
 #include "np_uhdr_key.h"         /* np_uhdr_hal_*         (11) */
 #include "np_uhdr_profile.h"     /* np_uhdr_hal_profile_*, _recovery_kdf (4) */
+#include "np_uhdr_seal.h"        /* np_uhdr_hal_file_kdf    (1) */
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -1068,6 +1069,19 @@ np_uhdr_status_t np_uhdr_hal_recovery_kdf(const uint8_t code[NP_UHDR_RECOVERY_CO
     (void)code;
     (void)salt;
     (void)rk_out;
+    NP_PLATFORM_TRAP();
+}
+
+/* Per-file sealing (OI-PRIV-34, NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §C.8.7). */
+np_uhdr_status_t np_uhdr_hal_file_kdf(const uint8_t pk[NP_UHDR_PROFILE_KEY_LEN],
+                                      const uint8_t profile_id[NP_UHDR_PROFILE_ID_LEN],
+                                      const uint8_t file_id[NP_UHDR_FILE_ID_LEN],
+                                      uint8_t fk_out[NP_UHDR_FILE_KEY_LEN])
+{
+    (void)pk;
+    (void)profile_id;
+    (void)file_id;
+    (void)fk_out;
     NP_PLATFORM_TRAP();
 }
 

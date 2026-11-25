@@ -217,6 +217,17 @@ void np_uhdr_secure_zero(void *dst, size_t len)
     }
 }
 
+uint64_t np_uhdr_backoff_remaining_ms(uint32_t failed, uint64_t ref_ms, uint64_t now)
+{
+    const uint64_t need = backoff_ms(failed);
+    if (need == 0U) {
+        return 0U;
+    }
+    /* A clock before the reference counts as no time elapsed (fail closed). */
+    const uint64_t elapsed = (now >= ref_ms) ? (now - ref_ms) : 0U;
+    return (elapsed >= need) ? 0U : (need - elapsed);
+}
+
 np_uhdr_status_t np_uhdr_attempt_gate(uint32_t *failed, uint64_t *now)
 {
     if (failed == NULL || now == NULL) {
@@ -540,6 +551,11 @@ np_uhdr_status_t np_uhdr_key_change_credential(np_uhdr_key_ctx_t *ctx,
 
 #include "np_crypto.h"
 
+/* Largest plaintext the host AEAD stand-in takes in one call: one sealed file
+ * chunk (NP_UHDR_SEAL_CHUNK_PT_BYTES, np_uhdr_seal.h) fits, and so does the
+ * UKMD and a profile key. */
+#define NP_UHDR_HOST_GCM_MAX_LEN 512U
+
 /*
  * Simulated device-fused hardware key.  On real silicon this is a CAAM/OTPMK
  * HUK that software cannot read; here it is a RAM value the tests can swap to
@@ -649,7 +665,7 @@ static void host_gcm_tag(const uint8_t *key, const uint8_t *nonce,
                          uint8_t tag[NP_UHDR_GCM_TAG_LEN])
 {
     uint8_t buf[NP_UHDR_WKMD_LEN + NP_UHDR_GCM_NONCE_LEN +
-                NP_UHDR_AAD_MAX_LEN + NP_UHDR_UKMD_LEN];
+                NP_UHDR_AAD_MAX_LEN + NP_UHDR_HOST_GCM_MAX_LEN];
     uint8_t digest[NP_SHA256_SIZE];
     size_t off = 0;
     memcpy(buf + off, key, NP_UHDR_WKMD_LEN);        off += NP_UHDR_WKMD_LEN;
@@ -677,10 +693,10 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_encrypt(const uint8_t *key,
     if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_MAX_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
-    if (pt_len == 0U || pt_len > NP_UHDR_UKMD_LEN) {
-        return NP_UHDR_ERR_CRYPTO;   /* host stub covers only UKMD-sized wraps */
+    if (pt_len > NP_UHDR_HOST_GCM_MAX_LEN) {
+        return NP_UHDR_ERR_CRYPTO;   /* host stub covers one sealed chunk at most */
     }
-    uint8_t ks[NP_UHDR_UKMD_LEN];
+    uint8_t ks[NP_UHDR_HOST_GCM_MAX_LEN];
     host_gcm_keystream(key, nonce, ks, pt_len);
     for (size_t i = 0; i < pt_len; i++) {
         ct[i] = (uint8_t)(pt[i] ^ ks[i]);
@@ -704,7 +720,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
     if ((aad == NULL && aad_len > 0U) || aad_len > NP_UHDR_AAD_MAX_LEN) {
         return NP_UHDR_ERR_INVALID;
     }
-    if (ct_len == 0U || ct_len > NP_UHDR_UKMD_LEN) {
+    if (ct_len > NP_UHDR_HOST_GCM_MAX_LEN) {
         return NP_UHDR_ERR_CRYPTO;
     }
     /* Authenticate first — never emit authentic plaintext on a tag mismatch. */
@@ -719,7 +735,7 @@ np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
         return NP_UHDR_ERR_AUTH;
     }
 
-    uint8_t ks[NP_UHDR_UKMD_LEN];
+    uint8_t ks[NP_UHDR_HOST_GCM_MAX_LEN];
     host_gcm_keystream(key, nonce, ks, ct_len);
     for (size_t i = 0; i < ct_len; i++) {
         pt[i] = (uint8_t)(ct[i] ^ ks[i]);

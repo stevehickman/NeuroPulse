@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-PRIV-ANALYSIS-007
-**Revision:** 1
-**Date:** 2026-11-21
+**Revision:** 3
+**Date:** 2026-11-22
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering (read-only code review)
@@ -100,6 +100,7 @@ The review found **2 High, 13 Medium and 22 Low**; two of them (M3, M13) were al
 **Issue:** An initial grant is limited to its use cases; an expansion hands over every element of the new tier, including elements no use case needs. A request for the grant's own tier also counts as a widening.
 **Reference:** `CLAUDE.md` §6.1 (clinicians select use cases, never data elements); `REQ-CONSENT-15` (a); HIPAA Minimum Necessary.
 **Remediation:** Put `useCaseIds` on the request; grant `minimumNecessaryElements(ids) ∩ toTier.uhdrElements − approved`; have `accessDifferential` show that set; append the ids to the grant. `NP-PRIV-ANALYSIS-006` F-08 found that the use-case tables list each tier's whole set; this is the code path, which ignores the use cases even where the tables are minimal.
+**Status, 2026-11-22: fixed (`OI-PRIV-64`; `REQ-CONSENT-15` (f)).** The request carries `useCaseIds`; `accessDifferential` takes the request and shows `minimumNecessaryElements(ids) ∩ toTier.uhdrElements − approved`, which is what approval applies; the ids join the grant. A request with no use case, one the tier does not offer, or a lower tier has no differential. The use-case tables are unchanged (F-08, `OI-CONSENT-08`).
 
 #### M6 — While the research record is quarantined, a commit with L3 off is not a withdrawal · GAP (`OI-PRIV-06` (3), `REQ-CONSENT-20` (c)) · checked
 
@@ -108,6 +109,7 @@ The review found **2 High, 13 Medium and 22 Low**; two of them (M3, M13) were al
 **Issue:** `isWithdrawal` is `wasBlanketGranted && !state.blanketConsentGranted`, and `wasBlanketGranted` reads false on the defaults the store falls back to when the record is unreadable. The screen commit then writes no `blanketConsentWithdrawnOnDay`, does not call `revokeResearchAnalytics()` (the analytics flag is a separate key and may still be true), and does not forget the portal token. `withdrawBlanketResearchConsent` handles the same state with `mayHaveBeenGranted`.
 **Reference:** `CLAUDE.md` §6.0 ("never asked" and "said stop" stay distinguishable), §6.2 (teardown on true→false).
 **Remediation:** When `consentRecordUnreadable` is set and the commit has L3 off, apply the same "may have been granted" rule. Whether a commit with L3 off is "saying stop" in that state may need a ruling; the existing test covers only ticking a category.
+**Status, 2026-11-22: fixed in part (`OI-PRIV-64`; `REQ-CONSENT-20` (c)).** Such a commit always revokes research analytics and forgets the portal token, and records the blanket withdrawal when it consents to no category. One that consents to a category records none, because a recorded blanket withdrawal outranks the L2 ticks (`REQ-CONSENT-04` (e)) and would bar the scope committed in the same step; whether it is "saying stop" stays the open ruling.
 
 #### M7 — Only three per-person signals are barred from research extracts · GAP (`OI-PRIV-06` (5) ruling) · checked
 
@@ -124,6 +126,7 @@ The review found **2 High, 13 Medium and 22 Low**; two of them (M3, M13) were al
 **Issue:** An unreadable `np.consent.research` record is kept verbatim, including `contactMethod`. Turning L1 off erases the address from the live record only. Decided and expired invitations and decided expansion requests also have no retention limit. All are sealed in the UHDR tier.
 **Reference:** GDPR Art. 5(1)(e) (storage limitation); Permanent Storage.
 **Remediation:** Scrub contact fields from quarantined research blobs when L1 goes off, or drop a blob once its withdrawal marks are recovered and the person has decided again. Set a retention rule for closed invitations.
+**Status, 2026-11-22: fixed in part (`OI-PRIV-64`; `REQ-CONSENT-23` (c)).** Turning L1 off, by a commit or a restored withdrawal, blanks the contact method and channel in every quarantined research record (and in an unreadable quarantine list's text), keeping every withdrawal mark. A retention rule for closed invitations and decided expansions needs a period with a derivation, and is proposed in `OI-PRIV-64`, not set.
 
 #### M9 — The background lock timeout uses the wall clock · NEW · checked · latent
 
@@ -178,12 +181,12 @@ The review found **2 High, 13 Medium and 22 Low**; two of them (M3, M13) were al
 | L7 | `onboarding_step` still allows `consent_flow_step_N` and `consent_flow_complete`: the timeline `OI-PRIV-05` (2) removed from `screen_name`. Checked. | `common/npps/analytics-properties.json:53-54` | Pure privacy | GAP (`OI-PRIV-05`) |
 | L8 | The launch count is not reset on withdrawal, so a re-consented new id starts out "established". Reported. | `common/core/.../analytics/EngagementTier.kt` | Pure privacy | GAP (`OI-PRIV-05` (4)) |
 | L9 | `reset()` neither cancels nor joins in-flight captures, so an event can reach the vendor after the erase. Reported. | `common/core/.../analytics/PostHogAnalyticsBackend.kt:68-70` | Pure privacy | GAP (`OI-ANALYTICS-01`) |
-| L10 | Revoking a clinician grant deletes it, which loses the record of who had access; `CLAUDE.md` §5.1 says clinician access is audited. Checked. | `common/core/.../consent/ConsentStore.kt:157-158` | Pure privacy | NEW |
-| L11 | `grantClinicianAccess` does not check scopes against the use cases and tier, silently replaces a grant with the same id, and has no expiry maximum. Checked. | `ConsentStore.kt:149-155` | Pure privacy | NEW |
+| L10 | Revoking a clinician grant deletes it, which loses the record of who had access; `CLAUDE.md` §5.1 says clinician access is audited. Checked. **Fixed 2026-11-22 (`OI-PRIV-64`, `REQ-CONSENT-26`):** a revoked grant is kept, inactive, with its day. | `common/core/.../consent/ConsentStore.kt:157-158` | Pure privacy | NEW |
+| L11 | `grantClinicianAccess` does not check scopes against the use cases and tier, silently replaces a grant with the same id, and has no expiry maximum. Checked. **Fixed 2026-11-22 (`OI-PRIV-64`, `REQ-CONSENT-15` (g), `REQ-CONSENT-26` (d)):** scopes and use cases are validated and a held id is refused; no expiry maximum, which would be an underived number. | `ConsentStore.kt:149-155` | Pure privacy | NEW |
 | L12 | The clinician-portal channel does not tie a verified request to the grant's clinician, and its refusals differ in shape after verification. Reported; latent. | `common/core/.../consent/ClinicianPortalChannel.kt:27, 91-94` | Both | NEW (the `OI-CONSENT-05` successors) |
 | L13 | Generated `toString` still prints UHDR in `HRVData`, `SessionState`, `ResearchConsentState` (contact), `StudyInvitation`, `StudyParticipationRecord`, `ClinicianConsentGrant`, the cervical status classes and `ResearchSuggestion`. Reported. | `common/core/.../models/` | Pure privacy | GAP (`OI-PRIV-12` (6)) |
 | L14 | `isLocalOrPrivateHost` lets `127.1`, `0x7f.0.0.1`, `::ffff:127.0.0.1` and 100.64/10 through. Reported; latent. | `common/core/.../protocol/NPConditionLinkPolicy.kt:186-200` | Security | NEW |
-| L15 | A stop caused by consent withdrawal is recorded as `Declined` on the invitation; `CLAUDE.md` §6.2 says an opt-out is a withdrawal, not a decline. Reported. | `ConsentStore.kt:457-460` | Pure privacy | NEW |
+| L15 | A stop caused by consent withdrawal is recorded as `Declined` on the invitation; `CLAUDE.md` §6.2 says an opt-out is a withdrawal, not a decline. Reported. **Fixed 2026-11-22 (`OI-PRIV-64`, `REQ-CONSENT-11` (c)):** recorded as `Withdrawn`, as is an L3 opt-out. | `ConsentStore.kt:457-460` | Pure privacy | NEW |
 | L16 | An undecodable session history reads as empty and the next write overwrites the sealed history. Reported. | `common/core/.../session/SessionHistoryStore.kt:286` | Pure privacy (integrity) | NEW |
 | L17 | A user's migration clear deletes `np.warranty-owner.records`, so one user's transfer destroys a clinic's helmet records. Reported. **Checked 2026-11-22, not fixed (`OI-PRIV-63` (3)):** the clear destroys the data key that seals the records before it forgets any key, so taking the key out of the list would leave only ciphertext; and `SWR-MG-09` requires the old phone to keep nothing that links it to the helmet. Needs the owner's own key (`OI-PRIV-20` (4)) and a ruling. | `common/npps-core/src/migration_flow.rs:559-563` | Pure privacy | GAP (`OI-PRIV-20`) |
 | L18 | Moving a key into the device tier has no in-code allowlist; the doc comment says the tier holds three keys where the list has five; `np.warranty.consent-granted` is listed and no longer read. Checked. | `common/npps-core/src/migration.rs:89-91`; `TieredKeyValueStore.kt:36` | Pure privacy | comment NEW; stale key `OI-PRIV-20` (4) |
@@ -268,3 +271,5 @@ About fifteen further Low items are in §3.3.
 | Rev | Date | Author | Summary |
 |-----|------|--------|---------|
 | 1 | 2026-11-21 | NeurOne Software Engineering | New document. Second read-only privacy review of `common/` at `201b992`, compared with every privacy item already raised, including the firmware, CI and companion-app reviews of the same day: 2 High, 13 Medium, 22 Low; raises `OI-PRIV-62` to `OI-PRIV-66` and adds the rest to existing items. |
+| 2 | 2026-11-22 | NeurOne Software Engineering | **M5 marked fixed; M6 and M8 fixed in part, with what remains; L10, L11 and L15 marked fixed (`OI-PRIV-64`).** |
+| 3 | 2026-11-22 | NeurOne Software Engineering | **§3.2 M1 and M4 marked fixed with what remains; §3.3 L17 marked checked and not fixed (the clear destroys the key that seals the records first, and `SWR-MG-09`), both under `OI-PRIV-63`.** |
