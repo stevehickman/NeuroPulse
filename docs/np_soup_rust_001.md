@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-RUST-001
-**Revision:** 17
-**Date:** 2026-11-21
+**Revision:** 18
+**Date:** 2026-11-24
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -69,11 +69,11 @@ is not made here.
 
 ## 4. Where the lock file is used
 
-The WebAssembly (`scripts/build-npps-wasm.sh`), iOS (`scripts/build-npps-xcframework.sh`), Android host and device
+The WebAssembly (`scripts/build-npps-wasm.sh`), iOS (the Gradle cinterop build; `scripts/build-npps-xcframework.sh` was deleted with `app/ios`, `OI-UI-KMP-05`), Android host and device
 (`common/core/build.gradle.kts`, `app/android/app/build.gradle.kts`) builds and the Rust test job (`web-ci.yml`) all
 pass `--locked`, so the versions below are the versions shipped and a dependency moves only in a commit that changes
-`common/Cargo.lock`. The Windows project (`app/windows/NeurOne/NeurOne.csproj`) states the same in a comment but runs no
-cargo itself: it copies a library built beforehand, and whether that build passes `--locked` was not checked.
+`common/Cargo.lock`. The Windows project (`app/windows/NeurOne/NeurOne.csproj`), which stated the same in a comment but ran no
+cargo itself, is deleted (`OI-UI-KMP-05`, 2026-11-24): the Windows app is the shared desktop app, whose JNI library the Gradle build makes.
 
 ## 5. Transitive inventory
 
@@ -239,3 +239,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 15 | 2026-11-18 | NeurOne Software Engineering | **§2: `common/npps-ffi` names `zeroize` directly and `aes-gcm` gains its `zeroize` feature (`SWR-MG-28`, `OI-PRIV-12`); no crate and no version is added to the tree.** |
 | 16 | 2026-11-19 | NeurOne Software Engineering | **`zeroize` 1.9.1 becomes a direct dependency of `common/npps-jni` (it wipes the secrets read from a Java array, `SWR-MG-32`), and the allocator the two binding libraries install uses it (`SWR-MG-28` (g)); no new crate and no version change.** |
 | 17 | 2026-11-21 | NeurOne Software Engineering | **`ed25519-dalek` row: gains a use, the signature and strict verification of a superseded notice in `current_device.rs`; no new crate and no version change (`OI-PRIV-68`, `SWR-MG-34`).** |
+| 18 | 2026-11-24 | NeurOne Software Engineering | **§4: the Windows project's remark on `--locked` is dropped with the project, and the iOS build is named as the Gradle cinterop build now that `scripts/build-npps-xcframework.sh` is deleted (`OI-UI-KMP-05`).** |

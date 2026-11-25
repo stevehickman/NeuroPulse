@@ -56,6 +56,7 @@ B np_bootloader_rpmb_tests
 B np_cfg_store_tests
 B np_chan_decl_tests
 B np_consumables_tests
+B np_module_usage_tests
 B np_crypto_tests
 B np_cvns_fai_tests
 B np_cvns_fault_summary_tests

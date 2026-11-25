@@ -1092,6 +1092,10 @@ fn encode_audio(p: &Value) -> R<Encoded> {
     } else if p["isochronicTonesHz"].as_f64().is_some() {
         mode = 1;
         beat_mhz = carried(p, "isochronicTonesHz", "Audio", 1000.0, u32::MAX as f64, "Hz")?;
+        // A pulse rate of zero is no pulse (the principal, 2026-11-24, OI-NPPS-AUDIO-01); a binaural beat of 0 is allowed.
+        if beat_mhz <= 0.0 {
+            return Err("Audio: isochronicTonesHz must be above 0 Hz. The protocol is refused, not reduced or wrapped to fit.".to_string());
+        }
     } else if s(p, "noiseType") == "pink" {
         mode = 2;
     } else if s(p, "noiseType") == "brown" {
