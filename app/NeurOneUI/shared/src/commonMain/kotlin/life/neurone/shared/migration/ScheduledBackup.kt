@@ -114,8 +114,9 @@ class ScheduledBackup(
         return KeptBackupKey(kept.method, kept.kdf) { s.openKept(SECRET_KEY, kept.sealed) }
     }
 
-    /** Keep backing up under [kept]. */
-    fun turnOn(kept: Kept) {
+    /** Keep backing up under [kept]. Refused, with nothing written, on a run that cannot keep it sealed ([isAvailable]). */
+    fun turnOn(kept: Kept): Boolean {
+        if (!isAvailable) return false
         keys.putString(SECRET_KEY, buildJsonObject {
             put("v", RECORD_VERSION); put("method", kept.method.wire); put("kdf", kept.kdf); put("key", kept.sealed)
         }.toString())
@@ -125,10 +126,7 @@ class ScheduledBackup(
     }
 
     /** Keep backing up under a key derived from [secret] ([prepare], then [turnOn]). False, and nothing kept, where this run cannot seal one. The caller still destroys [secret]. */
-    fun turnOn(method: BundleKeyMethod, secret: BundleSecret): Boolean {
-        turnOn(prepare(method, secret) ?: return false)
-        return true
-    }
+    fun turnOn(method: BundleKeyMethod, secret: BundleSecret): Boolean = prepare(method, secret)?.let(::turnOn) ?: false
 
     /** The record [stored], or null when it is not one: an unreadable value, or the earlier form that held the secret itself. */
     private fun readKept(stored: String): Kept? = runCatching {
