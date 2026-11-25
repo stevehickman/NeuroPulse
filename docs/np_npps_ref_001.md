@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 43
-**Date:** 2026-11-21  
+**Revision:** 44
+**Date:** 2026-11-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -2015,3 +2015,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 41 | 2026-11-16 | NeurOne Software Engineering | **The `used` field: carried in the full form of an export and not written in the share form (`NP-SW-001` `SWR-WO-07`).** |
 | 42 | 2026-11-21 | NeurOne Firmware Engineering | **§4.1, §4.2, §4.6, §4.7, §4.10, §4.11, §4.12, §14 `REQ-NPPS-23`, `REQ-NPPS-33`: the PBM, audio-beat, TMS and clinical tACS frequency ranges `UC-082` listed are defaults and no longer enforced (the principal, 2026-11-20); the breathing range is 4.5–7.0 breaths/min with its source; the descriptor widths and the audio tone bound are what still refuse a value; a PBM frequency that is not whole hertz is refused, not rounded (`OI-NPPS-CLAMP-01` (b)).** |
 | 43 | 2026-11-21 | NeurOne Firmware Engineering | **§4.1 frequency row, `REQ-NPPS-33`: a transcranial PBM frequency is 32-bit millihertz (0.75 Hz is 750 mHz); the whole-hertz refusal stays for the intranasal probe and the 1170 nm block; the editor step is 0.5.** |
+| 44 | 2026-11-24 | NeurOne Software Engineering | **§ `audio_entrainment` fields: the `binaural_hz` row now allows 0 Hz (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`); 0 Hz is a steady tone, not an error. The isochronic rate row is unchanged.** |

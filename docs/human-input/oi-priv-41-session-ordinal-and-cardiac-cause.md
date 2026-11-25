@@ -49,6 +49,11 @@ trade-off. A moves nothing toward SHDR, so if the principal prefers, A can proce
 
 ## Q2. What may SHDR say about the cause of a cardiac cutoff? (point 2; Safety and the principal)
 
+> **Ruled option A (§Ruling at the end), and the same day overtaken by the principal's ruling on `OI-PRIV-22` (`oi-priv-22-detector-interlocks-in-shdr.md`).**
+> SHDR has no cutoff event any more: `0xC1` is retired, and SHDR keeps only a cause-free `stopped_early` bit that any abort, any cervical VNS fault and any
+> withdrawn grant set alike (`NP-FW-HUB-001` `REQ-FWHUB-89` (c), `REQ-FWHUB-91`). Option A's rule (one event, no cause) holds trivially, and the cause stays
+> UHDR. Option C was not taken up. The text below is kept as asked.
+
 ### Present state (checked)
 
 The safety MCU's `cardiac_cutoff()` (`firmware/safety_mcu/src/np_cardiac_interlock.c:225-235`) sets `NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF`
@@ -127,7 +132,7 @@ Not built; the work stays under `OI-PRIV-41`, alongside `OI-PRIV-34`'s per-perso
 **Q2: option A.** SHDR keeps one cardiac cutoff event and never learns its cause. In the principal's words: SHDR does not need to know why it
 happened, since it does not bear on hardware warranty, and it should not know, because the cause is UHDR. The fleet label becomes
 `CVNS_CARDIAC_INTERLOCK_CUTOFF`. No firmware behaviour changes. Whether SHDR carries the cutoff at all is `OI-PRIV-22` (open); this ruling
-governs its form if it does. Option C (the cause in the person's UHDR session) was not asked for and is not taken up.
+governs its form if it does. *(Since ruled: it does not; `OI-PRIV-22`, the principal, 2026-11-23.)* Option C (the cause in the person's UHDR session) was not asked for and is not taken up.
 
 **Q3: option A, accepted.** The NVSTATE slot stays as it is, for the reasons in Q3.
 

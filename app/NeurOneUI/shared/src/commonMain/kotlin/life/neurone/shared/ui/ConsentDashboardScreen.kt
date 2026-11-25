@@ -243,7 +243,7 @@ private fun DashboardContent(
         } else {
             for (request in expansions) {
                 val grant = grants.firstOrNull { it.id == request.grantId }
-                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, todayIso()) }
+                val differential = grant?.let { ConsentEngine.accessDifferential(it, request, todayIso()) }
                 // A pending request whose differential no longer holds — the grant was revoked,
                 // already widened, or is no longer in force — is not rendered. approveExpansion fails closed on the same
                 // condition, so there is nothing here the user could usefully answer.
@@ -581,8 +581,12 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                     Text(grant.clinicianOrganization, style = MaterialTheme.typography.bodySmall)
                     Text(grant.tier.monthlyPrice, style = MaterialTheme.typography.labelSmall)
                 }
-                TextButton(onClick = onRevoke) {
-                    Text(stringResource(Res.string.dashboard_revoke_button))
+                // A revoked grant stays on the dashboard as the record of who had access (§5.1, `OI-PRIV-64`); there is
+                // nothing left on it to revoke.
+                if (grant.revokedOnDay == null) {
+                    TextButton(onClick = onRevoke) {
+                        Text(stringResource(Res.string.dashboard_revoke_button))
+                    }
                 }
             }
             // What this grant actually reaches — the §6.1 minimum-necessary set for its tier.
@@ -609,8 +613,10 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
             // §5.1: clinician access is time-limited. A grant past its last day, or one stored with none,
             // reaches nothing (`REQ-CONSENT-18`), and the card says which rather than looking current.
             val expiry = grant.expiresAtDay
+            val revoked = grant.revokedOnDay
             Text(
                 when {
+                    revoked != null -> stringResource(Res.string.dashboard_grant_revoked_format, revoked)
                     expiry == null -> stringResource(Res.string.dashboard_grant_no_end_date)
                     grant.isInForce(todayIso()) -> stringResource(Res.string.dashboard_expires_format, expiry)
                     else -> stringResource(Res.string.dashboard_grant_ended_format, expiry)
@@ -867,7 +873,7 @@ private fun ClinicianExpansionRequestScreen(
     var questionSent by remember { mutableStateOf(false) }
 
     val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
-    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier, todayIso()) }
+    val differential = grant?.let { ConsentEngine.accessDifferential(it, request, todayIso()) }
     if (differential == null) {
         // Stale request: the grant went away or was already widened past this tier. Nothing here
         // can be answered honestly, so the screen renders nothing and leaves. The navigation is a

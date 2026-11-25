@@ -65,7 +65,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  ukmd_tag[16];          /* AES-GCM authentication tag                 */
     uint8_t  argon2id_salt[32];     /* Salt for WKMD derivation — device-unique   */
     uint32_t argon2id_version;      /* 0x13 = Argon2id version 1.3                */
-    uint32_t argon2id_m_cost;       /* Memory: 65536 KiB (64 MiB)                 */
+    uint32_t argon2id_m_cost;       /* Memory, KiB: 256 (hub stage, §C.4)         */
     uint32_t argon2id_t_cost;       /* Iterations: 4                              */
     uint32_t argon2id_parallelism;  /* p = 1                                      */
     uint8_t  reserved[52];          /* Pad to 192 bytes — future use (see above)  */
