@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 23
-**Date:** 2026-11-24
+**Revision:** 24
+**Date:** 2026-11-25
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -315,11 +315,11 @@ Before Rev 6, every interlock fault set `cutoff_occurred`, and the event HR was 
 
 ### 4.6 SHDR session summary — retired
 
-> **Rev {NP-FW-CVNS-001 to} (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)): there is no SHDR session summary.** A safety interlock that trips on a reading of the wearer is UHDR (`data-architecture-detail.md` §5.1). The three flags of Rev 21 (impedance check passed, cutoff occurred, fault reason) were each such a trip, or could carry one (`HR_CHANGE`, `IMPEDANCE`), so the struct `np_cvns_shdr_summary_t`, its write hook and its `_Static_assert` are removed. All three facts stay in the UHDR session record (§4.5). SHDR learns only that a session or channel stopped early, for any cause, from the hub's session-end record (`NP-FW-HUB-001` §6.1, `REQ-FWHUB-89` (c)). Rev 21 had removed the kΩ values, parameters and duration the summary carried before that (`OI-PRIV-23`).
+> **Rev 24 (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)): there is no SHDR session summary.** A safety interlock that trips on a reading of the wearer is UHDR (`data-architecture-detail.md` §5.1). The three flags of Rev 21 (impedance check passed, cutoff occurred, fault reason) were each such a trip, or could carry one (`HR_CHANGE`, `IMPEDANCE`), so the struct `np_cvns_shdr_summary_t`, its write hook and its `_Static_assert` are removed. All three facts stay in the UHDR session record (§4.5). SHDR learns only that a session or channel stopped early, for any cause, from the hub's session-end record (`NP-FW-HUB-001` §6.1, `REQ-FWHUB-89` (c)). Rev 21 had removed the kΩ values, parameters and duration the summary carried before that (`OI-PRIV-23`).
 
 > **`REQ-CVNS-15`** — **Nothing of a cervical VNS session is written to SHDR.** (a) The library defines no SHDR record and calls no SHDR sink. (b) The impedance values and the pass or fail of the check, the stimulation parameters, the duration, whether a cutoff occurred and the fault reason are in the UHDR session record (§4.5). *Fails without it:* the fleet database, keyed to the warranty token, which on a personally owned unit is the wearer, records that this person had a cardiac event or a failed skin-contact check, or their stimulation dose. NeurOne may never hold UHDR. *Traced to:* `CLAUDE.md` §5.1 (the defining test); `data-architecture-detail.md` §5.1 (the safety-interlock line and the cervical VNS summary row); §8.2 of this document. *Verified by:* (a) `scripts/check-redaction-shape.ts`, which names no writer in this library; (b) `firmware/cervical_vns/tests/np_cvns_fai_tests.c`.
 
-**UHDR/SHDR boundary:** HR time series, baseline HR, cutoff HR, all cardiovascular signal data, **and the bare fact that a cutoff occurred** are UHDR. Until Rev {NP-FW-CVNS-001 to} the bare fact was SHDR, as a "device safety event"; the principal's ruling moved it, because the event is the wearer's heart rate tripping the interlock. The impedance pass flag was ruled UHDR the same day under `OI-PRIV-40` (NP-PRIV-ANALYSIS-004): the in-session check measures through the wearer.
+**UHDR/SHDR boundary:** HR time series, baseline HR, cutoff HR, all cardiovascular signal data, **and the bare fact that a cutoff occurred** are UHDR. Until Rev 24 the bare fact was SHDR, as a "device safety event"; the principal's ruling moved it, because the event is the wearer's heart rate tripping the interlock. The impedance pass flag was ruled UHDR the same day under `OI-PRIV-40` (NP-PRIV-ANALYSIS-004): the in-session check measures through the wearer.
 
 ---
 
@@ -451,7 +451,7 @@ The step 2c lockout used to be RAM state, and the fault latch is cleared by a po
 
 ### 5.6 Safety MCU fault log (SHDR) — retired
 
-> **Rev {NP-FW-CVNS-001 to} (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)):** retired. The entry's `reason` names `HR_CHANGE`, an interlock tripped by the wearer's heart rate, so it may not be in SHDR. `np_cvns_fault_log_entry_t` was defined and never written, and is removed. The text below is kept as the record of Rev 3.
+> **Rev 24 (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)):** retired. The entry's `reason` names `HR_CHANGE`, an interlock tripped by the wearer's heart rate, so it may not be in SHDR. `np_cvns_fault_log_entry_t` was defined and never written, and is removed. The text below is kept as the record of Rev 3.
 
 Each cutoff event generates an **8-byte** fault log entry written to a dedicated SHDR sub-partition:
 
@@ -640,9 +640,9 @@ STAGE_FAULT                       STAGE_RAMP_DOWN → STAGE_COMPLETE
 | Session start timestamp | UHDR | User biology per CLAUDE.md §5.1 |
 | Session duration (s) | UHDR | User biology |
 | Stimulation parameters (freq, current, pulse width) | UHDR | Linked to a specific user session |
-| Cutoff occurred flag (0/1 only, no HR values) | **UHDR** (Rev {NP-FW-CVNS-001 to}) | The wearer's heart rate tripped the interlock: a fact about the person (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)). SHDR sees only the hub's cause-free `stopped_early` bit |
-| Electrode impedance pass/fail (boolean) | **UHDR** (Rev {NP-FW-CVNS-001 to}) | A skin-contact check is an interlock that reads the wearer, and the in-session check measures through the wearer (the principal, 2026-11-23, `OI-PRIV-22` and `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)). Device condition comes from a device-only test (`NP-FW-HUB-001` `OI-FWHUB-36`) |
-| Safety MCU fault log (session ordinal + reason; **no offset**, no HR) | **Retired** (Rev {NP-FW-CVNS-001 to}; its reason names `HR_CHANGE`) | Was: SHDR, device event log. **Rev 3:** the `cutoff_offset_ms` field was removed — it duplicated the *Time-of-cutoff offset* row above, which this same table already classifies UHDR, at finer resolution. Fault event timing is UHDR (§5.6). |
+| Cutoff occurred flag (0/1 only, no HR values) | **UHDR** (Rev 24) | The wearer's heart rate tripped the interlock: a fact about the person (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)). SHDR sees only the hub's cause-free `stopped_early` bit |
+| Electrode impedance pass/fail (boolean) | **UHDR** (Rev 24) | A skin-contact check is an interlock that reads the wearer, and the in-session check measures through the wearer (the principal, 2026-11-23, `OI-PRIV-22` and `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)). Device condition comes from a device-only test (`NP-FW-HUB-001` `OI-FWHUB-36`) |
+| Safety MCU fault log (session ordinal + reason; **no offset**, no HR) | **Retired** (Rev 24; its reason names `HR_CHANGE`) | Was: SHDR, device event log. **Rev 3:** the `cutoff_offset_ms` field was removed — it duplicated the *Time-of-cutoff offset* row above, which this same table already classifies UHDR, at finer resolution. Fault event timing is UHDR (§5.6). |
 | Session count increment | SHDR | Unsigned integer |
 
 ### 8.3 Session configuration structure
@@ -817,10 +817,10 @@ Consistent with NP-FW-EMMC-001 Rev 2 §12 (33-element classification table; was 
 | HR at cutoff event | UHDR | User cardiac response data |
 | Session timestamps | UHDR | Per CLAUDE.md §5.2 resolution: session timestamps → UHDR |
 | Electrode impedance (raw) | UHDR | Raw measurement linked to a user session |
-| Cutoff flag (boolean only) | **UHDR** (Rev {NP-FW-CVNS-001 to}) | An interlock tripped by the wearer's heart rate (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)) |
+| Cutoff flag (boolean only) | **UHDR** (Rev 24) | An interlock tripped by the wearer's heart rate (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)) |
 | Time-of-cutoff offset (s after stim onset) | UHDR | Latency from stim onset to the wearer's HR deviating past the cutoff threshold — an autonomic response latency, i.e. user biology. Carried in the UHDR session record as `cutoff_time_offset_s` (§4.5) and **nowhere in SHDR** (§5.6, Rev 3) |
-| Electrode impedance pass/fail | **UHDR** (Rev {NP-FW-CVNS-001 to}) | A skin-contact check reads the wearer (the principal, 2026-11-23, `OI-PRIV-22` and `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)) |
-| Safety MCU fault log | **Retired** (Rev {NP-FW-CVNS-001 to}) | Its reason names `HR_CHANGE` (§5.6) |
+| Electrode impedance pass/fail | **UHDR** (Rev 24) | A skin-contact check reads the wearer (the principal, 2026-11-23, `OI-PRIV-22` and `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)) |
+| Safety MCU fault log | **Retired** (Rev 24) | Its reason names `HR_CHANGE` (§5.6) |
 | Session count increment | SHDR | Unsigned integer; no timestamps |
 
 ---
@@ -869,7 +869,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-01 | Platform HAL stubs (`np_platform_cvns_rpeak_gpio_pulse`, `np_platform_cvns_spi_transfer`) must be implemented before integration testing | FW team | Integration test |
 | OI-CVNS-02 | Safety MCU bare-metal firmware (STM32G071, IEC 62304 Class C) must be authored and certified separately | Embedded safety team | T2 clinical release |
 | OI-CVNS-03 | UHDR session record commit to eMMC must call AES-256-XTS write with biometric-derived key | FW/Storage team | UHDR compliance |
-| OI-CVNS-04 | ~~SHDR session summary write must call SHDR storage API after each session.~~ **Closed, nothing to write (Rev {NP-FW-CVNS-001 to}; the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)):** the cervical VNS session writes nothing to SHDR (§4.6, `REQ-CVNS-15`). Was: wire the three-flag summary of Rev 21 | FW team | — |
+| OI-CVNS-04 | ~~SHDR session summary write must call SHDR storage API after each session.~~ **Closed, nothing to write (Rev 24; the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)):** the cervical VNS session writes nothing to SHDR (§4.6, `REQ-CVNS-15`). Was: wire the three-flag summary of Rev 21 | FW team | — |
 | OI-CVNS-05 | IRB approval required before FAI-CV03 tolerability study can be executed | Regulatory/Clinical team | T2 clinical release |
 | OI-CVNS-06 | FAI-CV02 hardware bench (R-peak signal generator, oscilloscope) must be completed on T2 prototype | HW team | Full G3-08 closure |
 | OI-CVNS-07 | FAI-CV01 anatomical phantom bench must be completed with T2 accessory prototype | HW team | Full G3-08 closure |
@@ -1247,3 +1247,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 21 | 2026-11-21 | NeurOne Firmware Engineering | **§4.6: np_cvns_shdr_summary_t is three one-byte flags (impedance check passed, cutoff occurred, fault reason) and no longer lists electrode configuration, frequency, current, duration or per-electrode kΩ, which are UHDR (§8.2; data-architecture-detail.md §5.1). REQ-CVNS-15 added, verified by host tests and a _Static_assert. §14 OI-CVNS-04 re-worded to name the three-flag struct (OI-PRIV-23 (NP-PRIV-ANALYSIS-004), GitHub #951, H3). The write is still a stub; nothing had reached SHDR. IEC 62304 SW-02 Class B: np_cvns_types.h and np_cvns_session.c change; no Class C code, constant, limit or interlock behaviour changes.** |
 | 22 | 2026-11-23 | NeurOne Firmware Engineering | **§8.2: the electrode impedance pass/fail rows are UHDR (the principal, 2026-11-23). REQ-CVNS-15: note that (a) becomes two flags when the firmware change lands.** |
 | 23 | 2026-11-24 | NeurOne Firmware Engineering | **§4.6, §8.2, §14: the SHDR session summary is two flags, the impedance pass flag removed; REQ-CVNS-15 (a) to two flags and new (c), the fault reason never names the impedance check (OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).** |
+| 24 | 2026-11-25 | NeurOne Firmware Engineering | **§4.6: the SHDR session summary is retired and REQ-CVNS-15 now requires that nothing of the session is written to SHDR; §5.6 safety MCU fault-log entry retired; §8.2 and §11: cutoff flag and impedance pass/fail move to UHDR; §14 OI-CVNS-04 closed, nothing to write (OI-PRIV-22 (NP-PRIV-ANALYSIS-004), the principal 2026-11-23). No threshold, timing, lockout or interlock behaviour changes.** |
