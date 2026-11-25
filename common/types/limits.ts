@@ -130,11 +130,14 @@ export interface NPLimitsSet {
 // the person choosing a profile recognises it. `notes` is a short label that tells two profiles apart ("left chair"); it is
 // not a record about the person, nothing reads it but the profile list, and it holds at most
 // ProfileLimits.PROFILE_NOTES_MAX_CHARS UTF-16 code units. There is no date of birth and no creation time: no limit or protocol rule ever read
-// either (OI-PRIV-11; the creation time by the principal's ruling of 2026-11-18).
+// either (OI-PRIV-11; the creation time by the principal's ruling of 2026-11-18). `stealth` is the person's choice to keep the
+// helmet's lights dark while the profile is active (SWR-IND-01, OI-PRIV-37), set in the Compose app; this app has no control for
+// it and keeps it so a migration through here does not drop it. UHDR-class; absent means false.
 export interface NPIndividualProfile {
   id: string;
   name: string;
   notes: string;
+  stealth?: boolean;
   /**
    * How the profile is named to a helmet (REQ-FAULTMSG-01, OI-PRIV-29 (NP-PRIV-ANALYSIS-004)); the Kotlin store assigns it and
    * the web app never names a helmet. Kept as read, never made or changed here: dropping it would give the person a new tag
@@ -180,6 +183,8 @@ export function storedProfile(raw: unknown): NPIndividualProfile | null {
     id: r.id,
     name: r.name,
     notes: typeof r.notes === 'string' ? r.notes.slice(0, ProfileLimits.PROFILE_NOTES_MAX_CHARS) : '',
+    // Only true is kept: false is the default and is not written, as the Kotlin store does not write it.
+    ...(r.stealth === true ? { stealth: true } : {}),
   };
   const tag = storedTagState(r.activeUserTag);
   if (tag) profile.activeUserTag = tag;

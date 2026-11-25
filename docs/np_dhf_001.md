@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 419
-**Date:** 2026-11-22
+**Revision:** 422
+**Date:** 2026-11-23
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 419 | 2026-11-22 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 422 | 2026-11-23 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 213 | 2026-11-24 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 214 | 2026-11-23 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -237,7 +237,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | 4 | 2026-11-11 | [np_reg_cvns_001.md](./np_reg_cvns_001.md) | BASELINED | REG |
 | NP-SW-FAULTMSG-001 | Offline Fault Explanation | 5 | 2026-11-24 | [np_sw_faultmsg_001.md](./np_sw_faultmsg_001.md) | DRAFT | SPEC-FW |
 | NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion — Scope Expansion Brief | 2 | 2026-09-28 | [np_reg_pbm1064_001.md](./np_reg_pbm1064_001.md) | DRAFT | REG |
-| NP-IFU-001 | Instructions for Use — Working Text | 10 | 2026-11-03 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
+| NP-IFU-001 | Instructions for Use — Working Text | 11 | 2026-11-23 | [np_ifu_001.md](./np_ifu_001.md) | DRAFT | REG |
 | NP-REG-UPG-001 | T1 → T2 Upgrade Path — Analysis and Decision | 11 | 2026-11-23 | [np_reg_upg_001.md](./np_reg_upg_001.md) | DRAFT | REG |
 
 **Note on NP-REG-PBM1064-001:** Rev 2 (2026-09-28) added scope item 5 (Q14–Q18) and left Q-13 reserved. A further revision is still required to add Q-13 covering Mode F (808-830nm bilateral retinal PBM during normal-looking wear) per NP-FW-EMMC-002 Rev 1 §F and NP-PRIV-REM-001 STEP-18. The Mode F firmware gate flag `NP_MODE_F_REGULATORY_CLEARED` remains 0 until the Rev 2 opinion letter is received.
@@ -320,7 +320,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-004 | Privacy Analysis and Repair — Firmware | 1 | 2026-11-21 | [np_priv_analysis_004.md](./np_priv_analysis_004.md) | DRAFT | PRIV |
 | NP-PRIV-ANALYSIS-006 | Privacy Analysis — Companion Apps (app/) | 1 | 2026-11-21 | [np_priv_analysis_006.md](./np_priv_analysis_006.md) | DRAFT | PRIV |
-| NP-PRIV-ANALYSIS-007 | Privacy Analysis and Repair — Shared Code (`common/`), Second Pass | 2 | 2026-11-22 | [np_priv_analysis_007.md](./np_priv_analysis_007.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-007 | Privacy Analysis and Repair — Shared Code (`common/`), Second Pass | 3 | 2026-11-22 | [np_priv_analysis_007.md](./np_priv_analysis_007.md) | DRAFT | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 3 | 2026-11-11 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
@@ -330,7 +330,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 10 | 2026-11-11 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 4 | 2026-10-30 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 17 | 2026-11-21 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 44 | 2026-11-22 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 45 | 2026-11-25 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-CLOUDSTORE-001 | Common Cloud Storage API — Provider Findings (Draft) | 36 | 2026-11-20 | [np_sw_cloudstore_001.md](./np_sw_cloudstore_001.md) | DRAFT | APP |
 | NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 4 | 2026-11-21 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |

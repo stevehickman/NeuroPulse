@@ -35,6 +35,13 @@ describe('storedProfile', () => {
     expect(storedProfile({ id: 'p1', name: 'Alex', notes: 'n'.repeat(MAX + 40) })?.notes).toBe('n'.repeat(MAX));
   });
 
+  // @verifies REQ-SW03-32#d
+  it('keeps the stealth choice, and only as true', () => {
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: true })).toEqual({ id: 'p1', name: 'Alex', notes: '', stealth: true });
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: false })).toEqual({ id: 'p1', name: 'Alex', notes: '' });
+    expect(storedProfile({ id: 'p1', name: 'Alex', notes: '', stealth: 'yes' })).toEqual({ id: 'p1', name: 'Alex', notes: '' });
+  });
+
   // @verifies REQ-FAULTMSG-01#e
   it('keeps a well-formed tag state and drops a malformed one', () => {
     const state = { secret: 'ab'.repeat(32), legacy: true, migrated: [0x25dd4fd5] };
