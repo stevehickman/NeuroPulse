@@ -165,6 +165,9 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
         )
 
         Spacer(Modifier.height(24.dp))
+        OwnersDeviceSection(app.warrantyOwnerStore)
+
+        Spacer(Modifier.height(24.dp))
         FleetReportsSection(
             helmetConnected = hub != null,
             isOn = fleetOn,
@@ -174,6 +177,28 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
 
         Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = onDone) { Text(stringResource(Res.string.common_back)) }
+    }
+}
+
+/**
+ * Whether this phone is the helmet owner's (a clinic's or an organisation's) or a user's own (`REQ-SHDR-10` (d); the principal,
+ * 2026-11-25, `OI-PRIV-63`). On the owner's phone, a user who moves their data to another phone leaves the owner's records here;
+ * on a user's own phone they go with everything else. Off by default.
+ */
+@Composable
+private fun OwnersDeviceSection(store: life.neurone.core.analytics.WarrantyOwnerStore) {
+    var isOwners by remember { mutableStateOf(store.deviceIsOwners) }
+    Text(stringResource(Res.string.warranty_device_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.warranty_device_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    val label = stringResource(Res.string.warranty_device_switch)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(
+            checked = isOwners,
+            onCheckedChange = { store.deviceIsOwners = it; isOwners = store.deviceIsOwners },
+            modifier = Modifier.semantics { contentDescription = label },
+        )
     }
 }
 

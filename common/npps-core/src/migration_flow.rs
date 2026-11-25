@@ -69,6 +69,11 @@
 //! progress key are in no list: the clear must not forget the proof that it ran, and the progress key goes only when the
 //! plan is complete.
 //!
+//! **The warranty owner's keys** (`REQ-SHDR-10` (d); the principal, 2026-11-25, `OI-PRIV-63`). On a device the owner page marks as
+//! the warranty owner's (a clinic's phone), a user's clear keeps the owner's records and the mark: they are read before the
+//! data key is destroyed and written back, under the new key, after every other key is forgotten. On a device with no mark
+//! (the user's own, the default), on an erase, and on a clear resumed after the key is gone, they are forgotten with the rest.
+//!
 //! **An erase** (`SWR-MG-17`) is the same plan asked for by the person with no move under way: `params.erase` is true, `bundleHash`
 //! is not needed and the flow does not wait for a confirmation. Nothing else differs, so the order (the key first) is the same.
 //!
@@ -78,7 +83,7 @@
 //!
 //! Releasing a claim is the person's explicit act and is not a flow: the platform calls its route directly (`SWR-MG-07`).
 
-use crate::migration::{all_keys, dispatch, keys_of};
+use crate::migration::{all_keys, dispatch, keys_of, warranty_owner_keys};
 use serde_json::{json, Value};
 
 type R<T> = Result<T, String>;
@@ -102,6 +107,10 @@ const PENDING_CLEAR_KEY: &str = "np.migration.pending-clear";
 /// erase, after which the phone has seen nothing. The core reads and writes it itself, so no app keeps the count or decides
 /// when it rises. Not to be confused with `np.backup.last-epoch`, which is the clock time of the last automatic backup.
 const SEEN_EPOCH_KEY: &str = "np.migration.seen-epoch";
+/// The mark that this device is the warranty owner's (a clinic's or an organisation's phone), written by the owner page as
+/// `"true"`. A user's clear on a device so marked keeps the owner's keys (`REQ-SHDR-10` (d)); with no mark the device is the
+/// user's own and they go with everything else (`SWR-MG-09`). It is in the `warrantyOwner` list, which a test checks.
+const OWNERS_DEVICE_KEY: &str = "np.warranty-owner.device-is-owners";
 const WIPE_STEP: &str = "overwriteAndDeleteFiles";
 const WIPE_CHUNK: u64 = 16 * 1024;
 const TOKEN_BYTES: u64 = 16;
@@ -590,9 +599,12 @@ fn plan_next(st: Value) -> R<Value> {
         }
         "forgetLastPairedHelmetId" => effect(st, write_keys(&[LAST_HUB_KEY], json!({}))),
         "clearAppHeldState" => {
+            // On the owner's device, the owner's keys read before the data key was destroyed are written back, sealed under
+            // the new key; every other key is forgotten (`REQ-SHDR-10` (d)). Elsewhere, and on an erase, `kept` is empty.
+            let kept = st["kept"].as_object().cloned().unwrap_or_default();
             let all = all_keys();
-            let names: Vec<&str> = all.iter().map(String::as_str).collect();
-            effect(st, write_keys(&names, json!({})))
+            let names: Vec<&str> = all.iter().map(String::as_str).filter(|k| !kept.contains_key(*k)).collect();
+            effect(st, write_keys(&names, Value::Object(kept)))
         }
         "writeClearedMarker" => effect(st, write_keys(&[], json!({ CLEARED_MARKER_KEY: "true" }))),
         _ => effect(st, json!({ "type": "runClearStep", "step": step })),
@@ -650,6 +662,11 @@ fn write_keys(remove: &[&str], set: Value) -> Value {
     json!({ "type": "writeKeys", "remove": remove, "set": set })
 }
 
+/// What a clear reads first: its own progress and record, and the warranty owner's keys (`REQ-SHDR-10` (d)).
+fn clear_start_keys() -> Vec<String> {
+    [CLEAR_PROGRESS_KEY, PENDING_CLEAR_KEY].into_iter().map(String::from).chain(warranty_owner_keys()).collect()
+}
+
 fn clear(req: &Value) -> R<Value> {
     let mut st = req["state"].clone();
     match step_of(req) {
@@ -665,13 +682,22 @@ fn clear(req: &Value) -> R<Value> {
                     "erase": erase,
                     "canRemoveOsBond": p["canRemoveOsBond"].as_bool().unwrap_or(false),
                 }),
-                json!({ "type": "readKeys", "keys": [CLEAR_PROGRESS_KEY, PENDING_CLEAR_KEY] }),
+                json!({ "type": "readKeys", "keys": clear_start_keys() }),
             )
         }
         "progress" => {
             let saved = req["result"]["values"][CLEAR_PROGRESS_KEY].as_str().unwrap_or("");
             let done: Vec<&str> = saved.split(',').filter(|d| !d.is_empty()).collect();
             st["done"] = json!(done);
+            // `REQ-SHDR-10` (d): a user's clear on a device marked as the warranty owner's keeps the owner's keys. They are read
+            // now, before the data key is destroyed, and written back after every other key is forgotten. Not on an erase, and
+            // not on a resumed clear: by then the key is gone and what was sealed under it cannot be read, so it is forgotten.
+            let values = &req["result"]["values"];
+            if done.is_empty() && st["erase"] != true && values[OWNERS_DEVICE_KEY].as_str() == Some("true") {
+                let kept: serde_json::Map<String, Value> =
+                    warranty_owner_keys().into_iter().filter_map(|k| values[&k].as_str().map(|v| (k.clone(), json!(v)))).collect();
+                st["kept"] = Value::Object(kept);
+            }
             if !done.is_empty() || st["erase"] == true {
                 // A clear already under way resumes without asking again: by now the old state is half gone (SWR-MG-08).
                 return plan_next(st);
@@ -1214,6 +1240,71 @@ mod tests {
         fill(&mut old);
         let hash = backup("migrate", &mut route, &mut old, ATOMIC())["bundleHash"].as_str().unwrap().to_string();
         (route, old, hash)
+    }
+
+    const OWNER_RECORDS: &str = "np.warranty-owner.records";
+    const OWNERS_DEVICE: &str = "np.warranty-owner.device-is-owners";
+
+    /// A phone moved and confirmed, holding a warranty owner's records, marked as the owner's device or not.
+    fn owners_phone(marked: bool) -> (Route, Phone, String) {
+        let (mut route, mut old, hash) = confirmed_route();
+        old.kv.insert(OWNER_RECORDS.into(), "#salt\tab\nk1\tv1,1,0,0,0".into());
+        if marked {
+            old.kv.insert(OWNERS_DEVICE.into(), "true".into());
+        }
+        assert_eq!(restore(&mut route, &mut phone(&ADAPTER, 50), SECRET)["ok"], true);
+        (route, old, hash)
+    }
+
+    // @verifies REQ-SHDR-10#d
+    #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
+    fn a_users_clear_on_the_owners_device_keeps_the_owners_records_and_forgets_everything_else() {
+        let (mut route, mut old, hash) = owners_phone(true);
+        let records = old.kv[OWNER_RECORDS].clone();
+        let ok = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!(ok["ok"], true, "{ok}");
+        assert_eq!(old.ran[0], "destroyEncryptionKey", "the key still goes first: the records are carried across it");
+        assert_eq!(old.kv.get(OWNER_RECORDS), Some(&records), "the clinic's records are kept, as they were");
+        assert_eq!(old.kv.get(OWNERS_DEVICE).map(String::as_str), Some("true"), "and so is the mark, for the next user's move");
+        assert_eq!(
+            old.kv.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["np.migration.cleared", OWNERS_DEVICE, OWNER_RECORDS],
+            "every user's key is forgotten"
+        );
+    }
+
+    // @verifies REQ-SHDR-10#d
+    #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
+    fn a_users_clear_on_their_own_device_forgets_the_owners_records() {
+        let (mut route, mut old, hash) = owners_phone(false);
+        let ok = run("clear", json!({ "bundleHash": hash, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!(ok["ok"], true, "{ok}");
+        assert_eq!(old.kv.keys().map(String::as_str).collect::<Vec<_>>(), ["np.migration.cleared"], "nothing links the phone to the helmet");
+    }
+
+    // @verifies REQ-SHDR-10#d
+    #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
+    fn an_erase_forgets_the_owners_records_even_on_the_owners_device() {
+        let (mut route, mut old, _hash) = owners_phone(true);
+        let ok = run("clear", json!({ "erase": true, "canRemoveOsBond": false }), &mut route, &mut old, SECRET);
+        assert_eq!(ok["ok"], true, "{ok}");
+        assert_eq!(old.kv.keys().map(String::as_str).collect::<Vec<_>>(), ["np.migration.cleared"]);
+    }
+
+    // @verifies REQ-SHDR-10#d
+    #[test]
+    fn the_owners_keys_are_install_keys_that_are_sealed_and_never_carried() {
+        let m = ask(json!({ "op": "itemKeys" }));
+        let per_install = m["perInstall"].as_array().unwrap();
+        let sealed = m["sealedAtRest"].as_array().unwrap();
+        for k in super::warranty_owner_keys() {
+            assert!(per_install.contains(&json!(k)) && sealed.contains(&json!(k)), "{k}");
+        }
+        assert!(super::warranty_owner_keys().contains(&super::OWNERS_DEVICE_KEY.to_string()));
+        assert!(super::warranty_owner_keys().contains(&OWNER_RECORDS.to_string()));
     }
 
     // @verifies SWR-MG-06

@@ -123,7 +123,7 @@ private fun JsonObject.flag(key: String) = this[key]!!.jsonPrimitive.boolean
 private fun JsonObject.strings(key: String) = this[key]!!.jsonArray.map { it.jsonPrimitive.content }
 
 /** A phone: its key-value store, the items it stores another way, and its randomness. Each call runs one flow through MigrationFlow. */
-private class Phone(val kv: InMemoryKeyValueStore = InMemoryKeyValueStore(), private val extra: List<MigrationItemStore> = emptyList(), seed: Int = 0) {
+private class Phone(val kv: life.neurone.core.common.KeyValueStore = InMemoryKeyValueStore(), private val extra: List<MigrationItemStore> = emptyList(), seed: Int = 0) {
     private val random = StepRandom(seed)
 
     fun fill() {
@@ -351,6 +351,55 @@ class MigrationFlowTests {
         assertEquals(setOf("study-a", "study-b"), merged["studyWithdrawals"]!!.jsonObject.keys)
         // Grants are never carried: the person is asked again, and told their earlier choices were not restored.
         assertTrue(r.flag("askConsent") && r.flag("tellConsentNotRestored"))
+    }
+
+    /**
+     * The warranty owner's keys on the owner's device, through the store the app seals with: the clear destroys the data key first,
+     * so what it keeps must be read before and written back after, sealed under the new key, or it would read as absent.
+     */
+    private suspend fun clearOwnersPhone(marked: Boolean, erase: Boolean = false): Pair<life.neurone.core.common.KeyValueStore, life.neurone.core.common.InMemoryKeyValueStore> {
+        val raw = InMemoryKeyValueStore()
+        val secrets = life.neurone.core.common.InMemorySecretKeyStore()
+        val sealed = life.neurone.core.common.EncryptedKeyValueStore(raw, secrets, life.neurone.core.common.EncryptedKeyValueStore.uhdrKeys())
+        val records = "np.warranty-owner.records"
+        val mark = "np.warranty-owner.device-is-owners"
+        val route = InMemoryBackupRoute()
+        val old = Phone(sealed, seed = 1).also { it.fill() }
+        sealed.putString(records, "the clinic's records")
+        if (marked) sealed.putString(mark, "true")
+        val done = old.backup("migrate", BundleKeyMethod.PASSPHRASE, route, route)
+        Phone(seed = 50).restore(route, route)
+        val destroys = object : ClearActions {
+            override suspend fun run(step: String): Boolean { if (step == "destroyEncryptionKey") sealed.destroyKey(); return true }
+        }
+        val r = if (erase) {
+            MigrationFlow.run("clear", buildJsonObject { put("erase", true); put("canRemoveOsBond", false) }, StandardMigrationHost(emptyList(), route, destroys), null, sealed)
+        } else {
+            old.clear(route, done.text("bundleHash"), destroys, canRemoveOsBond = false)
+        }
+        assertTrue(r.ok)
+        return sealed to raw
+    }
+
+    // @verifies REQ-SHDR-10#d
+    @Test
+    fun onTheOwnersDeviceAUsersClearKeepsTheOwnersRecordsReadableUnderTheNewKey() = runTest {
+        val (sealed, raw) = clearOwnersPhone(marked = true)
+        assertEquals("the clinic's records", sealed.getString("np.warranty-owner.records"), "readable: sealed again under the new key")
+        assertEquals("true", sealed.getString("np.warranty-owner.device-is-owners"))
+        assertFalse(raw.getString("np.warranty-owner.records")!!.contains("clinic"), "and sealed, not left in the clear")
+        carriedKeys.values.flatten().forEach { assertNull(sealed.getString(it), "the user's $it is forgotten") }
+    }
+
+    // @verifies REQ-SHDR-10#d
+    @Test
+    fun onTheUsersOwnDeviceAndOnAnEraseTheOwnersRecordsAreForgotten() = runTest {
+        for ((marked, erase) in listOf(false to false, true to true)) {
+            val (sealed, raw) = clearOwnersPhone(marked, erase)
+            assertNull(sealed.getString("np.warranty-owner.records"), "marked=$marked erase=$erase")
+            assertNull(raw.getString("np.warranty-owner.records"))
+            assertNull(raw.getString("np.warranty-owner.device-is-owners"))
+        }
     }
 
     // @verifies SWR-MG-08

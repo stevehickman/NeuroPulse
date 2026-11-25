@@ -76,6 +76,18 @@ class WarrantyOwnerStore(
     }
 
     /**
+     * Whether this device belongs to the warranty owner (a clinic's or an organisation's phone) rather than to a user. It decides
+     * what a user's move off the device does with the owner's records (`REQ-SHDR-10` (d); the principal, 2026-11-25): on the
+     * owner's device they are kept, on a user's own device they are forgotten with everything else (`SWR-MG-09`). An erase
+     * forgets them either way. Off by default: a device nobody marked is treated as the user's own.
+     */
+    var deviceIsOwners: Boolean
+        get() = store.getString(DEVICE_IS_OWNERS_KEY) == "true"
+        set(value) {
+            if (value) store.putString(DEVICE_IS_OWNERS_KEY, "true") else store.remove(DEVICE_IS_OWNERS_KEY)
+        }
+
+    /**
      * Forget this helmet: its record and its staged SHDR record go, so it reads as never asked (`REQ-SHDR-09` (d)). A change of
      * custody ends the old owner's decisions; the new owner is asked again, and their first enrolment is epoch 1.
      */
@@ -127,6 +139,12 @@ class WarrantyOwnerStore(
     companion object {
         /** The one value this store keeps. Per install, sealed at rest, and in no user bundle (`common/npps/migration-keys.json`). */
         const val RECORDS_KEY = "np.warranty-owner.records"
+
+        /**
+         * The mark that this device is the warranty owner's, `"true"` or absent. Per install, sealed at rest, in no user bundle; the
+         * core's clear reads it, and keeps it and [RECORDS_KEY] on a device so marked (`common/npps/migration-keys.json`, `warrantyOwner`).
+         */
+        const val DEVICE_IS_OWNERS_KEY = "np.warranty-owner.device-is-owners"
 
         /** Written by versions before the per-helmet store; removed, never read. */
         val LEGACY_KEYS = listOf(

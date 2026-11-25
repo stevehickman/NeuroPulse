@@ -85,6 +85,16 @@ pub(crate) fn sealed_at_rest() -> Vec<String> {
     all_keys()
 }
 
+/// `REQ-SHDR-10` (d): the warranty owner's keys, a subset of `perInstall`: the owner's records and the mark that says this
+/// device is the owner's (a clinic's or an organisation's phone). A user's clear on a device so marked keeps them; on any
+/// other device, and on an erase, they are forgotten with every other key (the principal, 2026-11-25, `OI-PRIV-63`).
+pub(crate) fn warranty_owner_keys() -> Vec<String> {
+    let mut v: Vec<String> = key_map()["warrantyOwner"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
+    v.sort();
+    v.dedup();
+    v
+}
+
 /// `NP-APP-PRESENCE-001` §4 (`REQ-PRES-05`): the keys that stay readable while the person's presence has not been established, so that
 /// reminders, the fleet upload and the hub reconnect work locked. **Every other sealed key is UHDR and is gated.** The list is in the
 /// key file next to the sorting, so the apps read one list; it is a subset of the sorted keys, and a key joins it only by a ruling that

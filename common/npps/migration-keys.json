@@ -1,5 +1,5 @@
 {
-  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are never moved by key: grants are never carried (ruling, issue #569) and only the withdrawal records inside them travel, through the consent adapter (SWR-MG-04). 'perInstall' keys belong to a device, an install or a warranty owner and never move with a user's data: the warranty owner's records ('np.warranty-owner.records', REQ-SHDR-10) are not user data, and the four keys an earlier version kept them under are listed only so they are sealed until removed. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
+  "_comment": "Every key the apps store in their key-value stores, sorted for migration (SWR-MG-01). Read by the shared core (migration.rs itemKeys; migration_flow.rs) and by scripts/check-migration-keys.ts, which fails when a key literal in any app's source is in none of these lists. A key moves only when it is in 'carried'. 'consent' keys are never moved by key: grants are never carried (ruling, issue #569) and only the withdrawal records inside them travel, through the consent adapter (SWR-MG-04). 'perInstall' keys belong to a device, an install or a warranty owner and never move with a user's data: the warranty owner's records ('np.warranty-owner.records', REQ-SHDR-10) are not user data, and 'warrantyOwner' lists them with the mark that says this device is the owner's, which a user's clear keeps on such a device (REQ-SHDR-10 (d)); and the four keys an earlier version kept them under are listed only so they are sealed until removed. 'unsorted' keys are neither moved nor dropped yet (SWR-MG-01). Spellings that differ between platforms are listed as they are written (UC-088).",
   "carried": {
     "protocols": ["np.user-protocols.npps", "np.used-families", "np.archived-families", "np.clone-sources"],
     "sessionHistory": ["np.session.history", "np.session.history-retention"],
@@ -22,6 +22,7 @@
     "np.analytics.launch-count",
     "np.warranty.consent-granted",
     "np.warranty-owner.records",
+    "np.warranty-owner.device-is-owners",
     "np.characterisation.enrolled",
     "np.characterisation.consent-epoch",
     "np.characterisation.programme-id",
@@ -51,5 +52,6 @@
     "np.onboarding.consent-shown",
     "np.setup.first-complete"
   ],
+  "warrantyOwner": ["np.warranty-owner.device-is-owners", "np.warranty-owner.records"],
   "deviceTier": ["np.shdr.device-token", "np.warranty.consent-granted", "ble.last-hub-id", "np.analytics.distinct-id", "np.analytics.pending-erasures"]
 }
