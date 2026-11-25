@@ -246,7 +246,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-CLIN-001 | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.docx](./np_clin_001.docx) | ACTIVE | CLIN |
+| NP-CLIN-001 | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.md](./np_clin_001.md) | ACTIVE | CLIN |
+| NP-CLIN-001 (Rev 1, Word) | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.docx](./superseded/np_clin_001.docx) | SUPERSEDED 2026-11-25 by the Markdown issue | CLIN |
 | NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [np_mod_ext_001.docx](./superseded/np_mod_ext_001.docx) | SUPERSEDED by individual firmware specs and CLAUDE.md | CLIN |
 | NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [np_bib_001.docx](./np_bib_001.docx) | ACTIVE | CLIN |
 | NP-BIB-1064-001 | 1064nm Transcranial PBM — Clinical Evidence Bibliography Addendum | 1 | 2026-05-13 | [np_bib_1064_001.md](./np_bib_1064_001.md) | ACTIVE | CLIN |
