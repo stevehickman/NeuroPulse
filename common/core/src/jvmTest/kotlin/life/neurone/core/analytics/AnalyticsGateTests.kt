@@ -435,10 +435,10 @@ class CharacterisationEnrolmentGateTests {
     // @verifies REQ-SW02-04
     @Test
     fun enrolmentDoesNotSurviveDeviceTransfer() {
-        val (_, _, char) = gates()
+        val (_, warranty, char) = gates()
         char.grant(HELMET_A)
         assertTrue(char.isOpen(HELMET_A))
-        char.clearForDeviceTransfer(HELMET_A)
+        warranty.endCustody(HELMET_A)
         assertFalse(char.isOpen(HELMET_A), "a previous registrant's consent must not bind a new owner")
         assertEquals(0, char.consentEpoch(HELMET_A), "the new owner's first enrolment is genuinely their first")
     }

@@ -304,6 +304,7 @@
   "DASHBOARD_GRANTED_FORMAT": "Granted {0}",
   "DASHBOARD_GRANT_ENDED_FORMAT": "Access ended {0}",
   "DASHBOARD_GRANT_NO_END_DATE": "No end date was set, so this access is not in force. Revoke it and add the clinician again to choose one.",
+  "DASHBOARD_GRANT_REVOKED_FORMAT": "Access revoked {0}",
   "DASHBOARD_NO_CLINICIANS": "No clinicians have access to your data.",
   "DASHBOARD_NO_CONTACT": "No research contact",
   "DASHBOARD_NO_INVITATIONS": "No pending study invitations.",

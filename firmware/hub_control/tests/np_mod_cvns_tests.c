@@ -135,6 +135,13 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
     g_fault_log_ms   = session_ms;
 }
 
+/* The runner's cause-free early-stop flag (REQ-FWHUB-89 (c)). */
+static int g_early_stop_calls;
+void np_runner_note_early_stop(void)
+{
+    g_early_stop_calls++;
+}
+
 /* ── Mocked HAL stubs ────────────────────────────────────────────────────────── */
 
 static bool     g_accessory_present = true;
@@ -208,6 +215,7 @@ static void check(int cond, const char *name)
 
 static void reset_mocks(void)
 {
+    g_early_stop_calls = 0;
     g_enable_calls = g_disable_calls = 0;
     g_last_enable_mask = g_last_disable_mask = 0;
     g_auth_calls = 0; g_auth_last_pass = false;
@@ -667,12 +675,34 @@ static void test_fault_cb_disables_and_logs(void)
     check(g_disable_calls == 1 && g_last_disable_mask == NP_SAFETY_EN_CVNS,
           "fault: unified enable dropped");
     check(!np_mod_cvns_test_enable_requested(), "fault: enable bit cleared");
-    check(g_fault_log_calls == 1, "fault: one SHDR fault record written");
-    check(g_fault_log_slot == NP_HUB_SLOT_CVNS &&
-          g_fault_log_type == (uint8_t)NP_MOD_CVNS &&
-          g_fault_log_code == (uint8_t)NP_CVNS_FAULT_HR_CHANGE,
-          "fault: SHDR record carries slot/type/reason");
-    check(g_fault_log_ms == 0U, "fault: SHDR timestamp suppressed (privacy gate)");
+}
+
+/* Every cervical VNS fault reason does the same thing to SHDR: nothing of its own, and the one cause-free early-stop
+ * note.  A cardiac cutoff therefore cannot be told from a lost signal, a watchdog, an impedance rise or a safety-MCU
+ * refusal by anything this driver writes. */
+/* @verifies REQ-FWHUB-91#a REQ-FWHUB-89#c */
+static void test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop(void)
+{
+    static const np_cvns_fault_reason_t REASONS[] = {
+        NP_CVNS_FAULT_HR_CHANGE, NP_CVNS_FAULT_DATA_LOSS, NP_CVNS_FAULT_WATCHDOG,
+        NP_CVNS_FAULT_IMPEDANCE, NP_CVNS_FAULT_SAFETY_MCU,
+    };
+    bool all_silent = true, all_one_note = true;
+    for (size_t i = 0U; i < sizeof REASONS / sizeof REASONS[0]; i++) {
+        reset_mocks();
+        np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+        np_mod_cvns_params_t p = make_params();
+        cvns_start(&p);
+        np_mod_cvns_test_session()->stage = NP_CVNS_STAGE_ACTIVE;
+        np_mod_cvns_tick(10U, g_now_unix);
+        g_fault_log_calls  = 0;
+        g_early_stop_calls = 0;
+        np_mod_cvns_test_fire_fault(REASONS[i]);
+        if (g_fault_log_calls != 0) { all_silent = false; }
+        if (g_early_stop_calls != 1) { all_one_note = false; }
+    }
+    check(all_silent, "fault: no reason writes an SHDR fault record");
+    check(all_one_note, "fault: every reason notes exactly one early stop, the same for all");
 }
 
 /* ── NP-SW-FAULTMSG-001 P2 (OI-FAULTMSG-02): the fault KIND in the UHDR record ─
@@ -912,10 +942,8 @@ static void test_hb_impedance_crossval_diverges(void)
           "crossval-diverge: impedance NOT accepted (fail-closed)");
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-diverge: session advanced to FAULT (blocked before delivery)");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == (uint8_t)NP_CVNS_FAULT_SAFETY_MCU,
-          "crossval-diverge: SHDR gets one generic safety-MCU refusal, no 0xC7");
-    check(g_fault_log_ms == 0U, "crossval-diverge: SHDR timestamp suppressed");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "crossval-diverge: nothing to SHDR, no 0xC7; one cause-free early stop, as any fault (REQ-FWHUB-91)");
     check(!np_mod_cvns_test_enable_requested(), "crossval-diverge: enable never requested");
     check(!np_mod_cvns_test_active(), "crossval-diverge: driver released");
 }
@@ -935,7 +963,7 @@ static void test_hb_impedance_crossval_boundary(void)
     check(np_mod_cvns_test_stim()->impedance_ok &&
           np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
           "crossval-boundary: diff == tolerance accepted");
-    check(g_fault_log_calls == 0, "crossval-boundary: no diagnostic at exact tolerance");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 0, "crossval-boundary: no diagnostic and no stop at exact tolerance");
 
     /* Just over tolerance: fail-closed. */
     reset_mocks();
@@ -945,14 +973,14 @@ static void test_hb_impedance_crossval_boundary(void)
     run_impedance_measurement(3.0f, 2.99f);  /* right diff = 1.01 kΩ > tolerance */
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
           "crossval-boundary: diff just over tolerance fails closed");
-    check(g_fault_log_calls == 1 &&
-          g_fault_log_code == (uint8_t)NP_CVNS_FAULT_SAFETY_MCU,
-          "crossval-boundary: just over tolerance logs the generic safety-MCU refusal");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "crossval-boundary: just over tolerance writes nothing to SHDR and notes one early stop");
 }
 
-/* The SHDR entry a cross-validation fault leaves is the entry a real
- * safety-MCU enable refusal leaves, so SHDR cannot tell the impedance-derived
- * fault from a refusal (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), §5.1 rule 2). */
+/* What a cross-validation fault leaves on the SHDR side is what a real safety-MCU
+ * enable refusal leaves: no record, one cause-free early stop.  SHDR cannot tell
+ * the impedance-derived fault from a refusal (OI-PRIV-40, OI-PRIV-22
+ * (NP-PRIV-ANALYSIS-004), §5.1 rule 2). */
 /* @verifies REQ-FWHUB-92#b */
 static void test_hb_impedance_crossval_logs_as_refusal(void)
 {
@@ -963,10 +991,8 @@ static void test_hb_impedance_crossval_logs_as_refusal(void)
     cvns_start(&p);
     np_cvns_interlock_spi_response(np_mod_cvns_test_interlock(),
                                    NP_CVNS_SPI_RSP_ENABLE_REJECTED, NULL, 0U);
-    int     refusal_calls = g_fault_log_calls;
-    uint8_t refusal_code  = g_fault_log_code;
-    uint8_t refusal_slot  = g_fault_log_slot;
-    uint8_t refusal_type  = g_fault_log_type;
+    int refusal_calls = g_fault_log_calls;
+    int refusal_stops = g_early_stop_calls;
 
     /* A cross-validation fault. */
     reset_mocks();
@@ -975,10 +1001,10 @@ static void test_hb_impedance_crossval_logs_as_refusal(void)
     publish_mcu_impedance(2.0f, 2.0f);
     run_impedance_measurement(2.0f, 4.5f);
 
-    check(refusal_calls == 1, "crossval-as-refusal: a real refusal logs one entry (positive pin)");
-    check(g_fault_log_calls == refusal_calls && g_fault_log_code == refusal_code &&
-              g_fault_log_slot == refusal_slot && g_fault_log_type == refusal_type,
-          "crossval-as-refusal: the cross-validation fault logs exactly the refusal's entry");
+    check(refusal_calls == 0 && refusal_stops == 1,
+          "crossval-as-refusal: a real refusal writes no SHDR record and notes one early stop (positive pin)");
+    check(g_fault_log_calls == refusal_calls && g_early_stop_calls == refusal_stops,
+          "crossval-as-refusal: the cross-validation fault leaves exactly what the refusal leaves");
 }
 
 /* When the MCU report is absent, no cross-check is possible and the session
@@ -1055,8 +1081,8 @@ static void test_hb_enable_reject_impedance(void)
           "hb-reject: fault reason is SAFETY_MCU");
     check(g_disable_calls == 1 && g_last_disable_mask == NP_SAFETY_EN_CVNS,
           "hb-reject: unified enable dropped");
-    check(g_fault_log_calls == 1 && g_fault_log_ms == 0U,
-          "hb-reject: one SHDR fault logged, timestamp suppressed");
+    check(g_fault_log_calls == 0 && g_early_stop_calls == 1,
+          "hb-reject: no SHDR fault logged, one cause-free early stop noted (REQ-FWHUB-91, -89 (c))");
 }
 
 /* A cardiac cutoff observed only via the heartbeat is NOT this bridge's concern:
@@ -1270,6 +1296,7 @@ int main(void)
     test_ramp_report_checks_then_ramp_then_steady();
     test_a_pause_leaves_one_cervical_session_not_several();
     test_fault_cb_disables_and_logs();
+    test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop();
     test_hb_impedance_advances_stage();
     test_hb_impedance_out_of_window_holds();
     test_hb_impedance_start_fail_fallback();

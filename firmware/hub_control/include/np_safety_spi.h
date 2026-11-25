@@ -231,6 +231,15 @@ uint16_t np_safety_spi_get_granted_mask(void);
 uint16_t np_safety_spi_get_requested_mask(void);
 
 /*
+ * np_safety_spi_take_grant_withdrawn — true if, since the last call, a heartbeat
+ * reply took away a grant the hub was still requesting (or a corrupt reply
+ * zeroed one), and clears the latch.  The cause is not kept: the session runner
+ * folds this into the SHDR session-end record's cause-free stopped_early flag
+ * (REQ-FWHUB-89 (c)).
+ */
+bool np_safety_spi_take_grant_withdrawn(void);
+
+/*
  * np_safety_spi_get_status — return the safety MCU status byte from the
  * most recent heartbeat reply.
  */

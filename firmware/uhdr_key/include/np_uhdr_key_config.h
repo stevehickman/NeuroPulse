@@ -71,19 +71,36 @@
  * (NP-FW-EMMC-002 §C.8).  The §C.3 UKMD wrap uses NP_UHDR_AAD_LEN (48). */
 #define NP_UHDR_AAD_MAX_LEN        64U
 
-/* ── Argon2id parameters (§C.3 — identical to NP-FW-EMMC-001 Rev 1 §6) ────── */
-
-/*
- * OPEN (OI-PRIV-35, Finding M10): 64 MiB of Argon2id memory exceeds the whole
- * 32 MB external SDRAM of the i.MX RT1062 board (docs/reference/hardware-detail.md
- * §4.1), so this value cannot run on target as written.  It has never shipped
- * and no record has been minted under it on a device.  It must be settled
- * against the memory map BEFORE any device is provisioned, because once a
- * record exists the floor below forbids lowering it (CLAUDE.md §5.1, protection
- * only goes up).  Brief: docs/human-input/oi-priv-35-uhdr-xts-key-and-argon2id.md.
+/* ── Argon2id parameters, hub stage (§C.3, §C.4; OI-PRIV-35 Finding M10) ────
+ *
+ * The UHDR credential is stretched twice (NP-FW-EMMC-002 §C.4, settled
+ * 2026-11-24 in the OI-PRIV-35 working session):
+ *
+ *   1. On the phone: Argon2id, 64 MiB, t = 4, p = 1, the figure NP-FW-EMMC-001
+ *      Rev 1 §6 set, run where that memory exists (§C.8 already puts the
+ *      credential's derivation on the phone).  Not built.
+ *   2. On the hub, below: a small Argon2id over the phone's output, then the
+ *      fused-key bind (np_uhdr_hal_hw_bind).  These are the figures the record
+ *      stores and the floors below enforce.
+ *
+ * Why the hub figure is not 64 MiB: the hub has 1 MB of on-chip SRAM and no
+ * external SDRAM (NP-SW-CI-001 §4.13, OI-SWCI-47).  Why 256 KiB: the KDF's work
+ * area is m × 1 KiB, and on main at 468484e (2026-11-24, CI "Report image
+ * sizes") the OCRAM2 staging region had 187,300 B free and the established
+ * 512 KiB DTCM about 450,000 B (.data 312 + .dtcm_bss 65,536 + stack 8,192
+ * used).  256 KiB fits DTCM and not staging; it is the largest power of two
+ * that leaves DTCM room to grow.  The buffer is not allocated yet: the target
+ * np_uhdr_hal_argon2id seam traps, and moving 256 KiB into .dtcm_bss changes
+ * the CI residency figure, which is recorded with it (NP-SW-CI-001 §4.12.4).
+ *
+ * PROVISIONAL (UC-206): m = 256 is sized from the memory map, not from a
+ * measured time per attempt; t = 4 is kept from the written figure.  The time
+ * per attempt on the target is measured and written beside them before any
+ * device is provisioned; t may then rise, never fall (the floors below bind
+ * from the first provisioned record, CLAUDE.md §5.1).
  */
 #define NP_UHDR_ARGON2ID_VERSION       0x13U    /* Argon2 v1.3                   */
-#define NP_UHDR_ARGON2ID_M_COST        65536U   /* 64 MiB, in KiB                */
+#define NP_UHDR_ARGON2ID_M_COST        256U     /* 256 KiB, in KiB (hub stage)   */
 #define NP_UHDR_ARGON2ID_T_COST        4U       /* iterations                    */
 #define NP_UHDR_ARGON2ID_PARALLELISM   1U       /* p = 1                         */
 
