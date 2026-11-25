@@ -179,41 +179,64 @@ object NPConditionLinkPolicy {
     }
 
     /**
-     * Loopback, link-local, mDNS, RFC1918, and single-label intranet hosts. A
-     * crafted registry must not be able to aim the system browser at a service
-     * bound to the user's own device or LAN.
+     * Loopback, link-local, mDNS, RFC1918, CGNAT, multicast, and single-label
+     * intranet hosts. A crafted registry must not be able to aim the system
+     * browser at a service bound to the user's own device or LAN.
+     *
+     * A numeric host is accepted only in canonical dotted-quad form. Browsers
+     * also read `127.1`, `0x7f.0.0.1`, `0177.0.0.1` and `2130706433` as
+     * 127.0.0.1 (the WHATWG IPv4 parser), so any host whose last label is a
+     * number and which is not a canonical dotted quad is refused rather than
+     * re-parsed: it cannot be shown to be public. IPv6 literals are parsed to
+     * their eight groups, so the IPv4 address inside a mapped, compatible,
+     * NAT64 or 6to4 literal is classified as IPv4. A literal that does not
+     * parse, or carries a zone identifier, is refused (NP-PRIV-ANALYSIS-007
+     * L14, `OI-PRIV-66`).
      */
     fun isLocalOrPrivateHost(hostname: String): Boolean {
         val host = hostname.lowercase()
 
-        if (host == "localhost" || host.endsWith(".localhost")) return true
-        if (host.endsWith(".local")) return true
+        if (host.contains(':')) {
+            val groups = parseIPv6(host) ?: return true
+            return !isPublicIPv6(groups)
+        }
 
-        if (host.contains(':')) return isPrivateIPv6(host)
+        // One trailing dot is the DNS root and names the same host.
+        val name = if (host.endsWith('.')) host.dropLast(1) else host
+        if (name.isEmpty()) return true
+        val labels = name.split('.')
+        if (labels.any { it.isEmpty() }) return true
 
-        val octets = parseIPv4(host)
-        if (octets != null) return isPrivateIPv4(octets)
+        if (name == "localhost" || name.endsWith(".localhost")) return true
+        if (name.endsWith(".local")) return true
+
+        if (isNumericLabel(labels.last())) {
+            val octets = parseCanonicalIPv4(labels) ?: return true
+            return isPrivateIPv4(octets)
+        }
 
         // A single-label name like `wiki` or `intranet` is not a public FQDN; it
         // resolves through the device's DNS search suffix onto the LAN. Public
         // condition links are always dotted.
-        return !host.contains('.')
+        return labels.size == 1
     }
 
-    private fun isPrivateIPv6(host: String): Boolean {
-        if (host == "::1" || host == "::") return true
-        // fe80::/10 link-local, fc00::/7 unique-local.
-        return host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")
+    /** All decimal digits, or `0x` and hex digits: a label a browser reads as a number. */
+    private fun isNumericLabel(label: String): Boolean {
+        if (label.startsWith("0x")) return label.drop(2).all { isHexDigit(it) }
+        return label.all { isAsciiDigit(it) }
     }
 
-    private fun parseIPv4(host: String): IntArray? {
-        val parts = host.split('.')
-        if (parts.size != 4) return null
+    private fun isHexDigit(c: Char) = isAsciiDigit(c) || c in 'a'..'f'
 
+    /** Exactly four decimal octets, 0–255, with no leading zero. */
+    private fun parseCanonicalIPv4(labels: List<String>): IntArray? {
+        if (labels.size != 4) return null
         val octets = IntArray(4)
-        for ((i, part) in parts.withIndex()) {
+        for ((i, part) in labels.withIndex()) {
             if (part.isEmpty() || part.length > 3 || !part.all { isAsciiDigit(it) }) return null
-            val n = part.toIntOrNull() ?: return null
+            if (part.length > 1 && part[0] == '0') return null
+            val n = part.toInt()
             if (n > 255) return null
             octets[i] = n
         }
@@ -225,10 +248,80 @@ object NPConditionLinkPolicy {
         val b = o[1]
         if (a == 127 || a == 0) return true            // loopback, "this network"
         if (a == 10) return true                       // RFC1918 10/8
+        if (a == 100 && b in 64..127) return true      // RFC6598 shared address space (CGNAT)
         if (a == 192 && b == 168) return true          // RFC1918 192.168/16
         if (a == 172 && b in 16..31) return true       // RFC1918 172.16/12
         if (a == 169 && b == 254) return true          // link-local
+        if (a >= 224) return true                      // multicast, reserved, broadcast
         return false
+    }
+
+    /**
+     * RFC 4291 text form to eight 16-bit groups, or null. At most one `::`; a
+     * dotted IPv4 tail only as the last element; no zone identifier.
+     */
+    private fun parseIPv6(host: String): IntArray? {
+        if (host.contains('%')) return null
+        val gap = host.indexOf("::")
+        if (gap != -1 && host.indexOf("::", gap + 1) != -1) return null
+
+        val head = if (gap == -1) host else host.substring(0, gap)
+        val tail = if (gap == -1) "" else host.substring(gap + 2)
+        val headParts = if (head.isEmpty()) emptyList() else head.split(':')
+        val tailParts = if (tail.isEmpty()) emptyList() else tail.split(':')
+        val lastIsHead = gap == -1
+
+        val headGroups = ipv6Groups(headParts, dottedLastAllowed = lastIsHead) ?: return null
+        val tailGroups = ipv6Groups(tailParts, dottedLastAllowed = !lastIsHead) ?: return null
+        val total = headGroups.size + tailGroups.size
+        if (gap == -1 && total != 8) return null
+        if (gap != -1 && total > 7) return null
+
+        val groups = IntArray(8)
+        headGroups.forEachIndexed { i, g -> groups[i] = g }
+        tailGroups.forEachIndexed { i, g -> groups[8 - tailGroups.size + i] = g }
+        return groups
+    }
+
+    private fun ipv6Groups(parts: List<String>, dottedLastAllowed: Boolean): List<Int>? {
+        val out = mutableListOf<Int>()
+        for ((i, part) in parts.withIndex()) {
+            if (part.contains('.')) {
+                if (!dottedLastAllowed || i != parts.size - 1) return null
+                val o = parseCanonicalIPv4(part.split('.')) ?: return null
+                out.add((o[0] shl 8) or o[1])
+                out.add((o[2] shl 8) or o[3])
+            } else {
+                if (part.isEmpty() || part.length > 4 || !part.all { isHexDigit(it) }) return null
+                out.add(part.toInt(16))
+            }
+        }
+        return out
+    }
+
+    private fun embeddedIPv4(hi: Int, lo: Int) =
+        intArrayOf(hi shr 8, hi and 0xff, lo shr 8, lo and 0xff)
+
+    private fun isPublicIPv6(g: IntArray): Boolean {
+        val zeroTo = { n: Int -> (0 until n).all { g[it] == 0 } }
+        // ::, ::1, and the deprecated IPv4-compatible ::a.b.c.d.
+        if (zeroTo(6)) return false
+        // ::ffff:a.b.c.d (IPv4-mapped) and ::ffff:0:a.b.c.d (IPv4-translated).
+        if (zeroTo(5) && g[5] == 0xffff) return !isPrivateIPv4(embeddedIPv4(g[6], g[7]))
+        if (zeroTo(4) && g[4] == 0xffff && g[5] == 0) return !isPrivateIPv4(embeddedIPv4(g[6], g[7]))
+        // 64:ff9b::/96 NAT64 well-known prefix; 64:ff9b:1::/48 is local-use.
+        if (g[0] == 0x64 && g[1] == 0xff9b) {
+            if (g[2] == 1) return false
+            if (g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0) {
+                return !isPrivateIPv4(embeddedIPv4(g[6], g[7]))
+            }
+        }
+        // 2002::/16 6to4 carries an IPv4 address in groups 1–2.
+        if (g[0] == 0x2002) return !isPrivateIPv4(embeddedIPv4(g[1], g[2]))
+        if ((g[0] and 0xff80) == 0xfe80) return false  // fe80::/10 link-local, fec0::/10 site-local
+        if ((g[0] and 0xfe00) == 0xfc00) return false  // fc00::/7 unique-local
+        if ((g[0] and 0xff00) == 0xff00) return false  // ff00::/8 multicast
+        return true
     }
 }
 
