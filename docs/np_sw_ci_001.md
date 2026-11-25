@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 46
+**Revision:** 47
 **Date:** 2026-11-24  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -4524,3 +4524,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 44 | 2026-11-22 | NeurOne Tooling | **New §6.20.5: the principal added the required status and unticked *Require branches to be up to date*; `--live` reported only the strict flag, which confirms the posted status is bound to GitHub Actions (§6.20.4 item 5 closed). `ci/main-ruleset.json` now says `strict: false`.** |
 | 45 | 2026-11-25 | NeurOne Tooling | **§6.18.4 step 5 observed on #1002 (context `skipped`, PR `clean`, required per the principal's `--live` run); `OI-SWCI-54` row no longer lists step 5.** |
 | 46 | 2026-11-24 | NeurOne Software Engineering | **§6.7 and §6.7.8: `windows-ci.yml` is deleted with the Windows project, and `ios-ci.yml` is struck as deleted with the SwiftUI app, in the lists of path-filtered workflows (`OI-UI-KMP-05`).** |
+| 47 | 2026-11-24 | NeurOne Software Engineering | **New §6.21: Q1 B (audit of the App's pushes, `check-main-pushes.ts`), Q2 set P (`SHDR Schema Privacy Gate`, `Warranty No-Join Privacy Gate`), Q3 A, Q4 A, Q5 A; the OI-SWCI-54 row updated. The ruleset half of Q2 is the principal's. §7 and §6.15.3: OI-SWCI-51 closed (codeql.yml and dependency-scan.yml keep what they have).** |
