@@ -36,9 +36,14 @@ class SetupCoordinatorTest {
         /** What the hub does in answer to a command. */
         var hub: (CalibrationOpcode, Link) -> Unit = { _, _ -> }
 
-        override fun sendCalibration(opcode: CalibrationOpcode) {
+        /** False models a link that has not shown it is encrypted: nothing reaches the hub. */
+        var paired = true
+
+        override fun sendCalibration(opcode: CalibrationOpcode): Boolean {
+            if (!paired) return false
             sent += opcode
             hub(opcode, this)
+            return true
         }
 
         fun result(flags: Int) {
@@ -74,6 +79,17 @@ class SetupCoordinatorTest {
         c.confirmImpedanceCheck()
         assertEquals(SetupStep.IMPEDANCE_CHECK, c.step.value)
         assertEquals(SetupError.Timeout, c.error.value)
+        assertFalse(c.isProcessing.value)
+    }
+
+    // @verifies REQ-SW03-31#d
+    @Test fun a_link_that_has_not_shown_it_is_encrypted_gets_no_calibration_command_and_the_step_says_pair() = runTest {
+        val link = Link().apply { paired = false; hub = { _, l -> l.result(0xFF) } }
+        val c = coordinator(link, SetupStep.IMPEDANCE_CHECK)
+        c.confirmImpedanceCheck()
+        assertEquals(SetupStep.IMPEDANCE_CHECK, c.step.value)
+        assertEquals(SetupError.NotPaired, c.error.value)
+        assertTrue(link.sent.isEmpty())
         assertFalse(c.isProcessing.value)
     }
 

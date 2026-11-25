@@ -63,12 +63,14 @@ class ResearchAnalyticsGate(
      * the erase deletes the queue with everything else and an ID still in it could never be erased from the vendor afterwards.
      * IDs queued by earlier withdrawals are asked about too. Returns how many IDs the relay has not accepted (it could not be
      * reached, or it refused): the erase goes on regardless, since the person's erase is never held back, and the caller can say so.
+     * An ID the relay answered `202` counts as accepted: the relay holds it and deletes it in its next batch, though the wipe then
+     * removes the phone's copy (`OI-PRIV-48`).
      */
     suspend fun resetForErase(): Int {
         forgetAndQueue()
         val queue = erasureQueue ?: return 0
-        queue.drain()
-        return queue.pending.size
+        val queuedAtRelay = queue.drain()
+        return queue.pending.count { it !in queuedAtRelay }
     }
 
     /**

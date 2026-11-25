@@ -1153,21 +1153,28 @@ static void test_serial_guard_fails_closed(void)
                                       NP_HUB_ERR_STORE_INTEGRITY, NP_HUB_ERR_GENERIC };
     for (size_t i = 0U; i < sizeof fails / sizeof fails[0]; i++) {
         g_serial_rc = fails[i];
-        check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
-              "serial guard: an unreadable device serial refuses (fails closed), not skips");
+        check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_SERIAL_UNKNOWN,
+              "serial guard: an unreadable device serial refuses with SERIAL_UNKNOWN (fails closed), not skips");
     }
     g_serial_rc = NP_HUB_OK;
 
     /* (c) the helmet's serial is all zero: refused, whatever the header says,
      * including the all-zero header a compiler writes when it has no serial */
     g_serial_byte = 0x00U;
-    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
-          "serial guard: an all-zero device serial refuses a serial-bearing blob");
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_SERIAL_UNKNOWN,
+          "serial guard: an all-zero device serial refuses a serial-bearing blob with SERIAL_UNKNOWN");
     memset(b.buf + 28, 0x00, NP_GATT_DEVICE_SERIAL_LEN);
-    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
-          "serial guard: an all-zero device serial refuses a serial-less (all-zero) blob");
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_SERIAL_UNKNOWN,
+          "serial guard: an all-zero device serial refuses a serial-less (all-zero) blob with SERIAL_UNKNOWN");
 
+    /* A provisioned helmet and a serial-less blob: the blob is not for this helmet, so WRONG_DEVICE, not SERIAL_UNKNOWN */
     g_serial_byte = TEST_SERIAL_BYTE;
+    check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_ERR_WRONG_DEVICE,
+          "serial guard: a provisioned helmet refuses a serial-less blob as WRONG_DEVICE");
+
+    /* The status reaches the apps as reason 44 in the upload-check frame (|status|) */
+    check(-(int)NP_HUB_ERR_SERIAL_UNKNOWN == 44, "serial guard: SERIAL_UNKNOWN is reason 44");
+
     memset(b.buf + 28, TEST_SERIAL_BYTE, NP_GATT_DEVICE_SERIAL_LEN);
     check(np_protocol_verify_and_parse(b.buf, len, &d) == NP_HUB_OK,
           "serial guard: restored, the same blob is admitted again");

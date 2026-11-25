@@ -35,8 +35,9 @@ class EdfDownloadTest {
 
     private fun edf(size: Int = 512): ByteArray = ByteArray(size) { ' '.code.toByte() }.also { it[0] = '0'.code.toByte() }
 
-    private fun model(folder: Folder, connected: Boolean = true, asked: MutableList<Long> = mutableListOf(), onWait: suspend (Long) -> Unit = {}) =
-        EdfDownloadModel(folder, connected = { connected }, ask = { asked += it }, wait = onWait)
+    private fun model(
+        folder: Folder, connected: Boolean = true, asked: MutableList<Long> = mutableListOf(), paired: Boolean = true, onWait: suspend (Long) -> Unit = {},
+    ) = EdfDownloadModel(folder, connected = { connected }, ask = { if (paired) { asked += it; true } else false }, wait = onWait)
 
     // @verifies REQ-SW03-26#a
     @Test fun a_hub_that_is_not_connected_is_not_asked_and_is_reported() = runTest {
@@ -44,6 +45,15 @@ class EdfDownloadTest {
         val m = model(Folder(), connected = false, asked = asked)
         m.download(7)
         assertEquals(EdfState.Failed(EdfProblem.NOT_CONNECTED), m.state.value)
+        assertTrue(asked.isEmpty())
+    }
+
+    // @verifies REQ-SW03-31#d
+    @Test fun a_link_that_has_not_shown_it_is_encrypted_is_not_asked_and_the_download_says_pair() = runTest {
+        val asked = mutableListOf<Long>()
+        val m = model(Folder(), asked = asked, paired = false)
+        m.download(7)
+        assertEquals(EdfState.Failed(EdfProblem.NOT_PAIRED), m.state.value)
         assertTrue(asked.isEmpty())
     }
 

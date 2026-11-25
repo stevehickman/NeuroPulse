@@ -249,6 +249,58 @@ class AnalyticsErasureTests {
         assertEquals(emptyList(), q.pending, "the wiped store gets nothing written back")
     }
 
+    // OI-PRIV-48: a 202 means the relay has queued the ID for a batched delete that has not run, so only a 200 drops it.
+    // @verifies REQ-SW03-19#b
+    @Test fun aQueuedAnswerKeepsTheIdAndTheDrainGoesOn() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        val other = "ffffffffffffffffffffffffffffffff"
+        val t = object : HttpTransport {
+            val seen = mutableListOf<String>()
+            override suspend fun post(request: HttpRequest): HttpResponse {
+                val body = request.body.decodeToString()
+                seen += body
+                return HttpResponse(if (body.contains(id)) 202 else 200, emptyMap(), ByteArray(0))
+            }
+        }
+        val q = queue(store, t)
+        q.enqueue(id)
+        q.enqueue(other)
+        assertEquals(setOf(id), q.drain(), "the drain reports what the relay queued")
+        assertEquals(2, t.seen.size, "a 202 does not stop the drain")
+        assertEquals(listOf(id), q.pending, "the queued ID is kept; the deleted one is dropped")
+    }
+
+    // @verifies REQ-SW03-19#b
+    @Test fun anotherSuccessStatusKeepsTheIdAndTheRestWait() = runBlocking {
+        for (status in listOf(201, 204, 299)) {
+            val store = InMemoryKeyValueStore()
+            val t = Fake(status)
+            val q = queue(store, t)
+            q.enqueue(id)
+            q.enqueue("ffffffffffffffffffffffffffffffff")
+            assertEquals(emptySet(), q.drain(), "status $status")
+            assertEquals(1, t.seen.size, "status $status: the rest wait")
+            assertEquals(2, q.pending.size, "status $status keeps the only copy")
+        }
+    }
+
+    // OI-PRIV-48: an erase cannot keep the ID, and a 202 means the relay holds it and deletes it in its next batch.
+    // @verifies REQ-SW03-19#d
+    @Test fun anEraseCountsAQueuedIdAsAccepted() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        val q = queue(store, Fake(202))
+        assertEquals(0, ResearchAnalyticsGate(store, Backend(id), q).resetForErase(), "the relay holds it")
+        assertEquals(listOf(id), q.pending, "kept until the wipe, which the caller does next")
+    }
+
+    // @verifies REQ-SW03-19#e
+    @Test fun aClearCountsAQueuedIdAsAccepted() = runBlocking {
+        val store = InMemoryKeyValueStore()
+        val q = queue(store, Fake(202))
+        assertEquals(0, ResearchAnalyticsGate(store, Backend(id), q).eraseAfterClear(listOf(id)))
+        assertEquals(emptyList(), q.pending, "the wiped store gets nothing written back")
+    }
+
     // @verifies REQ-SW03-25#d
     @Test fun aWithdrawalAsksTheRelayStraightAwayAndDropsTheIdOnceItAnswers() {
         val store = InMemoryKeyValueStore()
