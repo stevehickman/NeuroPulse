@@ -104,3 +104,19 @@ PR B (the deletion) is made. The principal's explicit instruction "Do PR B now" 
 
 Done: `app/ios`, the Swift package, `scripts/build-npps-xcframework.sh`, `ios-ci.yml` and `ModelsParityTests` deleted; `sync-locales.ts` no longer writes the String Catalog; the CodeQL Swift leg and the `app/ios/**` relevance globs removed, the `assert scope` self-checks re-pointed to Kotlin files; `REQ-SW03-18` (a), `REQ-UHDRBK-01` and the Swift key-manager clauses of `REQ-SW03-08` retired in place (the core's derivation, split and destroyed-key refusal stay required, because `UhdrKeyDerivationTests` and `bundle_key.rs` verify them); `NP-APP-ISA-001` moved to `docs/superseded/np_app_isa_001.md`; NP-DHF-001 row and §6b re-pointed; `OI-PRES-05` closed; one decision log entry. A revert of the PR restores the app.
 Not done: the "Port of iOS …" comments (left as history); `app/windows` and `app/web` (§7).
+
+## 11. The Windows project, same pattern (2026-11-24)
+
+The principal said "Retire the Windows project the same way" on 2026-11-24. §7 had named `app/windows` as needing its own pass of §3 and §4; this is that pass.
+
+**What it was.** 27 tracked files: a C# port of the protocol and migration logic (`NeurOne/Protocol`, `NeurOne/Session`), its P/Invoke binding to the Rust C ABI (`NppsCore.cs`), generated C# outputs of `sync-constants.ts` and `sync-socket-map.ts`, and the `NeurOne.Tests` xunit project run by `windows-ci.yml`. It had no UI and no hub link.
+
+**§3, the requirements that would lose their only test.** Compared every `@verifies` tag in `app/windows/NeurOne.Tests` (26 distinct tags: `DI-SAFE-06`, `REQ-FWHUB-08`, `REQ-FWHUB-31`, `REQ-NPPS-02`, `-03`, `-04`, `-12`, `-15`, `-16`, `REQ-UPG-01`, `SWR-HV-08`, `SWR-MG-01` to `-12`, `SWR-PL-02`, `-04`, `SWR-UP-02`) with the tags in every other test file. **None is Windows-only**: every one is also carried by a Kotlin, TypeScript, Rust or C test. So no requirement row is retired; rows that named a Windows library, compiler, wrapper or driver (`np_sw_001.md` §6.3) now say it is deleted.
+
+**§4, the documents.** `NP-SW-001` rows reworded; `NP-SOUP-NATIVE-001` (the .NET half retired in place, with a note that the Swift half has had the same standing since #946, so the record now lists no live dependency); `NP-SOUP-RUST-001` §4; `NP-SW-CI-001` (the lists of path-filtered workflows); `unjustified-choices.md` (two deleted paths annotated, no row deleted, `CLAUDE.md` §19); `pending-decisions.md` (`OI-UI-KMP-05`, `OI-PRIV-12`, `OI-UI-KMP-10`, `OI-AND-WIRE-01`, through `## OPEN` hunks). The DHF index names no `app/windows` path, so it changes only through the fragment. Privacy analyses, the feasibility study `NP-FEAS-PBMCH-001` (which cites `app/windows/.../SessionProtocolCompiler.cs` as a file it reviewed) and the history rows are left alone: they describe what was reviewed.
+
+**The gate that was not met.** The Windows app people run is the shared Compose desktop app (`app/NeurOneUI/desktop`), packaged for Windows x64 by `desktop-package.yml` (`OI-UI-KMP-02`), and `OI-UI-KMP-02` records that no installed desktop app has been launched on any machine. So there has been **no device run of the replacement on Windows**; the principal's instruction waived that gate, as "Do PR B now" waived the iOS one. Whether Windows pairs the encrypted hub link is open (`OI-UI-KMP-03`).
+
+**One consequence worth stating.** `SWR-MG-32` (h) said the `refuse-hex-keys` feature stays off until `OI-UI-KMP-05` deletes the Swift and Windows apps, the two senders of hex keys. Both are now deleted, so that blocker is gone; turning the feature on is a separate step (its comments in `common/npps-core/Cargo.toml` and `secret_io.rs` still name this item) and is not done here.
+
+**Still open under `OI-UI-KMP-05`:** the React app (`app/web`).

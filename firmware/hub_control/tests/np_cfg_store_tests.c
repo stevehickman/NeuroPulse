@@ -584,6 +584,34 @@ static void test_churn_is_bounded(void)
     np_cfg_store_unmount();
 }
 
+/* ── 5a. REQ-FWHUB-93 — the module usage table: one large replicated record ─── */
+
+/* @verifies REQ-FWHUB-93#c */
+static void test_the_module_usage_table_is_one_replicated_record_and_only_it_is_large(void)
+{
+    static uint8_t w[NP_CFG_REPLICA_TABLE_MAX_PAYLOAD + 1U];
+    static uint8_t r[NP_CFG_REPLICA_TABLE_MAX_PAYLOAD + 1U];
+    for (size_t i = 0U; i < sizeof w; i++) { w[i] = (uint8_t)(i * 31U + 7U); }
+
+    fresh();
+    ASSERT(np_cfg_store_policy(NP_CFG_FILE_MODULE_USAGE) == NP_CFG_POLICY_REPLICATED,
+           "the usage table is kept REPLICATED (upserted), not as a journal");
+    ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_USAGE, w, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD) == NP_HUB_OK,
+           "the usage table takes a record of its full size");
+    ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_USAGE, w, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD + 1U)
+               == NP_HUB_ERR_INVALID_ARG, "and refuses one larger");
+    ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_UKMD, w, NP_CFG_REPLICA_MAX_PAYLOAD + 1U) == NP_HUB_ERR_INVALID_ARG,
+           "every other replicated file keeps the 256-byte limit");
+    np_cfg_store_unmount();
+
+    reboot();
+    ASSERT(np_cfg_store_mount() == NP_HUB_OK, "mount");
+    ASSERT(np_cfg_store_replicated_read(NP_CFG_FILE_MODULE_USAGE, r, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD) == NP_HUB_OK
+           && memcmp(r, w, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD) == 0,
+           "the full table survives a reboot byte for byte");
+    ASSERT(raw_exists("ra/modusage.rec") && raw_exists("rb/modusage.rec"), "on two entries, like every replicated record");
+}
+
 /* ── 6. OI-LFS-08 — ukmd.rec on two entries ───────────────────────────────── */
 
 /* @verifies REQ-FWHUB-51 */
@@ -1594,6 +1622,7 @@ int main(void)
     test_every_read_is_content_verified();
     test_1205_stale_cache_reproduced_and_stopped();
     test_churn_is_bounded();
+    test_the_module_usage_table_is_one_replicated_record_and_only_it_is_large();
     test_replicated_record_survives_one_lost_entry();
     test_store_orderings_survive_power_loss();
     test_session_count_is_persisted();
