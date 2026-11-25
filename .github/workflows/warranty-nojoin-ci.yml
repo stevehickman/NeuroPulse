@@ -47,6 +47,7 @@ jobs:
         ci/warranty/warranty_registration_schema.sql
         ci/shdr/shdr_fleet_schema.sql
         ci/test_warranty_nojoin.py
+        ci/test_warranty_schema.py
         scripts/ci-changed-scope.sh
         .github/workflows/warranty-nojoin-ci.yml
         .github/toolchain.json
@@ -130,6 +131,15 @@ jobs:
         run: python3 ci/test_warranty_nojoin.py --self-test
       - name: Run OI-EMMC2-06 no-join CI test
         run: python3 ci/test_warranty_nojoin.py --verbose
+      # OI-PRIV-54 (NP-PRIV-ANALYSIS-005 F4): the registry's own columns. The no-join
+      # gate above checks only that the two schemas do not name each other's tables;
+      # this one checks what the warranty schema holds beside the owner's identity
+      # (REQ-WARR-01 to REQ-WARR-04). Same job, so it reports under the required
+      # context above and needs no ruleset change. Self-test first, for the same reason.
+      - name: Warranty schema gate self-test (prove the checks can fail)
+        run: python3 ci/test_warranty_schema.py --self-test
+      - name: Run OI-PRIV-54 warranty schema gate
+        run: python3 ci/test_warranty_schema.py --verbose
       - name: Upload test output on failure
         if: failure()
         uses: actions/upload-artifact@v4
