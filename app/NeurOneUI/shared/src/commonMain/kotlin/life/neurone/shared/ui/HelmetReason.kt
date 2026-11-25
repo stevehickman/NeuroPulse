@@ -27,7 +27,7 @@ enum class HubStatusReason(val code: Int, override val key: String) : SocketReas
      */
     DRIVER_INTERLOCK(-10, "HELMET_REASON_HUB_DRIVER_INTERLOCK"),
 
-    /** `NP_HUB_ERR_PHOTIC_ZONE`: photic driving at 3 to 30 Hz is refused until the Oz detector exists (`REQ-FWHUB-66`; at the drive, `np_mod_visual.c`). */
+    /** `NP_HUB_ERR_PHOTIC_ZONE`: photic driving at 3 to 60 Hz is refused until the Oz detector exists (`REQ-FWHUB-66`; at the drive, `np_mod_visual.c`). */
     PHOTIC_ZONE(-30, "HELMET_REASON_HUB_PHOTIC_ZONE"),
 
     /** `NP_HUB_ERR_PPX_HALT`: the photoparoxysmal detector halted photic driving, and the goggles refuse every later drive in the session. */

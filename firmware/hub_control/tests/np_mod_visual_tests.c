@@ -177,7 +177,7 @@ static np_mod_visual_params_t photic(void)
     np_mod_visual_params_t p;
     memset(&p, 0, sizeof(p));
     p.mode = 0U;
-    p.freq_hz = 40U;      /* outside the photoparoxysmal zone (OI-FWHUB-29): 3-30 Hz is refused */
+    p.freq_hz = 70U;      /* outside the photoparoxysmal zone (OI-FWHUB-29, OI-FWHUB-37): 3-60 Hz is refused */
     p.duty_pct = 50U;
     p.zone_mask_lo = 0xFFU;
     p.zone_mask_hi = 0x0FU;
@@ -334,10 +334,10 @@ static void armed(void)
 static void test_the_photoparoxysmal_zone_is_never_driven(void)
 {
     /* Both ends of the zone are inside it, and nothing is driven or enabled when the answer is a refusal. */
-    for (uint8_t f = 3U; f <= 30U; f++) {
+    for (uint8_t f = 3U; f <= 60U; f++) {
         armed();
         check(start_with(0U, f) == NP_HUB_ERR_PHOTIC_ZONE && !emitting() && g_led_sets == 0,
-              "zone: photic driving at every whole hertz from 3 to 30 is refused, with no LED and no enable");
+              "zone: photic driving at every whole hertz from 3 to 60 is refused, with no LED and no enable");
     }
     armed();
     check(start_with(3U, 10U) == NP_HUB_ERR_PHOTIC_ZONE && !emitting(),
@@ -345,9 +345,9 @@ static void test_the_photoparoxysmal_zone_is_never_driven(void)
     armed();
     check(start_with(0U, 2U) == NP_HUB_OK && emitting(), "zone: 2 Hz is outside it, and drives");
     armed();
-    check(start_with(0U, 31U) == NP_HUB_OK && emitting(), "zone: 31 Hz is outside it, and drives");
+    check(start_with(0U, 61U) == NP_HUB_OK && emitting(), "zone: 61 Hz is outside it, and drives");
     armed();
-    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "zone: 40 Hz, the gamma protocols' frequency, drives");
+    check(start_with(0U, 40U) == NP_HUB_ERR_PHOTIC_ZONE && !emitting(), "zone: 40 Hz, the gamma protocols' frequency, is inside it and refused (OI-FWHUB-37)");
     armed();
     check(start_with(1U, 10U) == NP_HUB_OK, "zone: EMDR does not drive at freq_hz, so a stray value there is not a photic drive");
     armed();
@@ -422,7 +422,7 @@ static void test_the_zone_is_not_started_when_the_detector_cannot_see(void)
     np_ppx_init(&pr, roles, true);                 /* a fresh session: still warming up, so blind */
     check(start_with(0U, 20U) == NP_HUB_ERR_PPX_BLIND && !emitting() && g_led_sets == 0,
           "blind: a detector that cannot see: the zone is refused, with no LED and no enable");
-    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "blind: a drive outside the zone does not wait for it");
+    check(start_with(0U, 70U) == NP_HUB_OK && emitting(), "blind: a drive outside the zone does not wait for it");
     unguard();
 }
 
@@ -435,7 +435,7 @@ static void test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_se
     feed_quiet(2.0f, 300);
     check(!emitting() && !np_mod_visual_photic_zone_active(), "halt: the LEDs are off and the enable is withdrawn");
     check(g_panics == 1 && g_last_cause == NP_HOLD_DETECTOR_DISCHARGE, "halt: and the session is held paused, not aborted, with the detector's discharge as the cause");
-    check(start_with(0U, 20U) == NP_HUB_ERR_PPX_HALT && start_with(0U, 40U) == NP_HUB_ERR_PPX_HALT,
+    check(start_with(0U, 20U) == NP_HUB_ERR_PPX_HALT && start_with(0U, 70U) == NP_HUB_ERR_PPX_HALT,
           "halt: after a detection the goggles refuse every later drive in the session, as a halt");
     unguard();
 }
@@ -444,9 +444,9 @@ static void test_a_discharge_during_a_zone_drive_cuts_the_leds_and_pauses_the_se
 static void test_a_discharge_while_nothing_in_the_zone_is_driven_stops_nothing(void)
 {
     armed(); guarded(NP_PPX_EVIDENCE_CLINICAL, false);
-    check(start_with(0U, 40U) == NP_HUB_OK && emitting(), "halt: 40 Hz drives");
+    check(start_with(0U, 70U) == NP_HUB_OK && emitting(), "halt: 70 Hz drives");
     feed_quiet(2.0f, 300);
-    check(emitting() && g_panics == 0, "halt: a discharge while only 40 Hz runs does not stop it (the zone is the guarded range)");
+    check(emitting() && g_panics == 0, "halt: a discharge while only 70 Hz runs does not stop it (the zone is the guarded range)");
     unguard();
 }
 

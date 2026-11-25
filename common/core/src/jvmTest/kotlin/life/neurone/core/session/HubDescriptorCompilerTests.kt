@@ -138,7 +138,8 @@ class HubDescriptorCompilerTests {
         check("audioPink", def(600, mod(NPModalityParams.AudioEntrainment(NPAudioEntrainmentParams(
             binauralBeatsHz = null, isochronicTonesHz = null, noiseType = NPAudioEntrainmentParams.NoiseType.PINK,
             volumeDb = 60.0, eegAdaptive = false)))))
-        check("visual", def(600, mod(NPModalityParams.VisualStimulation(NPVisualStimParams(emdrCadenceHz = 1.5)))))
+        // 70 Hz, outside the 3-60 Hz photic zone the hub refuses (OI-FWHUB-37); matches scripts/gen-hub-descriptor-golden.ts.
+        check("visual", def(600, mod(NPModalityParams.VisualStimulation(NPVisualStimParams(frequencyHz = 70.0, emdrCadenceHz = 1.5)))))
     }
 
     // @verifies REQ-FWHUB-08

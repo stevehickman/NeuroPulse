@@ -245,7 +245,7 @@ export const TEST_AID = Object.freeze({
 const fw = (cmd, rest = {}) => ({ type: 'FW_COMMAND', cmd, ...rest });
 
 // What each module needs to be placed, driven and stopped.  Values are the scenarios' own (UC-128); the visual command is EMDR because the
-// goggles refuse photic driving at 3-30 Hz until the detector exists (REQ-FWHUB-65).  Modules are keyed as the registry keys them.
+// goggles refuse photic driving at 3-60 Hz until the detector exists (REQ-FWHUB-65).  Modules are keyed as the registry keys them.
 const HUB_MODULES = Object.freeze({
   pbm: { label: 'PBM tile (socket 1)',
     place: [{ type: 'MODULE_SET', socket: 0, patch: { add: 30 } }], on: [fw('drive', { sockets: [0] })], off: [fw('stop', { sockets: [0] })] },
@@ -416,7 +416,7 @@ export const faultById = (id) => FAULT_BY_ID.get(id) ?? null;
 
 /** Faults the system is meant to detect that the page cannot cause, and why.  Shown on the panel so a missing button is not read as a pass. */
 export const FAULTS_UNAVAILABLE = Object.freeze([
-  { label: 'Photoparoxysmal EEG', why: 'The detector is not built (OI-FWHUB-29); the goggles refuse 3-30 Hz photic driving outright (REQ-FWHUB-65).' },
+  { label: 'Photoparoxysmal EEG', why: 'The detector is not built (OI-FWHUB-29); the goggles refuse 3-60 Hz photic driving outright (REQ-FWHUB-65).' },
   { label: 'Brown-out or loss of USB-C power', why: 'The MCU has no supply-monitor input in the harness. A real loss of the page\'s own link is mapped to a heartbeat loss instead (below).' },
   { label: 'OTP unprovisioned', why: 'No page command programs an all-zero key.' },
 ]);

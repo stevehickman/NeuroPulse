@@ -1078,24 +1078,24 @@ static void test_photic_admit(void)
     memset(&p, 0, sizeof p);
 
     bool zone_refused = true;
-    for (uint8_t f = 3U; f <= 30U; f++) {
+    for (uint8_t f = 3U; f <= 60U; f++) {
         p.mode = 0U; p.freq_hz = f;
         memcpy(d.cmds[0].params, &p, sizeof p);
         if (np_protocol_photic_admit(&d, false) != NP_HUB_ERR_PHOTIC_ZONE) { zone_refused = false; }
     }
-    check(zone_refused, "photic: a photic command at every whole hertz from 3 to 30 is refused with its own status");
+    check(zone_refused, "photic: a photic command at every whole hertz from 3 to 60 is refused with its own status");
     p.mode = 3U; p.freq_hz = 10U;
     memcpy(d.cmds[0].params, &p, sizeof p);
     check(np_protocol_photic_admit(&d, false) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode is refused too");
     p.mode = 0U; p.freq_hz = 2U;
     memcpy(d.cmds[0].params, &p, sizeof p);
     check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 2 Hz is outside the zone");
-    p.freq_hz = 31U;
+    p.freq_hz = 61U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 31 Hz is outside the zone");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 61 Hz is outside the zone");
     p.freq_hz = 40U;
     memcpy(d.cmds[0].params, &p, sizeof p);
-    check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: 40 Hz, the gamma protocols' frequency, is admitted");
+    check(np_protocol_photic_admit(&d, false) == NP_HUB_ERR_PHOTIC_ZONE, "photic: 40 Hz, the gamma protocols' frequency, is refused (OI-FWHUB-37)");
     p.mode = 1U; p.freq_hz = 10U;
     memcpy(d.cmds[0].params, &p, sizeof p);
     check(np_protocol_photic_admit(&d, false) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz");
@@ -1116,7 +1116,7 @@ static void test_photic_admit(void)
     d.cmds[0].mod_type = NP_MOD_EEG;
     d.cmds[1].mod_type = NP_MOD_VISUAL;
     d.cmds[1].params_len = (uint16_t)sizeof(np_mod_visual_params_t);
-    p.mode = 0U; p.freq_hz = 40U;
+    p.mode = 0U; p.freq_hz = 70U;
     memcpy(d.cmds[1].params, &p, sizeof p);
     d.cmds[2].mod_type = NP_MOD_VISUAL;
     d.cmds[2].params_len = (uint16_t)sizeof(np_mod_visual_params_t);

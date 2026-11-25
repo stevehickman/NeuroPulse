@@ -137,7 +137,7 @@ static void test_the_visual_line_follows_the_goggles(void)
     boot();
     run("vis_add 1 1 1");
     run("vis_init");
-    run("vis 0 40 50 0 63 0 0 0 0");              /* 40 Hz: outside the 3-30 Hz refusal (REQ-FWHUB-65) */
+    run("vis 0 70 50 0 63 0 0 0 0");              /* 70 Hz: outside the 3-60 Hz refusal (REQ-FWHUB-65) */
     sign_in();
     run("safety_run 400 3");
     check(np_sim_safety_line_enabled(LINE_VIS), "a photic drive outside the refused band is granted and its line asserted");

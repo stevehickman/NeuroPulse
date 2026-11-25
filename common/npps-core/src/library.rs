@@ -294,7 +294,7 @@ const REASON_HW_VERSION_UNVERIFIED: u64 = 28;
 /// hardware-version refusal of the protocol and not "retry": it has no refusal kind and is not `notReady`, and it has a cause
 /// of its own, `no_layout`, so a screen can say so (`PROTOCOL_MENU_REFUSED_NO_LAYOUT`).
 const REASON_NO_LAYOUT: u64 = 29;
-/// `NP_HUB_ERR_PHOTIC_ZONE` (REQ-FWHUB-66, `OI-FWHUB-29`): the protocol drives the goggles photically at 3 to 30 Hz, which the helmet
+/// `NP_HUB_ERR_PHOTIC_ZONE` (REQ-FWHUB-66, `OI-FWHUB-29`): the protocol drives the goggles photically at 3 to 60 Hz, which the helmet
 /// refuses until its Oz detector exists. The author can change the frequency, so it has a cause of its own, `photic_zone`.
 const REASON_PHOTIC_ZONE: u64 = 30;
 /// `NP_HUB_ERR_BAD_ADDRESS` (REQ-FWHUB-64): the protocol names a socket this helmet does not have. It was reason 2 (`malformed`); the

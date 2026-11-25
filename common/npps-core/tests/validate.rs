@@ -141,7 +141,37 @@ fn has_non_audio_block(v: &Value) -> bool {
 }
 
 fn is_added(issue: &Value) -> bool {
-    issue["message"]["key"].as_str().map_or(false, |k| ADDED.contains(&k))
+    issue["message"]["key"].as_str().map_or(false, |k| ADDED.contains(&k)) || is_widened_zone(issue)
+}
+
+/// The photoparoxysmal zone's upper edge moved from 30 to 60 Hz (OI-FWHUB-37, the principal, 2026-11-25). The frozen web
+/// golden holds the zone issue as "3–30 Hz" and holds none for 31 to 60 Hz. So a core zone issue above 30 Hz is set aside
+/// as added (the hub refuses those, verified by its own suite for `REQ-FWHUB-65` and `-66`), and the golden's zone text is
+/// read with the new edge (`widen_zone_text`).
+fn is_widened_zone(issue: &Value) -> bool {
+    zone_above_30(&issue["message"])
+}
+
+/// A zone message whose frequency is above 30 Hz, found inside a layer's prefix message too ("[Gamma Focus] …").
+fn zone_above_30(m: &Value) -> bool {
+    let key = m["key"].as_str().unwrap_or("");
+    let zone = key == "VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_2" || key == "VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_3";
+    let freq = m["args"][0].as_str().and_then(|a| a.parse::<f64>().ok()).unwrap_or(0.0);
+    (zone && freq > 30.0) || m["args"].as_array().map_or(false, |a| a.iter().any(zone_above_30))
+}
+
+/// The golden's zone issue, worded with the zone's new upper edge.
+fn widen_zone_text(issue: Value) -> Value {
+    if issue["modality"] != "visual_stimulation" || issue["parameterKey"] != "frequencyHz" {
+        return issue;
+    }
+    let mut out = issue;
+    for field in ["message", "limitValueDescription"] {
+        if let Some(t) = out[field].as_str() {
+            out[field] = Value::String(t.replace("3–30 Hz", "3–60 Hz"));
+        }
+    }
+    out
 }
 
 // @verifies REQ-NPPS-12
@@ -162,7 +192,7 @@ fn every_case_gives_the_issues_the_web_validator_gave() {
             got["issues"].as_array().unwrap().iter().filter(|i| !is_added(i)).map(|i| resolve(i, &en)).collect();
         let covered = has_non_audio_block(&c["entry"]);
         let want: Vec<Value> =
-            c["expected"].as_array().unwrap().iter().filter(|i| !is_removed(i) && !(covered && is_long_session_advisory(i))).cloned().collect();
+            c["expected"].as_array().unwrap().iter().filter(|i| !is_removed(i) && !(covered && is_long_session_advisory(i))).cloned().map(widen_zone_text).collect();
         if issues != want {
             failures.push(format!("{}\n  core: {}\n  web:  {}", c["name"], Value::Array(issues), Value::Array(want)));
         }

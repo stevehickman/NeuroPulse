@@ -15,7 +15,7 @@
  *
  * THE T1 MONTAGE HAS NO OCCIPITAL CHANNEL. NP_EEG_CHANNELS is 8 (Fp1/2, F3/4, C3/4, P3/4); Oz is a ninth site that the hex-tile
  * documents place but that no ADC channel carries (OI-FWHUB-34). Until Systems and Clinical decide how Oz is digitised, the
- * shipped T1 montage resolves to "cannot see", which is what keeps the 3 to 30 Hz refusal honest.
+ * shipped T1 montage resolves to "cannot see", which is what keeps the 3 to 60 Hz refusal honest.
  *
  * The role table's defaults are the engineering proposal in the principal's thread of 2026-11-08, not a clinical finding:
  *   - occipital: O1, O2, Oz (where the photic response is generated);
