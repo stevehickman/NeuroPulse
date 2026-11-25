@@ -55,6 +55,9 @@ jobs:
         ci/test_shdr_schema_selftest.py
         ci/test_shdr_char_gate_selftest.py
         ci/run_shdr_constraint_tests.sh
+        # The batch writer runs on the schema, so a schema change can break it (OI-PRIV-76, REQ-SHDR-12).
+        infra/fleet/ingest/shdr_batch_writer.sql
+        ci/test_shdr_batch_writer.py
         # CHAR-01 reads the firmware constants out of this header and requires the
         # schema to agree with them, so a change to it can flip the gate's verdict
         # without touching a single file above.
@@ -184,6 +187,21 @@ jobs:
         env:
           DATABASE_URL: postgres://np:np@127.0.0.1:5432/shdr_test
         run: ci/run_shdr_constraint_tests.sh
+
+      # The schema cannot remove the system columns xmin and ctid, which record insert order. The batch
+      # writer is what gives them nothing to say (NP-INFRA-001 §3.4, OI-PRIV-76): one transaction per
+      # closed month, rows in random order. This stages a month of dockings from 400 devices, writes the
+      # batch, and asks the database whether xmin or ctid still says who docked first. It makes its own
+      # databases on the service, so the schema loaded by the step above does not affect it.
+      - name: SHDR batch writer leaves no docking order (real PostgreSQL)
+        env:
+          DATABASE_URL: postgres://np:np@127.0.0.1:5432/shdr_test
+        run: python3 ci/test_shdr_batch_writer.py
+
+      - name: Self-test the batch writer's order checks (test-of-the-test)
+        env:
+          DATABASE_URL: postgres://np:np@127.0.0.1:5432/shdr_test
+        run: python3 ci/test_shdr_batch_writer.py --self-test
 
       - name: Upload test output on failure
         if: failure()
