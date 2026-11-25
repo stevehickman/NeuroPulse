@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.familyKey
+import life.neurone.core.protocol.id
 import life.neurone.core.protocol.name
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral

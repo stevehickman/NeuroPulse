@@ -4,6 +4,7 @@ import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.familyKey
+import life.neurone.core.protocol.id
 import life.neurone.core.protocol.name
 import kotlin.test.Test
 import kotlin.test.assertEquals
