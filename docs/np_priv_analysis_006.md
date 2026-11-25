@@ -9,7 +9,7 @@
 **Author:** NeurOne Software Engineering  
 **Approved By:** — (new document)  
 **References:** NP-PRIV-AUDIT-001, NP-PRIV-ANALYSIS-002, NP-PRIV-ANALYSIS-003, NP-PRIV-REM-001, NP-APP-PRESENCE-001, NP-APP-TELEMETRY-001, NP-SW-001, CLAUDE.md §5, §6, §23  
-**Related Issues:** GitHub #889, #935, #936  
+**Related Issues:** GitHub #727, #889, #935, #936, #1060  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR, HIPAA for T2); US state (BIPA IL, MHMD WA, CCPA/CPRA CA); EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA. Taken from the scope of NP-PRIV-AUDIT-001 and NP-PRIV-ANALYSIS-002; not re-confirmed with the principal.  
@@ -31,7 +31,7 @@ Each finding says whether the existing record already holds it (**New**, **Parti
 §4 lists what the passes found again that the record already holds, so that it is not raised twice.
 
 **Open items raised:** F-03, F-04 and F-05 are `OI-PRIV-59`, `OI-PRIV-60` and `OI-PRIV-61` in
-`docs/status/pending-decisions.md` §13.2. The other findings are fixes or extensions of existing items (§6).
+`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). The other findings are fixes or extensions of existing items (§6).
 
 ## 2. Summary
 
@@ -56,12 +56,12 @@ and saves toggled consents on Skip (F-10). Both should be fixed before any TestF
 | F-05 | Medium | Security | Unsealed run stores the automatic-backup secret in the clear | Partial (`SWR-MG-13` (b)): `OI-PRIV-61` |
 | F-06 | Medium | Pure privacy | Recording filenames carry the session time to the millisecond | New |
 | F-07 | Medium | Pure privacy | Web: helmet serial survives into the shared limits file | Gap in closed `OI-PRIV-11` |
-| F-08 | Medium | Pure privacy | Clinician use cases derive tier sets, not each one's minimum | Partial (`OI-CONSENT-08`) |
+| F-08 | Medium | Pure privacy | Clinician use cases derive tier sets, not each one's minimum | Partial: now `OI-CONSENT-08` (6) (§8.1) |
 | F-09 | Medium | Pure privacy | Compose analytics switch sits outside the consent model | New |
 | F-10 | Medium | Pure privacy | Skip on research consent saves what was toggled | New |
 | F-11 | Medium | Security | Firmware, EDF-request and calibration writes skip the encrypted-link check | Not in `OI-PRIV-17` (4) |
 | F-12 | Low | Both | Recovery code can be copied; no screen-capture protection | New |
-| F-13 | Low | Pure privacy | Phones have no erase, on a premise false for iOS | Challenges `SWR-MG-17`; related to #935, #936, `OI-ANALYTICS-01` |
+| F-13 | Low | Pure privacy | Phones have no erase, on a premise false for iOS | Challenges `SWR-MG-17`: `OI-PRIV-78` (§8.1); related to #935, #936, `OI-ANALYTICS-01` |
 | F-14 | Low | Both | React app: no CSP; plaintext backup and individual-limits exports | New |
 | F-15 | Low | Pure privacy | iOS consumable notification body visible on Touch ID lock screens | Partly reopens NP-PRIV-ANALYSIS-003 LOW-1 |
 | F-16 | Low | Mixed | Smaller items (pasteboard, privacy manifest, condition links, others) | Mostly new |
@@ -343,6 +343,16 @@ F-12 to F-16 follow these.
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
 | F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | — |
+
+### 8.1 Findings now tracked as open items
+
+> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-25).** F-08 and F-13 each need a decision before code changes, so they are recorded,
+> not repaired. Nothing under `app/` changed.
+
+| Finding | Tracked in | What it asks | Checked against `main` (2026-11-25) |
+|---|---|---|---|
+| F-08 | `OI-CONSENT-08` point (6); `docs/human-input/oi-consent-08-clinician-tiers.md` Q6; register row `UC-212`; GitHub #727 | Whether each use case names only the elements it needs. Proposed for the principal and the clinical adviser: adherence gets session timestamps and duration; EEG review gets EEG waveforms with them; HRV outcomes gets the HRV time series with them. Each dropped element becomes a use case of its own if a clinician needs it | Unchanged: `clinician-use-cases.json` still gives each use case its tier's set. `OI-PRIV-64` (1) made widening a grant follow the use cases, which leaves the table as it was. The JSON is not edited, because the review precedes any edit and a change alters what users are told a clinician can learn (`CLAUDE.md` §6.1) |
+| F-13 | `OI-PRIV-78` (new); `docs/human-input/oi-priv-78-phone-erase.md`; GitHub #1060 | Whether phones get the in-app erase (`SWR-MG-17` offers it on computers only), whether iOS purges its Keychain items after a reinstall, and whether people are told to turn analytics off before removing the app | Partly. The shared iOS host keeps only the data key and the gated UHDR key in the Keychain. The finding's list (UHDR seed, warranty tokens, signing key) was the SwiftUI app's, deleted by #946. The sealed values go with the app container. Not limited to iOS: on both phones, removing the app sends no analytics ID to the erasure relay and revokes no cloud grant. #935 is closed (an erase now destroys the gated key, #944); #936 and `OI-PRES-07` are open |
 
 ## 7. Not reviewed
 
