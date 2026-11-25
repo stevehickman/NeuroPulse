@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 432
+**Revision:** 433
 **Date:** 2026-11-25
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 432 | 2026-11-25 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 433 | 2026-11-25 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 219 | 2026-11-25 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -89,7 +89,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-HFE-001 | Human Factors Engineering Plan | 1 | 2026-07-27 | [np_hfe_001.md](./np_hfe_001.md) | ACTIVE | QMS |
 | NP-HFE-002 | Accessible Zone-Module Position Identification and Guided Placement | 2 | 2026-08-20 | [np_hfe_002.md](./np_hfe_002.md) | DRAFT | QMS |
 | NP-PMS-001 | Post-Market Surveillance Plan | 2 | 2026-07-27 | [np_pms_001.md](./np_pms_001.md) | ACTIVE | QMS |
-| NP-IRB-001 | IRB Protocol for Research Consent Architecture Validation | 3 | 2026-11-21 | [np_irb_001.md](./np_irb_001.md) | DRAFT | QMS |
+| NP-IRB-001 | IRB Protocol for Research Consent Architecture Validation | 4 | 2026-11-25 | [np_irb_001.md](./np_irb_001.md) | DRAFT | QMS |
 
 ### 5.2 Design Briefs and Product Specifications
 
@@ -246,7 +246,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-CLIN-001 | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.md](./np_clin_001.md) | ACTIVE | CLIN |
+| NP-CLIN-001 | Clinical Trials Strategy | 2 | 2026-11-25 | [np_clin_001.md](./np_clin_001.md) | ACTIVE | CLIN |
 | NP-CLIN-001 (Rev 1, Word) | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.docx](./superseded/np_clin_001.docx) | SUPERSEDED 2026-11-25 by the Markdown issue | CLIN |
 | NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [np_mod_ext_001.docx](./superseded/np_mod_ext_001.docx) | SUPERSEDED by individual firmware specs and CLAUDE.md | CLIN |
 | NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [np_bib_001.docx](./np_bib_001.docx) | ACTIVE | CLIN |
@@ -262,7 +262,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-PRIV-001 | Privacy Analysis and Repair | 1 | 2026-06-02 (HIGH-01 conclusion: 2026-08-12) | [np_priv_001.pdf](./np_priv_001.pdf) | ACTIVE | PRIV |
-| NP-PRIV-REM-001 | Privacy Remediation Master Plan | 6 | 2026-11-21 | [np_priv_rem_001.md](./np_priv_rem_001.md) | ACTIVE | PRIV |
+| NP-PRIV-REM-001 | Privacy Remediation Master Plan | 7 | 2026-11-25 | [np_priv_rem_001.md](./np_priv_rem_001.md) | ACTIVE | PRIV |
 | NP-SEC-BR-001 | Breach Response Plan | 1 | 2026-06-02 | [np_sec_br_001.md](./np_sec_br_001.md) | ACTIVE | SEC |
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE | PRIV |
 | NP-LEGAL-BAA-001 | Business Associate Agreement Template | 1 | 2026-06-03 | [np_legal_baa_001.md](./np_legal_baa_001.md) | DRAFT | PRIV |

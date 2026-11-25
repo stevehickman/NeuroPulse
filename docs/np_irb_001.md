@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-IRB-001
-**Revision:** 3
-**Date:** 2026-11-21
+**Revision:** 4
+**Date:** 2026-11-25
 **Status:** DRAFT
 **Effective Date:** N/A (effective on IRB/REB approval or exemption determination)
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -131,3 +131,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 3 | 2026-11-21 | NeurOne Software Engineering | **§5 and the Type B row: NeurOne research infrastructure stores extracts keyed to study ID only, with no device identifier (OI-PRIV-67); a study that declares tracking sends an identifier unique to the person and the study, so its extracts are coded and the exemption argument does not yet cover it, under review by the IRB adviser (OI-PRIV-70).** |
+| 4 | 2026-11-25 | Steve Hickman (CEO, interim Quality authority) | **§3 table and §5 step 1: NP-CLIN-001 cited at docs/np_clin_001.md, its Markdown issue, in place of the Word file now in docs/superseded/.** |

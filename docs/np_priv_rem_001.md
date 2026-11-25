@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 6
-**Date:** 2026-11-21  
+**Revision:** 7
+**Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -1116,3 +1116,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 6 | 2026-11-21 | NeurOne Quality | **STEP-05 marked reopened in part: the research gate passed exact dates, the recording ID and a linking code; the repair is NP-FW-EMMC-002 §E.5 and the remainder is in OI-PRIV-26 (NP-PRIV-ANALYSIS-004) (GitHub #954).** |
+| 7 | 2026-11-25 | Quality Lead (interim: Steve Hickman, CEO) | **NP-CLIN-001's executive summary cited at docs/np_clin_001.md, its Markdown issue, in place of the Word file now in docs/superseded/.** |
