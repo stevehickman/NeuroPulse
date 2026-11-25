@@ -20,6 +20,11 @@ import life.neurone.core.npps.NppsCore
 // to bind a key to. Every primitive is the shared Rust core's (CLAUDE.md §22): the passphrase becomes a secret (NFKC, length check),
 // the secret becomes a key by the core's Argon2id at the fixed bundle cost, and the key seals the data key with the core's
 // AES-256-GCM value sealing. This file only orders those calls and keeps the result.
+//
+// The record is sealed twice (`REQ-PRES-10`, `OI-PRIV-65`, NP-PRIV-ANALYSIS-007 Finding M12): the data key under the passphrase, and
+// the whole record (the Argon2 parameters, the salt and the wrapped key) under the device's keystore key, the same key the device
+// tier is sealed under. That key releases without the person, so the record is still read before anyone is present; a copy of the
+// host's store taken without the keystore holds nothing an offline guesser can test a passphrase against.
 
 /** What a passphrase attempt came to. */
 enum class PassphraseResult {
@@ -55,8 +60,8 @@ interface PassphraseKey : GatedSecretKeyStore {
 }
 
 /**
- * Keeps the data key wrapped under a passphrase in [host]'s plain store (the wrapped bytes and the Argon2 salt are not secret). The
- * wrapping key is derived again at each unlock and is never kept; the data key is held in memory until [lock]. A wrong passphrase
+ * Keeps the data key wrapped under a passphrase in [host]'s store, and that record sealed under [device]'s keystore key
+ * (`REQ-PRES-10`): the host key is not part of either sealed tier, and [device] releases without the person. The wrapping key is derived again at each unlock and is never kept; the data key is held in memory until [lock]. A wrong passphrase
  * fails the AES-GCM tag and is `WRONG`; it is never taken for "no key" (`SWR-MG-15`). Forgetting the passphrase is unrecoverable by
  * design, which is what the backup the app insists on first is for (`REQ-PRES-08`).
  *
@@ -65,6 +70,12 @@ interface PassphraseKey : GatedSecretKeyStore {
  */
 class PassphraseGatedSecretKeyStore(
     private val host: KeyValueStore,
+    /**
+     * The device's keystore, the one the device tier is sealed under (`PlatformServices.secretKeyStore`), asked only when the record
+     * is read or written. Null, or a keystore that cannot be asked, and nothing is set up or opened: the record is never written
+     * under the passphrase alone (`REQ-PRES-10`).
+     */
+    private val device: () -> SecretKeyStore?,
     private val random: RandomSource = SystemRandomSource,
 ) : PassphraseKey {
     private var dataKey: ByteArray? = null
@@ -111,7 +122,7 @@ class PassphraseGatedSecretKeyStore(
     }
 
     override suspend fun setPassphrase(passphrase: String): PassphraseResult {
-        if (host.getString(WRAP_KEY) != null) return PassphraseResult.FAILED
+        if (host.getString(WRAP_KEY) != null || device() == null) return PassphraseResult.FAILED
         val fresh = random.nextBytes(DATA_KEY_BYTES)
         val result = wrap(passphrase, fresh)
         if (result == PassphraseResult.OK) { dataKey = fresh.copyOf(); unlocked = true }
@@ -134,10 +145,50 @@ class PassphraseGatedSecretKeyStore(
 
     private class Record(val kdf: JsonObject, val sealed: String)
 
+    /**
+     * The record, opened under the device key, or null. A record that is not of this form is refused, not read: the earlier form
+     * (the record in the clear) was never offered by a host, so none exists to read, and reading it would let a planted plain record
+     * stand in for a sealed one (`REQ-PRES-10` (b)).
+     */
     private fun readRecord(): Record? = runCatching {
-        val o = Json.parseToJsonElement(host.getString(WRAP_KEY) ?: return null).jsonObject
+        val stored = host.getString(WRAP_KEY) ?: return null
+        if (!stored.startsWith(RECORD_PREFIX)) return null
+        val text = withDeviceKey(create = false) { k ->
+            val r = NppsCore.migrationSecret(
+                buildJsonObject { put("op", "openValue"); put("key", NppsCore.secretRef(0)); put("name", DEVICE_NAME); put("sealed", stored.removePrefix(RECORD_PREFIX)) },
+                listOf(k),
+            ).answer
+            if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
+        } ?: return null
+        val o = Json.parseToJsonElement(text).jsonObject
         Record(o["kdf"]!!.jsonObject, o["sealed"]!!.jsonPrimitive.content)
     }.getOrNull()
+
+    /** Seal the record [text] under the device key, making the key if the keystore answered that there is none. Null if it cannot be. */
+    private fun sealRecord(text: String): String? = runCatching {
+        val nonce = random.nextBytes(NONCE_BYTES)
+        require(nonce.size == NONCE_BYTES)
+        withDeviceKey(create = true) { k ->
+            NppsCore.migrationSecret(
+                buildJsonObject { put("op", "sealValue"); put("key", NppsCore.secretRef(0)); put("nonce", nonce.hexString()); put("name", DEVICE_NAME); put("value", text) },
+                listOf(k),
+            ).answer["sealed"]?.jsonPrimitive?.contentOrNull
+        }?.let { RECORD_PREFIX + it }
+    }.getOrNull()
+
+    /**
+     * Run [use] with a copy of the device key, wiped after. A key is made only when the keystore answered "no key" and [create] is set,
+     * as `EncryptedKeyValueStore` does, so a keystore that could not be asked (it throws) never has its key replaced.
+     */
+    private fun <T> withDeviceKey(create: Boolean, use: (ByteArray) -> T?): T? {
+        val keystore = device() ?: return null
+        val key = keystore.load() ?: if (create) {
+            random.nextBytes(DATA_KEY_BYTES).also { require(it.size == DATA_KEY_BYTES); keystore.store(it) }
+        } else {
+            return null
+        }
+        return try { use(key) } finally { key.fill(0) }
+    }
 
     /**
      * The wrapping key for [passphrase] under [kdf], or the reason it cannot be had. The key is made and kept in the shared
@@ -193,16 +244,25 @@ class PassphraseGatedSecretKeyStore(
             key.destroy()
         }
         val sealed = r["sealed"]?.jsonPrimitive?.contentOrNull ?: return PassphraseResult.FAILED
-        host.putString(WRAP_KEY, buildJsonObject { put("kdf", kdf); put("sealed", sealed) }.toString())
+        val record = sealRecord(buildJsonObject { put("kdf", kdf); put("sealed", sealed) }.toString()) ?: return PassphraseResult.FAILED
+        host.putString(WRAP_KEY, record)
         return PassphraseResult.OK
     }
 
     private fun ByteArray.hexString() = joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
-    private fun String.hexBytes() = ByteArray(length / 2) { i -> substring(2 * i, 2 * i + 2).toInt(16).toByte() }
 
     companion object {
-        /** The plain host key holding the Argon2 parameters and the sealed data key. Not UHDR: it is read before anyone is present. */
+        /**
+         * The host key holding the Argon2 parameters and the sealed data key, sealed under the device key by this class (`REQ-PRES-10`).
+         * Not in the UHDR tier: it is read before anyone is present.
+         */
         const val WRAP_KEY = "np.presence.passphrase-wrap"
+
+        /** Marks the record sealed under the device key. The tiers' own prefix (`np-enc:1:`) is a different one, so neither reads the other's. */
+        internal const val RECORD_PREFIX = "np-ppwrap:1:"
+
+        /** The associated data of the device-key sealing: the record opens only as itself, not as a tier value of the same host key. */
+        private const val DEVICE_NAME = "np.presence.passphrase-wrap#device"
 
         /** The associated data of the sealing, so the wrapped key opens only as this record. */
         private const val WRAP_NAME = "np.presence.passphrase-wrap"
