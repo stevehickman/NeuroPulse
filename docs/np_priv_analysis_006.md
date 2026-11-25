@@ -336,9 +336,13 @@ F-12 to F-16 follow these.
 > **Rev 2 (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
 > requirement row and tests. The SwiftUI parts were not changed: that app was removed by pull request #946, which closes F-01, F-02,
 > F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
+>
+> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
+> decision (`OI-PRIV-60` stays open for it).
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
+| F-04 | The owner page's "offered" switch writes the owner's record for the connected helmet (`WarrantyOwnerRecord.withdrawnFamilies`, `WarrantyOwnerStore.setOffered`, in `np.warranty-owner.records`, which no user bundle carries), and the protocol library asks the owner's store whether a family is offered (`NPProtocolLibrary.isOffered`) and stores none of it. `np.archived-families` is now the person's own archive only: the person's Archive and Restore and the owner's switch no longer undo each other. The "used" marker is removed from the owner page | `SWR-WO-01`; `REQ-SHDR-10` (d) | `WarrantyOwnerOfferedTests`; `WarrantyOwnerScreenTest` | Whether a clinic owner may see usage with the wearer's consent: `docs/human-input/oi-priv-60-owner-sees-usage.md` (`OI-PRIV-60`). A family an earlier version archived from the owner page stays in the person's archive. The owner's own backup, restore and transfer: `OI-PRIV-20` |
 | F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | Sets saved earlier keep their name until saved again |
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
