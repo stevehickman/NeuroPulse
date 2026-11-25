@@ -96,7 +96,7 @@ class MemoryOnlyKeysKeyValueStoreTests {
         assertTrue(list("unsorted").all { it in keys }, "the onboarding records (age, biometric-privacy consent) and the rest")
         assertTrue(map["carried"]!!.let { c -> listOf("protocols", "limitsProfiles").flatMap { c.jsonObjectList(it) }.all { it in keys } },
             "saved protocols and limits")
-        assertEquals(map["sealedAtRest"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet(), keys, "the core's one list, so a new key is covered")
+        assertEquals((list("sealedAtRest") + list("hostPlain")).toSet(), keys, "the core's lists, so a new key is covered; the gate's records too, though the browser has no gate")
 
         val inner = InMemoryKeyValueStore()
         val s = MemoryOnlyKeysKeyValueStore(inner, keys)
