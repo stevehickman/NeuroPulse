@@ -31,10 +31,7 @@ data class WarrantyOwnerRecord(
      * (`REQ-SHDR-10`, `OI-PRIV-60`). Nothing here says which protocols anyone has run.
      */
     val withdrawnFamilies: Set<String> = emptySet(),
-) {
-    /** Whether the owner offers [familyKey] on this helmet. */
-    fun offers(familyKey: String): Boolean = familyKey !in withdrawnFamilies
-}
+)
 
 /**
  * The warranty owner's store: every record that belongs to the warranty owner and not to a user, one per helmet
@@ -161,7 +158,7 @@ class WarrantyOwnerStore(
         val shape = (p.size == 5 && p[0] == FORMAT_V1) ||
             (p.size == 6 && p[0] == FORMAT_V2 && p[5] in FLAGS) ||
             (p.size == 7 && p[0] == FORMAT && p[5] in FLAGS)
-        val withdrawn = p.getOrNull(6)?.let(::decodeFamilies) ?: emptySet()
+        val withdrawn = if (p.size == 7) decodeFamilies(p[6]) else emptySet()
         if (!shape || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null || withdrawn == null) {
             return WarrantyOwnerRecord()
         }
