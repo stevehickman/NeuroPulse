@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 87
+**Revision:** 88
 **Date:** 2026-11-25
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,7 +17,7 @@
 
 ---
 
-> **Rev {NP-FW-HUB-001 to} (2026-11-25) — the factory-reset command's wire format is specified, not built (new §4.7; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955).** A reset blob is a second blob kind on the protocol upload path (0x0008), with its own magic (`"NPHR"`), the device serial, the one-time upload challenge decided under `OI-PRIV-31` (reused, not a second nonce), the warranty owner's signing key and one signed entry per profile on the helmet, each marked exported (with the export's SHA-256) or destroy. §4.7.4 fixes the verification order before any dispatch and the refusals: not BLE, unknown signer, bad signature, wrong serial, stale or replayed challenge, session active, a profile list that is no longer the helmet's, an export the hub did not send. §4.7.5 hands off to the list, export and wipe flow of `NP-FW-EMMC-002` §B.2 and §B.3. The owner's key depends on `OI-SIMFW-71` Q8 and is put to the principal (brief §13); the command is built with or after per-person profiles (`NP-FW-EMMC-002` §C.8). No code, no requirement row and no test changes.
+> **Rev 88 (2026-11-25) — the factory-reset command's wire format is specified, not built (new §4.7; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955).** A reset blob is a second blob kind on the protocol upload path (0x0008), with its own magic (`"NPHR"`), the device serial, the one-time upload challenge decided under `OI-PRIV-31` (reused, not a second nonce), the warranty owner's signing key and one signed entry per profile on the helmet, each marked exported (with the export's SHA-256) or destroy. §4.7.4 fixes the verification order before any dispatch and the refusals: not BLE, unknown signer, bad signature, wrong serial, stale or replayed challenge, session active, a profile list that is no longer the helmet's, an export the hub did not send. §4.7.5 hands off to the list, export and wipe flow of `NP-FW-EMMC-002` §B.2 and §B.3. The owner's key depends on `OI-SIMFW-71` Q8 and is put to the principal (brief §13); the command is built with or after per-person profiles (`NP-FW-EMMC-002` §C.8). No code, no requirement row and no test changes.
 >
 > **Rev 64 (2026-11-21) — no protocol, session record or biosignal stays in hub RAM once it is no longer needed (`REQ-FWHUB-84`, new §6.10; `OI-PRIV-39` (NP-PRIV-ANALYSIS-004), GitHub #967).** The transport zeroes its reassembly buffer when the consumer takes a blob, when a blob is dropped and when a partial frame is abandoned. At every session end the runner zeroes the parsed protocol and the session records (keeping only what `SESSION_PROGRESS` reports after a session), the logger zeroes its UHDR record buffer, the adaptation ring and the backend's UHDR staging block, and the photoparoxysmal detector's per-channel signal state is zeroed with its latch kept. The HRV and sLORETA libraries zero their FFT scratch and session signals at their own session end. Every clear goes through a volatile `memset` pointer so the compiler cannot remove it. **Not built:** a pass at `np_uhdr_key_background()`, which nothing in the hub firmware calls (§6.10).
 >
@@ -1014,7 +1014,7 @@ this table bumps §4.5's version.
 
 ### 4.7 The factory-reset command: the reset blob *(specified, not built; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004))*
 
-> **Specified {NP-FW-HUB-001 to} (2026-11-25); nothing in this subsection is built.** It is the wire format of
+> **Specified 88 (2026-11-25); nothing in this subsection is built.** It is the wire format of
 > `NP-FW-EMMC-002` §B.3 R-1 and R-2, which until now named a signed `FACTORY_RESET` command that no document specified.
 > It follows the principal's rulings: the command form (`docs/human-input/oi-priv-27-factory-reset-command.md` §3
 > option A, accepted 2026-11-24, §11), and the flow (warranty owner only, every user listed first, current users

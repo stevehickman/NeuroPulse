@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 19
+**Revision:** 20
 **Date:** 2026-11-25
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -159,7 +159,7 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > `np_factory_reset_execute()`. The authenticated command is a wire and design change, briefed in
 > `docs/human-input/oi-priv-27-factory-reset-command.md`.
 >
-> **Rev {NP-FW-EMMC-002 to} (2026-11-25): R-1 and R-2 now have a wire format, not built.** The signed reset blob,
+> **Rev 20 (2026-11-25): R-1 and R-2 now have a wire format, not built.** The signed reset blob,
 > its fields, its verification order and its refusals are `NP-FW-HUB-001` §4.7. It reuses the one-time upload
 > challenge of `OI-PRIV-31` (NP-PRIV-ANALYSIS-004), carries one signed entry per profile marked exported or destroy, and
 > is refused unless every exported profile's digest matches an export the hub sent on the same link, so the hub itself
@@ -1370,6 +1370,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 17 | 2026-11-24 | **New §C.8.7 and REQ-EMMC2-07: increment 2 of §C.8, per-file sealing (np_uhdr_seal.c), is built and host-tested as a buffer library with no caller yet: a 32-byte clear header with a random file id, 512-byte chunks (one log staging block, 496 bytes of plaintext), a per-file key derived from the profile key and the file id, AES-256-GCM per chunk with the index as nonce and a final flag in the AAD, refusal of any changed, reordered, dropped, duplicated, appended or truncated chunk, and names from the random id only. One new seam (file KDF, SW-02 count 127 to 128). §C.8.5 records the Mode 3 question as the principal's. With the principal's rulings of 2026-11-24, the profile attempt limit becomes per profile (REQ-EMMC2-05 rewritten; the record grows to 216 bytes) and the profile cap becomes 24 (UC-204, ASSUMED). The backend wiring, the mount change and the file export are increment 3 (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 | 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
 | 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
+| 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
 
 Open items created by this document:
 
