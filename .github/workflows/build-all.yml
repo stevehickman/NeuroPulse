@@ -122,9 +122,10 @@ env:
   # 79 → 80: np_bootloader_rpmb_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16).
   # 80 → 81: np_uhdr_seal_tests (OI-PRIV-34 (NP-PRIV-ANALYSIS-004), NP-FW-EMMC-002 §C.8.7, REQ-EMMC2-07).
   # 81 → 82: np_module_usage_tests (REQ-FWHUB-93, per-module running totals; OI-CVNS-04).
-  NP_TOTAL_TEST_COUNT: '82'
+  # 82 → 83: np_audio_synth_tests (REQ-AUDIO-29, OI-AUDIOHW-18).
+  NP_TOTAL_TEST_COUNT: '83'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '71'
+  NP_CLASS_B_TEST_COUNT: '72'
 
 jobs:
   host-tests-all:

@@ -71,6 +71,15 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_socket_layouts_tests PRIVATE include ../pbm/include)
     target_compile_options(np_socket_layouts_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # REQ-AUDIO-29: the isochronic synthesis, a carrier gated at a pulse rate. Pure C, no HAL.
+    add_executable(np_audio_synth_tests
+        tests/np_audio_synth_tests.c
+        src/np_audio_synth.c
+    )
+    target_include_directories(np_audio_synth_tests PRIVATE include)
+    target_compile_options(np_audio_synth_tests PRIVATE -Wall -Wextra -std=c11)
+    target_link_libraries(np_audio_synth_tests PRIVATE m)
+
     # SWR-SS-05: the paused session clock and the slot tracker. Pure C.
     add_executable(np_session_pause_tests
         tests/np_session_pause_tests.c
