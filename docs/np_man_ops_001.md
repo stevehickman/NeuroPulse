@@ -166,7 +166,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://<analytics host>/np/erase     
 
 Then `SELECT count()` for the probe as in step 4: **0**.
 
-**Pass:** 200, 400 and 405 as shown, and the probe is gone. These are the answers `AnalyticsErasureQueue` depends on (`REQ-SW03-19` (b)): a proxy that answers `404` for the route, or `401` in front of it, is a misdeployment and loses nothing, but the relay then does nothing, so the step fails. **Also check, once:** that neither Caddy's access log nor the relay's output contains the probe ID or a client address (`docker compose logs caddy erase-relay | grep "$PROBE"` must print nothing).
+**Pass:** 200, 400 and 405 as shown, and the probe is gone. These are the answers `AnalyticsErasureQueue` depends on (`REQ-SW03-19` (b)): a proxy that answers `404` for the route, or `401` in front of it, is a misdeployment and loses nothing, but the relay then does nothing, so the step fails. **Also check, once:** that neither Caddy's access log nor the relay's output contains the probe ID or a client address (`docker compose logs caddy erase-relay clickhouse | grep "$PROBE"` must print nothing; ClickHouse logs at `warning`, so a successful erase writes nothing, §5 "Container logs").
 
 ### Step 7 · What the mutation leaves behind
 
@@ -184,7 +184,7 @@ A PostHog upgrade can recreate the events table, which drops its TTL, or rename 
 
 ## 5. Maintain PostHog
 
-None of these has a calendar interval: each is tied to an event or to something you can measure. A step that would need a fixed interval to mean anything has none until someone derives one (`CLAUDE.md` §19).
+None of these has a calendar interval: each is tied to an event or to something you can measure. A step that would need a fixed interval to mean anything has none until someone derives one (`CLAUDE.md` §19). The one bound here is the container recreation's: its ceiling, 30 days, comes from `NP-APP-TELEMETRY-001` §5, and it is triggered by a container's measured age.
 
 | When | Do |
 |------|----|
@@ -194,9 +194,28 @@ None of these has a calendar interval: each is tied to an event or to something 
 | **When the project or the stack is recreated** | All of §3, then all of §4. A recreated project starts with PostHog's defaults. |
 | **When a disk alarm or `df` shows the volumes filling** | `NP-ANALYTICS-001` §7.5 has the expected usage. At 30-day retention the event storage is about a third of the 90-day figure. Check that step 4's TTL is still present before adding disk. |
 | **When a right-to-erasure request reaches you** | A person's own withdrawal needs nothing from you: the app sends the ID to the relay. For a request made another way, `NP-ANALYTICS-001` §7.2. |
+| **Before any analytics container is 7 days old** | Recreate them all, as "Container logs" below says. This is the only thing that bounds how long a log line is kept. |
+| **The first time you deploy a revision without the `clickhouse_log` volume** | Remove the old volume, as "Container logs" below says. Compose does not remove it for you. |
 | **When a key is suspected exposed** | Rotate `SECRET_KEY`, `POSTGRES_PASSWORD`, `CLICKHOUSE_PASSWORD` or `ERASE_CLICKHOUSE_PASSWORD` in `.env`, then `docker compose up -d`. A rotated ClickHouse password also needs `CLICKHOUSE_PASSWORD` re-exported for the scripts. The relay's `np_erase` password is the only one the internet-facing relay holds. |
 
 **Backups** (`NP-ANALYTICS-001` §7.4): both volumes, PostgreSQL by `pg_dump` and ClickHouse by `BACKUP DATABASE`. **A backup keeps what retention and the relay delete.** A restored backup brings back events older than the TTL and IDs a person had erased, so: restore only into a stack that will then run step 4's `--apply`, and keep backups no longer than the retention. Store them apart from any UHDR backup, with their own access control.
+
+**Container logs: the age bound is yours to keep** (`OI-PRIV-46`, `NP-ANALYTICS-001` §7.6). Every container's output is capped by size in the compose file (three files of 10 MB, `UC-211`), but Docker's log drivers have no age option and nothing in a compose file can give them one. A quiet service could keep a line for months. What a line can hold: the erasure relay logs no ID and Caddy logs no address, but ClickHouse logs a query that **fails** with its text and parameters, so a failing erase writes the IDs it carries, and what PostHog's own services write is not characterised. `NP-APP-TELEMETRY-001` §5 promises a withdrawn person's ID is gone within 30 days, so:
+
+- **No log line may be kept longer than 30 days.** A container's log is deleted when the container is removed, and only then: a restart, a crash or `docker compose restart` keeps it. So **recreate every container at most 7 days after it was created** (`UC-213`: 30 days is the ceiling, 7 is a choice inside it, so a line naming an ID that is written in the first 23 days after a withdrawal is still gone by day 30).
+  ```bash
+  docker compose --profile https up -d --force-recreate     # drop --profile https if you do not run it
+  ```
+  It takes the stack down for a minute or two. The erasure relay's queue is on a volume and survives; events sent while the stack is down are lost.
+- **Check it by measurement, not by the calendar:** every container's creation time must be under 7 days old.
+  ```bash
+  docker ps --filter label=com.docker.compose.project=neurone-analytics --format '{{.Names}}\t{{.CreatedAt}}'
+  ```
+  Automate the recreation with a timer on the host (a systemd timer or a cron entry) if you like, but the check is what shows it happened. Write each recreation in the change log.
+- **Another mechanism is acceptable only if it is shown to bound age at 30 days or less** (for example a log driver whose host deletes by age), and it is recorded in the change log with that evidence. A size cap alone does not count.
+- **After deploying a revision without the `clickhouse_log` volume, delete the old one.** Earlier revisions let ClickHouse write its server log at `trace` to that volume, which outlives every container. That log can hold query text with IDs in it. Run `docker volume rm neurone-analytics_clickhouse_log` once the new stack is up, and record it. Recreating the containers does not remove it.
+
+**This is a requirement on the host, and nothing in the repository enforces it.** `ci/test_posthog_infra.py` checks the size caps (P10) and that ClickHouse writes no log file (P11). It cannot see whether anyone recreates the containers.
 
 **What does not need doing:** the relay holds no state to maintain (its counters are in memory), Kafka's 24-hour log retention is set in the compose file, and ClickHouse's system-log TTLs are in `clickhouse/np-privacy.xml`.
 
@@ -229,6 +248,7 @@ Copy this table into the deployment's change log for each run of §4. **A blank 
 | 7 what the mutation leaves behind | | | | |
 | 8 repeated after an upgrade | | | | |
 | Person retention set by hand (§3 step 7) | | | | |
+| Containers recreated within 7 days, old `clickhouse_log` volume removed (§5) | | | | |
 
 **When steps 1 to 6 have passed on a real stack,** the person who ran them closes the loop in the repository, in one change: `OI-ANALYTICS-01` (2) and `OI-ANALYTICS-02` in `docs/status/pending-decisions.md` (say which version it was true for), the "not verified" and "NOT YET EXERCISED" notes in `NP-ANALYTICS-001` §3.4 and §7.6, and in the docstrings of `erase_relay.py`, `apply_event_retention.py` and `apply_project_settings.py`, and the step-7 answer in `NP-ANALYTICS-001` §7.6. Only then may an ID be called erased and retention called a control. **A step that fails is not closed by this manual:** it becomes an open item against the document that owns the assumption.
 

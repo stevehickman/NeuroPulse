@@ -140,6 +140,10 @@ services:
   # are written here. np-privacy.xml applies short TTLs to ClickHouse system
   # logs and disables verbose query logging.
   #
+  # Its server log goes to the console at `warning`, so Docker's bounded driver above keeps it, and no log file is
+  # written (np-privacy.xml <logger>, OI-PRIV-46 (2)). There is deliberately no volume at /var/log/clickhouse-server:
+  # one would outlive the container and keep whatever a later config wrote there. P11 checks both.
+  #
   # Data retention for PostHog event tables is NOT set by this file. EVENT_RETENTION_DAYS (.env, default 30, from
   # NP-APP-TELEMETRY-001 §5: a withdrawn person's ID is deleted within 30 days) is applied as a ClickHouse TTL by
   # apply_event_retention.py, and checked with --check. Read the warning in .env.example before raising it. See §3.4 and §7.1.
@@ -158,7 +162,6 @@ services:
       ERASE_CLICKHOUSE_PASSWORD: ${ERASE_CLICKHOUSE_PASSWORD:-}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_log:/var/log/clickhouse-server
       - ./clickhouse/np-privacy.xml:/etc/clickhouse-server/config.d/np-privacy.xml:ro
       - ./clickhouse/np-erase-user.xml:/etc/clickhouse-server/users.d/np-erase-user.xml:ro
     ulimits:
@@ -348,8 +351,6 @@ volumes:
   zookeeper_log:
     driver: local
   clickhouse_data:
-    driver: local
-  clickhouse_log:
     driver: local
   kafka_data:
     driver: local

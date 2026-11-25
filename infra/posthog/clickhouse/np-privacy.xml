@@ -15,6 +15,37 @@
 <clickhouse>
 
   <!--
+    Server log (OI-PRIV-46 (2)). The stock config.xml logs at `trace` to two files under /var/log/clickhouse-server
+    (`log` and `errorlog`), rotated by size only (1000M, 10 archives each). Nothing about that bounds age. At `debug` and
+    above, executeQuery writes each query's text, and ClickHouse substitutes query parameters into that text first, so
+    the erasure relay's `... WHERE distinct_id IN {ids:Array(String)}` is logged with the IDs in it.
+
+    This block:
+      - removes both file channels, so nothing is written to a file at all, on a volume or in the container;
+      - sends the log to the console instead, where Docker's bounded `local` driver keeps it (the `x-logging` block of
+        docker-compose.yml, P10) and deletes it with the container;
+      - logs `warning` and above only, which drops executeQuery's per-query `debug` line.
+
+    `warning` is not free of IDs. A query that fails is logged at `error` with "(in query: ...)", parameters substituted,
+    so a failed erase batch writes its IDs to this log. That residue, and how long the container log keeps it, are in
+    NP-ANALYTICS-001 §7.6.
+
+    Keys and behaviour: the `<logger>` section of ClickHouse's server settings, checked against src/Loggers/Loggers.cpp
+    and programs/server/config.xml at v23.12.6.19-stable (the image docker-compose.yml pins) and at master on 2026-11-25.
+    Both read the same keys: `level` (default `trace`), `log` and `errorlog` (a file channel only when non-empty),
+    `console` (with no key, the console is used only on a tty, and a container has none), `console_log_level` (defaults
+    to `level`), `use_syslog`, `levels`. None of this depends on a version between those two. Still, the stack's
+    ClickHouse version is to be set by OI-ANALYTICS-03, so re-check this block when that rebuild is done.
+    ci/test_posthog_infra.py P11 holds this block.
+  -->
+  <logger>
+    <level>warning</level>
+    <log remove="1"/>
+    <errorlog remove="1"/>
+    <console>1</console>
+  </logger>
+
+  <!--
     Query log: ClickHouse logs every SQL statement by default.
     PostHog queries may embed event property values in WHERE clauses,
     meaning raw query text could contain analytics data.

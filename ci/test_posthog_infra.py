@@ -23,6 +23,14 @@ renders the stack with `docker compose config` and reads the Caddyfile and .env.
       `json-file` with `max-size` and `max-file` no larger than the ceilings below, or `none`. Docker's default keeps a
       container's output with no limit, and a driver that ships logs off the host (syslog, fluentd, a cloud service)
       moves them where no bound here reaches. A size bound is not an age bound: Docker's drivers have no age option.
+  P11 ClickHouse's server log is not kept apart from that bound (OI-PRIV-46 (2)). np-privacy.xml has one `<logger>`;
+      its `level`, and any `console_log_level`, `errorlog_level`, `syslog_level` or per-logger `levels` override, is
+      `warning` or quieter (at `debug` ClickHouse logs every query's text with its parameters substituted, the erase
+      relay's IDs included); both file channels, `log` and `errorlog`, carry `remove="1"` (the stock config writes
+      both to /var/log/clickhouse-server at `trace`, rotated by size only); and `use_syslog` is not on. In the rendered
+      compose file, np-privacy.xml is mounted into config.d (unmounted, none of it applies) and nothing is mounted at
+      /var/log/clickhouse-server (a volume there outlives the container). With the file channels gone the log goes to
+      the console, where P10's bound holds it, or nowhere, if `console` is off; either passes.
 
 `--self-test` proves each check goes red on a copy broken in exactly that way. Without Docker the compose checks are reported as
 SKIPPED, and without a Docker daemon P9 is, and the run still fails if --require-docker is given (CI gives it), so a missing
@@ -32,9 +40,9 @@ Run: python3 ci/test_posthog_infra.py [--self-test] [--require-docker]
 
 CI-Kind: gate
 CI-Self-Test: python3 ci/test_posthog_infra.py --self-test --require-docker
-CI-Scans: the rendered PostHog compose file, its Caddyfile and .env.example, for the privacy configuration P1-P10
-CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example
-CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile and .env.example and breaks the copy in one way, so the real files are the base the mutants are made from
+CI-Scans: the rendered PostHog compose file, its Caddyfile, .env.example and ClickHouse's np-privacy.xml, for the privacy configuration P1-P11
+CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example infra/posthog/clickhouse/np-privacy.xml
+CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile, .env.example and np-privacy.xml and breaks the copy in one way, so the real files are the base the mutants are made from
 """
 import copy
 import json
@@ -44,6 +52,7 @@ import re
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 INFRA = ROOT / "infra" / "posthog"
@@ -56,6 +65,13 @@ PROXY = "caddy"
 LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 LOG_MAX_FILES = 3
 LOG_DRIVERS_BOUNDED = ("local", "json-file")
+# P11. Poco's level names that are `warning` or quieter, in the order ClickHouse's config.xml lists them (none, fatal,
+# critical, error, warning, then notice, information, debug, trace, test). `warning` is the most verbose level that
+# drops executeQuery's per-query `debug` line (src/Interpreters/executeQuery.cpp), so it is derived, not chosen.
+CLICKHOUSE_LOG_LEVELS_ADMITTED = ("none", "fatal", "critical", "error", "warning")
+CLICKHOUSE_CONFIG = INFRA / "clickhouse" / "np-privacy.xml"
+CLICKHOUSE_CONFIG_TARGET = "/etc/clickhouse-server/config.d/np-privacy.xml"
+CLICKHOUSE_LOG_DIR = "/var/log/clickhouse-server"
 # The request headers a proxy can carry the client's address in. Caddy forwards every header it does not set itself, so each is
 # removed by name before the upstream; the logs delete the whole header map instead (OI-PRIV-51; the same list as
 # ci/test_fleet_ingest_config.py).
@@ -139,6 +155,69 @@ def logging_problems(c):
             out.append(f"P10 {name}: no usable max-file ({opts.get('max-file')!r})")
         elif int(files) > LOG_MAX_FILES:
             out.append(f"P10 {name}: max-file {files} is over the ceiling of {LOG_MAX_FILES} (UC-211)")
+    return out
+
+
+def _on(value):
+    return (value or "").strip().lower() in ("1", "true", "yes")
+
+
+def clickhouse_logger_problems(text):
+    """P11 on np-privacy.xml: ClickHouse's server log is quiet and writes no file."""
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as e:
+        return [f"P11 np-privacy.xml does not parse: {e}"]
+    loggers = root.findall("logger")
+    if not loggers:
+        return ["P11 np-privacy.xml has no <logger>, so the stock config's trace-level log files stay"]
+    if len(loggers) > 1:
+        return [f"P11 np-privacy.xml has {len(loggers)} <logger> blocks; this check reads exactly one"]
+    lg, out = loggers[0], []
+    if _on(lg.get("remove")):
+        return ["P11 <logger remove> leaves ClickHouse's built-in default level, trace"]
+    level = lg.findtext("level")
+    if level is None or not level.strip():
+        out.append("P11 <logger> sets no <level>; ClickHouse's default is trace")
+    elif level.strip().lower() not in CLICKHOUSE_LOG_LEVELS_ADMITTED:
+        out.append(f"P11 <logger> level '{level.strip()}' is more verbose than warning")
+    for key in ("console_log_level", "errorlog_level", "syslog_level"):
+        v = lg.findtext(key)
+        if v is not None and v.strip().lower() not in CLICKHOUSE_LOG_LEVELS_ADMITTED:
+            out.append(f"P11 <logger> {key} '{v.strip()}' is more verbose than warning")
+    for channel in ("log", "errorlog"):
+        e = lg.find(channel)
+        if e is None:
+            out.append(f"P11 <logger> does not remove <{channel}>: the stock config's file under {CLICKHOUSE_LOG_DIR} stays, rotated by size only")
+        elif not _on(e.get("remove")):
+            out.append(f"P11 <logger> writes <{channel}> to a file ({(e.text or '').strip() or 'empty'}); np-privacy.xml keeps no ClickHouse log file")
+    if _on(lg.findtext("use_syslog")):
+        out.append("P11 <logger> use_syslog ships the server log off the host, where no bound here reaches")
+    levels = lg.find("levels")
+    for child in (list(levels) if levels is not None else []):
+        if child.tag == "logger":
+            name, lv = child.findtext("name") or "?", child.findtext("level")
+        else:  # legacy form <Name>level</Name>; an empty one means trace (Loggers.cpp)
+            name, lv = child.tag, child.text
+        lv = (lv or "trace").strip().lower()
+        if lv not in CLICKHOUSE_LOG_LEVELS_ADMITTED:
+            out.append(f"P11 <logger> levels: '{name}' is set to {lv}, more verbose than warning")
+    return out
+
+
+def clickhouse_mount_problems(c):
+    """P11 on the rendered compose file: np-privacy.xml is loaded, and no volume keeps a ClickHouse log directory."""
+    ch = c["services"].get("clickhouse")
+    if ch is None:
+        return ["P11 the compose file has no clickhouse service"]
+    out, vols = [], ch.get("volumes") or []
+    cfg = [v for v in vols if v.get("target") == CLICKHOUSE_CONFIG_TARGET]
+    if not cfg or not str(cfg[0].get("source", "")).replace("\\", "/").endswith("clickhouse/np-privacy.xml"):
+        out.append(f"P11 clickhouse: np-privacy.xml is not mounted at {CLICKHOUSE_CONFIG_TARGET}, so none of it (the <logger> included) applies")
+    for v in vols:
+        target = str(v.get("target", "")).rstrip("/")
+        if target == CLICKHOUSE_LOG_DIR or target.startswith(CLICKHOUSE_LOG_DIR + "/"):
+            out.append(f"P11 clickhouse: mounts {v.get('source') or v.get('type')} at {target}; a volume there outlives the container")
     return out
 
 
@@ -232,12 +311,16 @@ def read():
     return (INFRA / "caddy" / "Caddyfile").read_text(), (INFRA / ".env.example").read_text()
 
 
+def read_clickhouse():
+    return CLICKHOUSE_CONFIG.read_text()
+
+
 def check(require_docker):
     problems = []
     caddy, env = read()
-    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env)
+    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env) + clickhouse_logger_problems(read_clickhouse())
     if shutil.which("docker") is None:
-        msg = "compose checks P1-P5 and the Caddy check P9 SKIPPED: docker is not installed"
+        msg = "compose checks P1-P5, P10, P11's mounts and the Caddy check P9 SKIPPED: docker is not installed"
         if require_docker:
             problems.append(msg + " (and --require-docker was given)")
         else:
@@ -247,7 +330,7 @@ def check(require_docker):
         if code != 0:
             problems.append(f"P1 the compose file does not render: {err.strip().splitlines()[-1] if err.strip() else code}")
         else:
-            problems += compose_problems(cfg) + logging_problems(cfg)
+            problems += compose_problems(cfg) + logging_problems(cfg) + clickhouse_mount_problems(cfg)
         if docker_daemon():
             problems += caddy_adapt_problems(caddy)
         elif require_docker:
@@ -291,6 +374,39 @@ def self_test(require_docker):
         if got:
             failures.append(f"self-test: {label} should be clean but raised {got}")
 
+    # P11 on np-privacy.xml: one mutant per way the server log can escape.
+    ch = read_clickhouse()
+    def ch_expect(label, broken):
+        if broken == ch:
+            failures.append(f"self-test: the mutant '{label}' did not change np-privacy.xml (the real file moved; rewrite the mutant)")
+        expect(label, clickhouse_logger_problems(broken), "P11")
+    # Anchored on the element's own line: the file's comments mention `<logger>` too.
+    element = re.compile(r"^(\s*)(<logger>\n.*?^\s*</logger>)", re.M | re.S)
+    ch_expect("no <logger>", element.sub("", ch, count=1))
+    ch_expect("the <logger> only in a comment", element.sub(r"\1<!-- \2 -->", ch, count=1))
+    ch_expect("two <logger> blocks", ch.replace("</clickhouse>", "<logger><level>warning</level></logger>\n</clickhouse>"))
+    ch_expect("<logger remove>", re.sub(r"^(\s*)<logger>$", r'\1<logger remove="1">', ch, count=1, flags=re.M))
+    ch_expect("level trace", ch.replace("<level>warning</level>", "<level>trace</level>", 1))
+    ch_expect("level information", ch.replace("<level>warning</level>", "<level>information</level>", 1))
+    ch_expect("level notice", ch.replace("<level>warning</level>", "<level>notice</level>", 1))
+    ch_expect("no level", ch.replace("<level>warning</level>", "", 1))
+    ch_expect("a debug console", ch.replace("<console>1</console>", "<console>1</console><console_log_level>debug</console_log_level>", 1))
+    ch_expect("a notice error log level", ch.replace("<console>1</console>", "<console>1</console><errorlog_level>notice</errorlog_level>", 1))
+    ch_expect("the file log kept", ch.replace('<log remove="1"/>', "<log>/var/log/clickhouse-server/clickhouse-server.log</log>", 1))
+    ch_expect("the error log not removed", ch.replace('<errorlog remove="1"/>', "", 1))
+    ch_expect("the file log not removed", ch.replace('<log remove="1"/>', "", 1))
+    ch_expect("syslog on", ch.replace("<console>1</console>", "<console>1</console><use_syslog>1</use_syslog>", 1))
+    ch_expect("executeQuery at debug", ch.replace("<console>1</console>", "<console>1</console><levels><logger><name>executeQuery</name><level>debug</level></logger></levels>", 1))
+    ch_expect("a legacy override at trace", ch.replace("<console>1</console>", "<console>1</console><levels><executeQuery>trace</executeQuery></levels>", 1))
+    ch_expect("a legacy override left empty", ch.replace("<console>1</console>", "<console>1</console><levels><executeQuery/></levels>", 1))
+    ch_expect("XML that does not parse", ch.replace("</logger>", "", 1))
+    for label, good in (("the real np-privacy.xml", ch), ("level error", ch.replace("<level>warning</level>", "<level>error</level>", 1)),
+                        ("level none", ch.replace("<level>warning</level>", "<level>none</level>", 1)),
+                        ("no console", ch.replace("<console>1</console>", "<console>0</console>", 1)),
+                        ("an override that silences", ch.replace("<console>1</console>", "<console>1</console><levels><logger><name>ConfigReloader</name><level>none</level></logger></levels>", 1))):
+        if clickhouse_logger_problems(good):
+            failures.append(f"self-test: P11 should pass {label} but raised {clickhouse_logger_problems(good)}")
+
     if shutil.which("docker") is None:
         if require_docker:
             failures.append("self-test: docker is not installed (and --require-docker was given)")
@@ -311,8 +427,8 @@ def self_test(require_docker):
         if code != 0:
             failures.append(f"self-test: the real compose file does not render: {err.strip()}")
         else:
-            if compose_problems(cfg) + logging_problems(cfg):
-                failures.append(f"self-test: the real compose file should be clean but raised {compose_problems(cfg) + logging_problems(cfg)}")
+            if compose_problems(cfg) + logging_problems(cfg) + clickhouse_mount_problems(cfg):
+                failures.append(f"self-test: the real compose file should be clean but raised {compose_problems(cfg) + logging_problems(cfg) + clickhouse_mount_problems(cfg)}")
             def mutate(label, tag, fn):
                 c = copy.deepcopy(cfg)
                 fn(c)
@@ -339,6 +455,18 @@ def self_test(require_docker):
             mutate_log("Kafka has no max-file", lambda c: c["services"]["kafka"]["logging"]["options"].pop("max-file"))
             if logging_problems({"services": {"x": {"logging": {"driver": "none"}}}}):
                 failures.append("self-test: P10 refused the `none` driver, which keeps nothing")
+
+            def mutate_mount(label, fn):
+                c = copy.deepcopy(cfg)
+                fn(c)
+                expect(label, clickhouse_mount_problems(c), "P11")
+            vols = lambda c: c["services"]["clickhouse"]["volumes"]
+            mutate_mount("np-privacy.xml not mounted", lambda c: c["services"]["clickhouse"].update(
+                volumes=[v for v in vols(c) if v.get("target") != CLICKHOUSE_CONFIG_TARGET]))
+            mutate_mount("another file mounted as np-privacy.xml", lambda c: [v.update(source="/elsewhere/other.xml") for v in vols(c) if v.get("target") == CLICKHOUSE_CONFIG_TARGET])
+            mutate_mount("a log volume back", lambda c: vols(c).append({"type": "volume", "source": "clickhouse_log", "target": CLICKHOUSE_LOG_DIR}))
+            mutate_mount("a bind mount under the log directory", lambda c: vols(c).append({"type": "bind", "source": "/srv/chlog", "target": CLICKHOUSE_LOG_DIR + "/err/"}))
+            mutate_mount("no clickhouse service", lambda c: c["services"].pop("clickhouse"))
     return failures
 
 
@@ -353,8 +481,8 @@ def main(argv):
     problems = check(require_docker)
     for p in problems:
         print("FAIL " + p, file=sys.stderr)
-    print("scanned: 3 files (docker-compose.yml, Caddyfile, .env.example)")
-    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P10 hold"))
+    print("scanned: 4 files (docker-compose.yml, Caddyfile, .env.example, clickhouse/np-privacy.xml)")
+    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P11 hold"))
     return 1 if problems else 0
 
 
