@@ -145,17 +145,12 @@ interface PlatformServices {
     val appInForeground: StateFlow<Boolean> get() = ALWAYS_FOREGROUND
 
     /**
-     * Whether the person is told when the app holds this host's data unsealed (no usable keystore). True for a host that keeps
-     * the data on disk and can lose its keystore between runs (the desktop apps); the browser keeps nothing of the protected
-     * keys at rest, so a notice that the data is not sealed would say nothing true about it. A host whose keystore is always
-     * there (a phone) never reaches the notice either way.
-     */
-    val reportsUnsealedStorage: Boolean get() = false
-
-    /**
      * Whether this host keeps the app's state in memory only, so that it is gone when the page or the app ends (the browser:
      * it has no keystore to seal state in and its storage is readable by any script, REQ-SW03-18 (b)). The person is told once, above
      * every screen, so that the onboarding screens coming back and the settings that did not stay are not a surprise.
+     *
+     * Every other host keeps state on disk, and is told when a run holds it unsealed (`SWR-MG-13` (c)): a phone too, whose Keystore or
+     * Keychain can fail at first launch (`OI-PRIV-61`). There is no way for such a host to stay silent about it.
      */
     val holdsStateInMemoryOnly: Boolean get() = false
 

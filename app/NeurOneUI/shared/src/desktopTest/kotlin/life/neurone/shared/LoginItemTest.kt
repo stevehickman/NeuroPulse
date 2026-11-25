@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.common.InMemorySecretKeyStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.SystemRandomSource
@@ -33,9 +34,13 @@ class LoginItemTest {
         override fun set(on: Boolean): Boolean { calls += on; this.on = on; return true }
     }
 
+    /** A host that seals, as the desktop apps do: the automatic backup keeps its secret only where it is sealed (`SWR-MG-13` (e)). */
+    private val keystore = InMemorySecretKeyStore()
+
     private fun services(item: Item, kv: InMemoryKeyValueStore = InMemoryKeyValueStore()) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
+            override val secretKeyStore = keystore
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()

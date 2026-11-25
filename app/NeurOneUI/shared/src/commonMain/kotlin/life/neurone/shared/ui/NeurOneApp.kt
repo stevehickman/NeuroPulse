@@ -115,15 +115,15 @@ const val SIMULATED_HUB_NOTICE_TAG = "simulated_hub_notice"
 /**
  * Says so when the protected data is not sealed on this run (desktop audit item 1, SWR-MG-13). Locked: the saved data cannot be
  * opened and is untouched, and what is done now is not saved. Unsealed: the host has no usable credential store, so the data is
- * on disk as plain text. Shown above every screen, and nothing when the data is sealed.
+ * on disk as plain text; said on every host that keeps state on disk, phones included (`SWR-MG-13` (c), `OI-PRIV-61`), and a host
+ * that keeps it in memory only says that instead. Shown above every screen, and nothing when the data is sealed.
  */
 @Composable
 private fun StorageNotice(services: AppServices) {
     val text = when {
         services.platform.holdsStateInMemoryOnly -> Res.string.storage_memory_only_notice
         services.storageProtection == StorageProtection.LOCKED -> Res.string.storage_locked_notice
-        services.storageProtection == StorageProtection.UNSEALED && services.platform.reportsUnsealedStorage ->
-            Res.string.storage_unsealed_notice
+        services.storageProtection == StorageProtection.UNSEALED -> Res.string.storage_unsealed_notice
         else -> return
     }
     Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) {
