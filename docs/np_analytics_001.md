@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 9
-**Date:** 2026-11-21  
+**Revision:** 10
+**Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -627,3 +627,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 7 | 2026-11-19 | NeurOne Software Engineering | **§3.4: the proxy's access log and default logger delete the client's address, port and forwarding headers, checked by `ci/test_posthog_infra.py` P8 and P9; the relay of `NP-APP-TELEMETRY-001` §4.1 is decided and not built.** |
 | 8 | 2026-11-20 | NeurOne Software Engineering | **§3.4 and §7.1: the principal set event retention to 30 days on 2026-11-20 (`NP-APP-TELEMETRY-001` §5 promises deletion of a withdrawn person's ID within 30 days). It is `EVENT_RETENTION_DAYS`, applied as a ClickHouse TTL by `apply_event_retention.py` and checked with `--check`; the policy is cited beside the value, and a value above 30 is flagged as breaking it. Not run against a real stack.** |
 | 9 | 2026-11-21 | NeurOne Software Engineering | **The network-address paragraph: the analytics proxy removes nine client-address headers before PostHog and the erasure relay, and its logs keep no request header (`OI-PRIV-51`).** |
+| 10 | 2026-11-25 | NeurOne Software Engineering | **New §7.7: the analytics access policy decided on OI-PRIV-47, with its alerts. Analytics Lead accounts approved by the CEO; separate ClickHouse users; every read recorded (PostHog through a sign-in proxy); a minimised log in write-once storage owned by the Privacy Lead, kept 12 months (CNIL 2021-122, UK NCSC); quarterly review; review records kept apart for at most 3 years. §7.6: the erasure relay's 202 for queued, decided on OI-PRIV-48 and built in both halves; the relay answers from its queue and the store and deletes in batches.** |

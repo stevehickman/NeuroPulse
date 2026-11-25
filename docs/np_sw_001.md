@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 216
+**Revision:** 217
 **Date:** 2026-11-25  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -918,3 +918,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 214 | 2026-11-23 | NeurOne Software Engineering | **§6.3.9 added (`OI-PRIV-37`, the principal's ruling of 2026-11-23): `SWR-IND-01` (the wearer's stealth choice, kept with the profile and sent at every link once encrypted) and `SWR-IND-02` (the warranty owner's per-helmet lock, kept in the owner's store), both built in the Compose app. §5.3.1: `REQ-SW03-32` gains (d), the profile's stealth flag.** |
 | 215 | 2026-11-24 | NeurOne Software Engineering | **§6.3: the Windows C# project is deleted (`OI-UI-KMP-05`, 2026-11-24). Rows that named a Windows library, compiler, wrapper or driver now say it is deleted and what covers the row; no requirement is retired, because every `@verifies` tag in the Windows tests is also carried by a test elsewhere, and the history rows are unchanged. The `SWR-MG-32` row records that both senders of hex keys (the Swift app and the Windows project) are deleted, so the blocker it named is gone; turning the `refuse-hex-keys` feature on remains a separate step.** |
 | 216 | 2026-11-25 | NeurOne Software Engineering | **§6.3.4 `SWR-WO-07` (g): an app never names a limits set after the helmet or the person, and a downloaded limits file is named for its level (NP-PRIV-ANALYSIS-006 F-07); §5.3.1 `REQ-SW03-31` (d): firmware commands, calibration commands and the recording request wait for the encrypted serial read (F-11).** |
+| 217 | 2026-11-25 | NeurOne Software Engineering | **REQ-SW03-19 (b), (d), (e): the app drops a queued analytics ID only on the erasure relay's 200; a 202 (queued at the relay, OI-PRIV-48) keeps it and the drain goes on, and counts as accepted in a device erase or clear. REQ-SW03-22 (a) to (f): the erasure relay validates before the rate limit, answers 200 only when the store holds nothing under the ID, queues a held ID on disk before answering 202, and deletes the queue in batches.** |
