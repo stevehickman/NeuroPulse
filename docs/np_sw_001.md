@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 213
-**Date:** 2026-11-24  
+**Revision:** 214
+**Date:** 2026-11-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -915,3 +915,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 211 | 2026-11-24 | NeurOne Software Engineering | **§6.3 `SWR-SS-05`: a pause, like a resume, is refused on a link that is not encrypted. `SWR-SS-09`: a hold the helmet's detector made is ended only by Stop; the app offers no Resume for it (the principal, 2026-11-23, `OI-PRIV-24` Q1, Q2).** |
 | 212 | 2026-11-24 | NeurOne Firmware Engineering | **§5.2.2: REQ-SW02-16 added, the RPMB floor store (authenticated read with a nonce, raise-only authenticated write checked by counter and read-back; a blank, wrong-key, replayed or erroring RPMB refuses every image). REQ-SW02-15: the store is built and its key, MAC and entropy seams are not, so the device build still refuses every image (OI-PRIV-32 (NP-PRIV-ANALYSIS-004)).** |
 | 213 | 2026-11-24 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose modality editor's number fields refuse an edit that could not be the start of a number, mark a blank or lone-point field as unread, and disable Save while any field is unread.** |
+| 214 | 2026-11-23 | NeurOne Software Engineering | **§6.3.9 added (`OI-PRIV-37`, the principal's ruling of 2026-11-23): `SWR-IND-01` (the wearer's stealth choice, kept with the profile and sent at every link once encrypted) and `SWR-IND-02` (the warranty owner's per-helmet lock, kept in the owner's store), both built in the Compose app. §5.3.1: `REQ-SW03-32` gains (d), the profile's stealth flag.** |
