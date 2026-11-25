@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +72,7 @@ class WarrantyOwnerScreenTest {
         waitForIdle()
 
         val switch = onNodeWithContentDescription("${text(Res.string.warranty_owner_offered_switch)}: ${gamma.name}")
+        switch.performScrollTo() // the families are listed by name, so this one may be below the window
         switch.assertIsOn()
         switch.performClick()
         waitForIdle()
