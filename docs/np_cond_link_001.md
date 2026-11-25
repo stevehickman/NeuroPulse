@@ -1,8 +1,8 @@
 # NP-COND-LINK-001 — Condition external-link UI
 
 **Document:** NP-COND-LINK-001
-**Revision:** 1
-**Date:** 2026-07-18
+**Revision:** 2
+**Date:** 2026-11-22
 **Status:** ACTIVE
 **Applies to:** iOS, macOS, Android, Windows, Web
 **Related:** NP-NPPS-REF-001 (grammar), `protocols/predefined/00-conditions.npps` (registry)
@@ -140,3 +140,11 @@ Per-platform code is limited to the view and the one-line OS open call:
 
 `noopener,noreferrer` on web is required: it drops the `Referer` header, so the
 destination does not learn which page the user came from.
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 2 | 2026-11-22 | NeurOne Software Engineering | **§3 rule 8: a numeric host must be a canonical dotted quad; CGNAT (100.64/10), multicast and reserved IPv4 are refused; an IPv6 literal must parse, carry no zone identifier, and any IPv4 address it embeds passes the rule; one trailing dot is ignored (`OI-PRIV-66` (1), NP-PRIV-ANALYSIS-007 L14).** |

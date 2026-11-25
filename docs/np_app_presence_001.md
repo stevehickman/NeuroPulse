@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-PRESENCE-001
-**Revision:** 16
+**Revision:** 17
 **Date:** 2026-11-22
 **Status:** DRAFT — the principal's rulings (§1) are decided, and so are the device-tier list (§4), the timeout figure and the backup-first rule; only the desktop mechanism (§6) and the Swift app (§7) are open
 **Effective Date:** —
@@ -123,3 +123,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 14 | 2026-11-21 | NeurOne Software Engineering | **§3: REQ-PRES-01 (d) now also covers the consent store, the limits store, the protocol library, the research suggestion store, the wavelength rules store, the consumable tracker, the launch count, the cloud credential vault, the backup place, the replacement queue and the fault ledger (now one sealed value), and states what a change made while locked means: held as an operation and replayed on the sealed value, with grants, approvals, acceptances, descriptors and whole-state commits refused while locked (the principal, 2026-11-21; OI-PRIV-19).** |
 | 15 | 2026-11-21 | NeurOne Software Engineering | **§6: `OI-PRES-05` is closed: the Swift app was retired instead of given the gate, and `app/ios` is deleted (`OI-UI-KMP-05` PR B, 2026-11-21).** |
 | 16 | 2026-11-22 | NeurOne Software Engineering | **New `REQ-PRES-10`: the passphrase record (Argon2 parameters, salt, wrapped data key) is written only sealed under the host keystore key the device tier uses, stays readable before presence and outside the UHDR tier, and a record in the clear is refused (`OI-PRIV-65` (1)). Increment 5 notes the change.** |
+| 17 | 2026-11-22 | NeurOne Software Engineering | **§4: the core keeps only device-tier keys its allowlist `DEVICE_TIER_RULINGS` names with their ruling; `np.warranty.consent-granted` is retired from the tier in place (no host reads it since #946), so it is UHDR-tier again (`OI-PRIV-66` (3)).** |
