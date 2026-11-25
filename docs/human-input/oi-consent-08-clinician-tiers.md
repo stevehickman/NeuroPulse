@@ -4,7 +4,7 @@
 **GitHub issue:** [#727](https://github.com/stevehickman/NeuroPulse/issues/727)
 **From:** NeurOne Software (`OI-CONSENT-08` in `docs/status/pending-decisions.md`; register row `UC-069`)
 **To:** The principal, with a clinical adviser (name to be assigned; the item's owner column reads "principal, with clinical advisor input")
-**Response needed:** a ruling on each of Q1 to Q5, a sign-off of the two tables (or the changes), and the date.
+**Response needed:** a ruling on each of Q1 to Q6, a sign-off of the two tables and the use-case library (or the changes), and the date.
 **Why this is a human decision and not a code one:** a tier set decides what a clinician grant reaches, and so what a user is told a clinician can learn (`CLAUDE.md` §6.1). The tables have never been reviewed as a whole, and the prices have no derivation.
 
 ## 1. The question
@@ -96,9 +96,32 @@ price is set, and none may be set before `OI-HEXTILE-06` (`OI-COST-10`). Whether
 subscription prices, or only retail device prices, is a question for you. Options: confirm the present
 prices as they stand, change them (which depends on that answer), or leave them unreviewed and record that.
 
+**Q6. Does each use case name only the elements it needs?** (added 2026-11-25, `NP-PRIV-ANALYSIS-006` F-08)
+`CLAUDE.md` §6.1 says the system derives the *minimum* UHDR elements for the use cases a clinician chooses. The
+derivation (`ConsentEngine.minimumNecessaryElements`) is exactly the union of each use case's `requiredElements`,
+but the library (`app/NeurOneShared/Resources/clinician-use-cases.json`) gives each use case its whole tier's set, so
+a grant is no smaller than the tier. Q3 asks whether a use case fits its tier. This asks whether it is its minimum.
+Proposed sets, for you and the clinical adviser to confirm or change (the sender's reading; nothing is edited until
+you rule):
+
+| Use case | Tier | Requires today | Proposed minimum | Dropped, and why |
+|---|---|---|---|---|
+| `adherence_monitoring` | Monitor | SESSION_TIMESTAMPS, SESSION_DURATION, PROTOCOL_PARAMETERS | SESSION_TIMESTAMPS, SESSION_DURATION | PROTOCOL_PARAMETERS: whether sessions happened, and for how long, needs no stimulation settings. Keep it only if "adherence" means adherence to a prescribed protocol (a clinical question) |
+| `eeg_review` | Assess | EEG_WAVEFORMS, NEUROFEEDBACK_SCORES, PBM_DOSE_LOGS, SESSION_TIMESTAMPS, SESSION_DURATION, PROTOCOL_PARAMETERS | EEG_WAVEFORMS, SESSION_TIMESTAMPS, SESSION_DURATION | PBM_DOSE_LOGS is light dose, not brain activity. NEUROFEEDBACK_SCORES are app-computed from the EEG, and PROTOCOL_PARAMETERS are stimulation settings. Ask the adviser whether reading EEG recorded during stimulation needs the settings |
+| `hrv_outcomes` | Full Clinical | EEG_WAVEFORMS, NEUROFEEDBACK_SCORES, PBM_DOSE_LOGS, HRV_TIME_SERIES, PPG_OPTICAL_SIGNAL, CLOSED_LOOP_EVENTS, OUTCOME_LOGS, SESSION_TIMESTAMPS, SESSION_DURATION, PROTOCOL_PARAMETERS | HRV_TIME_SERIES, SESSION_TIMESTAMPS, SESSION_DURATION | Raw EEG and the raw PPG signal reveal more than HRV, which is derived from PPG. The rest belong to other questions. Whether "outcomes" needs OUTCOME_LOGS (the person's own entries) is for the adviser |
+
+Every element dropped can become a use case of its own (for example neurofeedback progress, PBM dose review,
+closed-loop review, outcome tracking, eye state), so a clinician chooses it knowingly and the person is told of it.
+- **A. Adopt the proposed sets**, and add a use case for each dropped element a clinician needs (list them).
+- **B. Adopt with changes** (list them per use case, with a sentence of reason each, `CLAUDE.md` §18).
+- **C. Keep the tier-wide sets**, recording why a use case should reach elements it does not need.
+
+Whether raw `PPG_OPTICAL_SIGNAL` should be reachable by any use case is part of the answer. Any change alters what a
+user is told a clinician can learn (§6.1), and a grant already made keeps the use-case IDs it was made from.
+
 ## 4. What we need back
 
-1. A ruling on each of Q1 to Q5.
+1. A ruling on each of Q1 to Q6.
 2. For any element that moves tier, the sensitivity rationale in a sentence (`CLAUDE.md` §18).
 3. A sign-off of the two tables as they will stand, or the list of edits.
 4. The date and who advised.
