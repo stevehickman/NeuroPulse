@@ -79,6 +79,8 @@
 #include "np_cardiac_sens.h"
 #include "np_safety_spi.h"
 #include "np_session_log.h"
+/* np_session_runner.h declares it, but brings in FreeRTOS, which this module's host test does not link. */
+extern void np_runner_note_early_stop(void);
 #include "np_cmd_limits.h"
 #include <string.h>
 
@@ -349,14 +351,14 @@ static bool cvns_impedance_diverges(const float hub_kohm[])
  * in-session impedance check, which the principal ruled UHDR on 2026-11-23
  * because it measures through the wearer.  Its code 0xC7 is retired and never
  * reused.  The fault it causes takes the same path as a safety-MCU enable
- * refusal, and cvns_fault_cb logs it the same way (the generic SAFETY_MCU
- * reason), so the SHDR record of a cross-validation fault is the record of a
- * refusal: neither the fault log nor the session summary tells them apart.
+ * refusal, and cvns_fault_cb treats it the same way: no SHDR record, one
+ * cause-free early-stop note (REQ-FWHUB-91, REQ-FWHUB-89 (c)), so SHDR cannot
+ * tell a cross-validation fault from a refusal, or from any other stop.
  */
 static void cvns_impedance_crossval_fail(void)
 {
     /* Drive the library to FAULT: stim → FAULT, interlock → FAULT (which fires
-     * cvns_fault_cb → drops the unified enable and logs the generic reason).
+     * cvns_fault_cb → drops the unified enable and notes the early stop).
      * The next np_cvns_session_tick() advances the session stage to FAULT. */
     np_cvns_stim_safety_mcu_response(&s_stim, false, NULL);
     np_cvns_interlock_spi_response(&s_interlock,
@@ -599,17 +601,19 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
     /* Fail-safe: drop the unified enable request immediately. */
     cvns_drop_enable();
 
-    /* SHDR safety-interlock log: device-condition flags only.  The 0 timestamp
-     * argument is belt-and-braces — np_log_shdr_fault() discards `session_ms`
-     * for every caller and every fault type (fault event timing is UHDR), so the
-     * suppression is UNCONDITIONAL and discloses nothing about which fault fired.
-     *
-     * Logged for every fault, an impedance cross-validation fault included: it
-     * arrives here as the safety-MCU refusal reason, exactly as a real refusal
-     * does, so the log does not single it out (OI-PRIV-40 (NP-PRIV-ANALYSIS-004),
-     * REQ-FWHUB-92 (b)).  An exception here for that event would be the
+    /* Nothing about the fault goes to SHDR.  The reason is a reading of the
+     * wearer for HR_CHANGE and IMPEDANCE (and a code that sits beside them for the
+     * rest), so it stays in the UHDR session record (fault_reason).  SHDR learns
+     * only that a channel stopped early, through the session-end record's
+     * cause-free flag, which every fault reason sets alike (REQ-FWHUB-89 (c),
+     * REQ-FWHUB-91; the principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004),
+     * 2026-11-23: a safety interlock that trips on a reading of the wearer →
+     * UHDR).  An impedance cross-validation fault arrives here as the safety-MCU
+     * refusal reason, exactly as a real refusal does, and is handled the same
+     * way: no SHDR record, one early-stop note (REQ-FWHUB-92 (b); 0xC7 retired,
+     * OI-PRIV-40 (NP-PRIV-ANALYSIS-004)).  No exception for it: that would be the
      * conditional redaction CLAUDE.md §5.1 rule 2 forbids. */
-    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
+    np_runner_note_early_stop();
 }
 
 /*

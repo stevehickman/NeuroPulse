@@ -160,11 +160,11 @@ uint8_t np_fault_latch_get_slot(void)
  *             in-session impedance bit is UHDR (the principal, 2026-11-23,
  *             OI-PRIV-40 (NP-PRIV-ANALYSIS-004)): the check measures through
  *             the wearer and cannot tell a device fault from placement.  The
- *             cardiac bit is not device-class either; the cardiac cutoff still
- *             shows as CUTOFF, and the hub's SHDR fault log records it by name
- *             (NP_CVNS_SHDR_EV_CUTOFF → fault_log.fault_type
- *             'CVNS_CARDIAC_INTERLOCK_CUTOFF': one event for every cause, which
- *             SHDR never learns, OI-PRIV-41 Q2) under the safety-interlock rule.
+ *             cardiac bit is not device-class either: a safety interlock that
+ *             trips on a reading of the wearer is UHDR (the principal,
+ *             2026-11-23, OI-PRIV-22 (NP-PRIV-ANALYSIS-004)), and the hub's
+ *             0xC1 cutoff event is retired.  A cardiac cutoff still shows as
+ *             CUTOFF, the bit every cutoff sets, which says a stop and not why.
  *
  *   count   → SHDR unconditionally: the number of transitions of the
  *             device-class bits since power-on (np_fault_latch_commit keeps it
