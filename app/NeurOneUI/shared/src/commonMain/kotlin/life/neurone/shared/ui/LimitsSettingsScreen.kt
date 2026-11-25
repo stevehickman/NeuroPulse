@@ -120,7 +120,8 @@ private fun HelmetTier(store: NPLimitsStore, hubId: String?, changed: () -> Unit
         Spacer(Modifier.height(8.dp))
         LimitsTierEditor(
             initial = store.helmetLimits[hubId],
-            name = hubId,
+            // Named for the tier, never the serial: the name travels in the share form (SWR-WO-07 (g), NP-PRIV-ANALYSIS-006 F-07).
+            name = stringResource(Res.string.web_tab_helmet),
             clearLabel = stringResource(Res.string.limits_clear_these_limits),
             exportScript = store::shareLimitsAsNPPS,
             importScript = store::importLimitsFromNPPS,
@@ -168,7 +169,8 @@ private fun IndividualTier(store: NPLimitsStore, changed: () -> Unit) {
     key(profile.id) {
         LimitsTierEditor(
             initial = store.individualLimits[profile.id],
-            name = profile.name,
+            // Named for the tier, never the person: the name travels in the share form (SWR-WO-07 (g), NP-PRIV-ANALYSIS-006 F-07).
+            name = stringResource(Res.string.web_tab_individual),
             clearLabel = stringResource(Res.string.limits_clear_these_limits),
             exportScript = store::shareLimitsAsNPPS,
             importScript = store::importLimitsFromNPPS,

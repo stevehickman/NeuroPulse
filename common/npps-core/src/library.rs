@@ -310,6 +310,10 @@ const REASON_OUTSIDE_LIMIT: u64 = 40;
 /// checks, not limits; the author can change the block's length, so each has a cause of its own.
 const REASON_CVNS_BLOCK_TOO_SHORT: u64 = 41;
 const REASON_CVNS_BLOCK_TOO_LONG: u64 = 42;
+/// `NP_HUB_ERR_SERIAL_UNKNOWN` (REQ-FWHUB-90 (b), (c), `OI-PRIV-31` (NP-PRIV-ANALYSIS-004); the principal, 2026-11-24): the helmet
+/// cannot read its own device serial, or reads it as all zero, so it cannot show a protocol was signed for it. Not `wrong_device`:
+/// the protocol is not known to be for another helmet, and sending it again from a reconnected app does not help.
+const REASON_SERIAL_UNKNOWN: u64 = 44;
 /// `NP_HUB_ERR_CMD_TOO_MANY`: more commands than the helmet can hold. The author can shorten the protocol or split it, so it has a
 /// cause of its own, `too_many_commands`, and no longer shares `malformed` with a descriptor the app built wrongly.
 const REASON_CMD_TOO_MANY: u64 = 8;
@@ -340,6 +344,7 @@ fn helmet_cause(req: &Value) -> R<Value> {
         REASON_TIER_UNVERIFIED | REASON_HW_VERSION_UNVERIFIED => "not_ready",
         6 => "signature",       // NP_HUB_ERR_BAD_SIGNATURE
         7 => "wrong_device",    // NP_HUB_ERR_WRONG_DEVICE
+        REASON_SERIAL_UNKNOWN => "serial_unknown", // NP_HUB_ERR_SERIAL_UNKNOWN: this helmet does not know which helmet it is
         5 => "format_version",  // NP_HUB_ERR_BAD_VERSION
         4 => "damaged",         // NP_HUB_ERR_BAD_MAGIC (or shorter than a header and signature)
         2 | 9 => "malformed",   // INVALID_ARG, PARAMS_TOO_LONG: a descriptor the app built wrongly

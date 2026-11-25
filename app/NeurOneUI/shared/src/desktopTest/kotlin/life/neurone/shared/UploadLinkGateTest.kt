@@ -123,6 +123,28 @@ class UploadLinkGateTest {
         assertFalse(closed.encryptedReadShown.value)
     }
 
+    // @verifies REQ-SW03-31#d
+    @Test fun firmware_calibration_and_a_recording_request_wait_for_the_read() = runTest {
+        val link = FakeLink()
+        val manager = linked(link, TestScope(testScheduler))
+        manager.onCharacteristicsDiscovered(setOf(serial))
+
+        // A peer that only advertises the service gets no firmware, no calibration command and no session ID (the session's start time).
+        assertFalse(manager.sendOtaCommand(life.neurone.core.ble.OtaOpcode.INITIATE, byteArrayOf(1, 2, 3)))
+        assertFalse(manager.sendCalibration(life.neurone.core.ble.CalibrationOpcode.IMPEDANCE_CHECK))
+        assertFalse(manager.requestEdfDownload(1_700_000_000L))
+        assertEquals(emptyList(), link.writes, "nothing reached a peer that has answered no encrypted-only read")
+
+        manager.onCharacteristicRead(serial, ByteArray(32) { 7 })
+        assertTrue(manager.sendOtaCommand(life.neurone.core.ble.OtaOpcode.INITIATE, byteArrayOf(1, 2, 3)))
+        assertTrue(manager.sendCalibration(life.neurone.core.ble.CalibrationOpcode.IMPEDANCE_CHECK))
+        assertTrue(manager.requestEdfDownload(1_700_000_000L))
+        assertEquals(
+            listOf(GattUuidStrings.OTA_COMMAND_ID, GattUuidStrings.CALIBRATION_CMD_ID, GattUuidStrings.EDF_REQUEST_ID).map(UUID::fromString),
+            link.writes,
+        )
+    }
+
     // @verifies REQ-SW03-31#b
     @Test fun a_held_upload_asks_for_the_serial_again_and_only_the_32_byte_serial_opens_the_gate() = runTest {
         val link = FakeLink()

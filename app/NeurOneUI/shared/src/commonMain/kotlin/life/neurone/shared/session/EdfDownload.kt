@@ -40,6 +40,9 @@ enum class EdfProblem {
     /** The hub is not connected, so it cannot be asked. */
     NOT_CONNECTED,
 
+    /** The link has not shown it is encrypted, so the hub was not asked: it is not paired with this device (`REQ-SW03-31` (d)). */
+    NOT_PAIRED,
+
     /** Nothing arrived in the folder in time. The person may choose the file the hub saved. */
     NO_DATA,
 
@@ -65,7 +68,8 @@ sealed interface EdfState {
 class EdfDownloadModel(
     private val folder: UhdrFolder,
     private val connected: () -> Boolean,
-    private val ask: (sessionId: Long) -> Unit,
+    /** Asks the hub; false when nothing was sent because the link has not shown it is encrypted. */
+    private val ask: (sessionId: Long) -> Boolean,
     private val wait: suspend (millis: Long) -> Unit = { delay(it) },
 ) {
     private val current = MutableStateFlow<EdfState>(EdfState.Idle)
@@ -78,7 +82,7 @@ class EdfDownloadModel(
         current.value = EdfState.Downloading
         val name = edfFileName(sessionId)
         try {
-            ask(sessionId)
+            if (!ask(sessionId)) { current.value = EdfState.Failed(EdfProblem.NOT_PAIRED); return }
             var waited = 0L
             while (waited < TIMEOUT_MILLIS) {
                 if (folder.store.get(name) != null) {

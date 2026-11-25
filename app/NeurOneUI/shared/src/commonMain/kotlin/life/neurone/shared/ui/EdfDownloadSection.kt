@@ -53,6 +53,7 @@ fun EdfDownloadSection(model: EdfDownloadModel, sessionId: Long, fileTransfer: F
                     stringResource(
                         when (s.problem) {
                             EdfProblem.NOT_CONNECTED -> Res.string.edf_not_connected
+                            EdfProblem.NOT_PAIRED -> Res.string.hub_not_paired_nothing_sent
                             EdfProblem.NO_DATA -> Res.string.edf_no_data
                             EdfProblem.NOT_EDF -> Res.string.edf_not_edf
                             EdfProblem.NOT_SAVED -> Res.string.edf_not_saved

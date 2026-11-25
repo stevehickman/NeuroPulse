@@ -439,6 +439,7 @@ class GattParserTests {
         assertEquals(HelmetRefusalCause.NOT_READY, cause(28))
         assertEquals(HelmetRefusalCause.SIGNATURE, cause(6))
         assertEquals(HelmetRefusalCause.WRONG_DEVICE, cause(7))
+        assertEquals(HelmetRefusalCause.SERIAL_UNKNOWN, cause(44))   // NP_HUB_ERR_SERIAL_UNKNOWN: this helmet does not know its serial
         assertEquals(HelmetRefusalCause.FORMAT_VERSION, cause(5))
         assertEquals(HelmetRefusalCause.DAMAGED, cause(4))
         for (reason in listOf(2, 9)) assertEquals(HelmetRefusalCause.MALFORMED, cause(reason))
