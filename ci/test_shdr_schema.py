@@ -24,10 +24,14 @@ from NP-FW-EMMC-002 §G.3 and §A.4:
      BIGINT is a clock too); SHDR carries only a month-granular DATE retention
      anchor and integer counters for ordering. A per-row upload timestamp keyed to
      warranty_token is a docking-time side channel (§5.1 "no timestamps in SHDR").
-  9. Every month anchor is month-granular by constraint (TIME-02). Each DATE
-     column except a manufacture date carries CHECK (col = DATE_TRUNC('month',
-     col)::date). A DEFAULT is not enough: it applies only when an insert omits
-     the column (OI-PRIV-52, REQ-SHDR-11).
+  9. Every date is month-granular by constraint (TIME-02). Each DATE column
+     carries CHECK (col = DATE_TRUNC('month', col)::date), the two manufacture
+     dates included since schema Rev G. A DEFAULT is not enough: it applies only
+     when an insert omits the column (OI-PRIV-52, OI-PRIV-58, REQ-SHDR-11).
+ 10. No fleet-wide order (SEQ-01). No SERIAL type, identity column, sequence or
+     nextval(), and every UUID default is gen_random_uuid(): a sequence numbers
+     rows in insert order across the fleet, a clock by another name, and a
+     version 1 or 7 UUID embeds the time (OI-PRIV-53, REQ-SHDR-11 (c)).
 
 Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
@@ -126,6 +130,7 @@ PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
     (r"recovery",         "recovery code, salt or key (per-person key material)"),
     (r"rec_salt",         "recovery-wrap salt (per-person key material)"),
     (r"\bw[12]_",         "profile key wrap (per-person key material)"),
+    (r"file_key",         "sealed-file key (per-person key material, §C.8.7)"),
 ]
 
 # Column TYPES that must never appear anywhere in the SHDR schema.
@@ -165,9 +170,20 @@ CLOCK_NAME_NOT_A_CLOCK: dict[str, str] = {
 
 # TIME-02: the CHECK that makes a DATE column month-granular, for column `col`.
 MONTH_CHECK_TEMPLATE = r"CHECK\s*\(\s*{col}\s*=\s*DATE_TRUNC\(\s*'month'\s*,\s*{col}\s*\)\s*::\s*date\s*\)"
-# DATE columns that record a fact about the hardware, not about a docking, and
-# so are day-granular by design: the manufacture record of a device or a module.
-MONTH_CHECK_EXEMPT_SUFFIX = "manufacture_date"
+# No DATE column is exempt. The manufacture dates were, until schema Rev G: the
+# warranty registry keeps the serial number, and a day of manufacture in SHDR
+# narrows a row to the devices made that day if the serial encodes it (OI-PRIV-58).
+
+# SEQ-01: what gives rows a fleet-wide order. Matched against the schema with
+# `--` comments removed.
+PROHIBITED_SEQUENCE_PATTERNS: list[tuple[str, str]] = [
+    (r"\b(?:SMALL|BIG)?SERIAL\b",               "a SERIAL column is a sequence"),
+    (r"\bGENERATED\s+(?:ALWAYS|BY\s+DEFAULT)\s+AS\s+IDENTITY\b", "an identity column is a sequence"),
+    (r"\bCREATE\s+SEQUENCE\b",                  "a sequence"),
+    (r"\bnextval\s*\(",                          "a value drawn from a sequence"),
+    (r"\buuid_generate_v1(?:mc)?\s*\(",           "a version 1 UUID embeds the time and the host"),
+    (r"\buuidv7\s*\(|\buuid_generate_v7\s*\(",   "a version 7 UUID embeds the time"),
+]
 
 # ---------------------------------------------------------------------------
 # Rev D (2026-08-10) — socket + module re-key invariants
@@ -784,11 +800,49 @@ def table_bodies(sql: str) -> dict[str, str]:
     return out
 
 
+def check_no_fleet_wide_order(sql: str, columns: list[ColumnDef]) -> list[Failure]:
+    """
+    SEQ-01 — no row carries a fleet-wide order (OI-PRIV-53, REQ-SHDR-11 (c)).
+    A sequence numbers rows in insert order across every device: within a month
+    it orders every docking and groups one docking's rows in every table, and
+    any time anchor turns that back into roughly day-level time. Keys are random
+    UUIDs (gen_random_uuid()); ordering is per device (session_index, gap_index).
+    """
+    failures: list[Failure] = []
+    code = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+    for lineno, line in enumerate(code.splitlines(), 1):
+        for pattern, reason in PROHIBITED_SEQUENCE_PATTERNS:
+            if re.search(pattern, line, re.IGNORECASE):
+                failures.append(Failure(
+                    check_id="SEQ-01",
+                    description=(
+                        f"{reason} — `{line.strip()}`; use "
+                        f"`UUID PRIMARY KEY DEFAULT gen_random_uuid()` and order "
+                        f"rows by a per-device counter"
+                    ),
+                    location=f"schema:{lineno}",
+                ))
+                break
+    for col in columns:
+        if col.col_type.strip().upper().startswith("UUID"):
+            m = re.search(r"\bDEFAULT\s+([\w.]+)\s*\(", col.raw_line, re.IGNORECASE)
+            if m and m.group(1).lower() != "gen_random_uuid":
+                failures.append(Failure(
+                    check_id="SEQ-01",
+                    description=(
+                        f"UUID column '{col.column}' in '{col.table}' defaults to "
+                        f"{m.group(1)}(); only gen_random_uuid() (version 4, no "
+                        f"time and no order) is allowed"
+                    ),
+                    location=f"{col.table}.{col.column}:{col.line_no}",
+                ))
+    return failures
+
+
 def check_month_anchor_constraints(sql: str, columns: list[ColumnDef]) -> list[Failure]:
     """
-    TIME-02 — every DATE column except a manufacture date carries
-    CHECK (col = DATE_TRUNC('month', col)::date) in its own table (OI-PRIV-52,
-    REQ-SHDR-11 (b)). The DEFAULT DATE_TRUNC('month', NOW())::date that each
+    TIME-02 — every DATE column carries CHECK (col = DATE_TRUNC('month',
+    col)::date) in its own table (OI-PRIV-52, OI-PRIV-58, REQ-SHDR-11 (b)). The DEFAULT DATE_TRUNC('month', NOW())::date that each
     anchor also has applies only when an insert omits the column; an ingest
     that writes CURRENT_DATE would otherwise store the docking day.
     """
@@ -796,8 +850,6 @@ def check_month_anchor_constraints(sql: str, columns: list[ColumnDef]) -> list[F
     bodies = table_bodies(sql)
     for col in columns:
         if not re.match(r"DATE\b", col.col_type.strip(), re.IGNORECASE):
-            continue
-        if col.column.endswith(MONTH_CHECK_EXEMPT_SUFFIX):
             continue
         check = MONTH_CHECK_TEMPLATE.format(col=re.escape(col.column))
         if not re.search(check, bodies.get(col.table, ""), re.IGNORECASE):
@@ -1100,8 +1152,10 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
         check_key_material_columns, columns)
     run("TIME-01:  no wall-clock timestamp columns",
         check_prohibited_time_types, columns)
-    run("TIME-02:  every month anchor is month-granular by CHECK",
+    run("TIME-02:  every date is month-granular by CHECK",
         check_month_anchor_constraints, sql, columns)
+    run("SEQ-01:   no fleet-wide order (no sequence, no time-ordered key)",
+        check_no_fleet_wide_order, sql, columns)
     run("NOJOIN-01: no cross-DB table references",
         check_cross_db_references, sql)
     run("TOKEN-01: warranty_token is BYTEA",

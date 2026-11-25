@@ -231,6 +231,13 @@ class ConsentRepairTests {
             tier = tier,
             grantedAtDay = "2026-01-01",
             expiresAtDay = expiresAtDay,
+            // As the form makes it: from the use cases the tier offers (`REQ-CONSENT-15` g).
+            accessScopes = listOf(
+                ConsentEngine.initialAccessScope(
+                    ConsentEngine.useCasesAvailableFor(tier).map { it.id }.toSet(), tier, "2026-01-01", false,
+                ),
+            ),
+            useCaseIds = ConsentEngine.useCasesAvailableFor(tier).map { it.id }.sorted(),
         )
 
     private fun storeHolding(stored: ClinicianConsentGrant): ConsentStore {
@@ -283,16 +290,17 @@ class ConsentRepairTests {
     @Test
     fun aLapsedGrantCannotBeWidened() {
         val lapsed = grant(expiresAtDay = "2020-01-01")
-        assertNull(ConsentEngine.accessDifferential(lapsed, ClinicianUseCaseTier.ASSESS, today))
-
-        val store = storeHolding(lapsed)
         val request = ClinicianAccessExpansionRequest(
             id = "req-1",
             grantId = lapsed.id,
             fromTier = ClinicianUseCaseTier.MONITOR,
             toTier = ClinicianUseCaseTier.ASSESS,
             requestedAtDay = today,
+            useCaseIds = listOf("eeg_review"),
         )
+        assertNull(ConsentEngine.accessDifferential(lapsed, request, today))
+
+        val store = storeHolding(lapsed)
         assertEquals(
             ClinicianRequestAdmission.RefusedNotAnExpansion,
             ClinicianPortalSync(store) { ClinicianRequestVerification.Verified }.ingest(request),
@@ -693,5 +701,150 @@ class ConsentRepairTests {
 
         assertEquals(mapOf("S-1" to "2026-01-20#000001"), store.studyWithdrawals)
         assertTrue(store.consentRecordUnreadable)
+    }
+
+    // ── OI-PRIV-64: consent-store defects found after OI-PRIV-06 closed ──
+
+    /** A store whose research record held L3 on, research analytics on and a portal token, and then stopped decoding. */
+    private fun storeWithUnreadableGrantedRecord(): InMemoryKeyValueStore {
+        val kv = InMemoryKeyValueStore()
+        open(kv).updateResearchConsent(blanket)
+        kv.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+        kv.putString(life.neurone.core.research.ResearchSuggestionStore.TOKEN_KEY, "author-token")
+        kv.putString(ConsentStore.RESEARCH_KEY, unreadable)
+        return kv
+    }
+
+    // M6: a commit with L3 off while the record is unreadable may be the person saying stop, and is treated as one.
+    // @verifies REQ-CONSENT-20#c
+    @Test
+    fun aCommitWithBlanketOffWhileTheRecordIsUnreadableIsRecordedAsAWithdrawal() {
+        val kv = storeWithUnreadableGrantedRecord()
+        val store = open(kv)
+        assertFalse(store.researchConsent.blanketConsentGranted, "the defaults cannot say whether L3 was on")
+
+        store.updateResearchConsent(ResearchConsentState())
+
+        assertTrue(store.researchConsent.blanketConsentWithdrawn)
+        assertEquals(today, store.researchConsent.blanketConsentWithdrawnOnDay)
+        assertTrue(store.researchConsent.blanketConsentWithdrawnAt != null, "and the mark travels in a migration")
+        assertFalse(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY), "research analytics is torn down")
+        assertNull(kv.getString(life.neurone.core.research.ResearchSuggestionStore.TOKEN_KEY), "the portal token is forgotten")
+        assertFalse(store.consentRecordUnreadable)
+    }
+
+    // M6: a commit that consents to categories gets the teardown but no blanket withdrawal, which would bar the scope it chose.
+    // @verifies REQ-CONSENT-20#c
+    @Test
+    fun aCategoryCommitWhileTheRecordIsUnreadableTearsDownButDoesNotBarItsOwnScope() {
+        val kv = storeWithUnreadableGrantedRecord()
+        val store = open(kv)
+
+        store.updateResearchConsent(categories(ResearchCategory.DEPRESSION))
+
+        assertFalse(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
+        assertNull(kv.getString(life.neurone.core.research.ResearchSuggestionStore.TOKEN_KEY))
+        assertFalse(store.researchConsent.blanketConsentWithdrawn)
+        assertIs<StudyDescriptorAdmission.Admitted>(store.ingestStudyDescriptor(study("A", ResearchCategory.DEPRESSION)))
+    }
+
+    // M6, the other side: with the record readable, a category-only edit tears nothing down (`REQ-CONSENT-03` b).
+    // @verifies REQ-CONSENT-03#b
+    @Test
+    fun aCategoryEditOnAReadableRecordStillTearsNothingDown() {
+        val (store, kv) = storeWith(categories(ResearchCategory.SLEEP))
+        kv.putBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY, true)
+
+        store.updateResearchConsent(categories(ResearchCategory.SLEEP, ResearchCategory.DEPRESSION).copy(blanketConsentGranted = false))
+
+        assertTrue(kv.getBoolean(PersistedKeys.RESEARCH_ANALYTICS_KEY))
+        assertNull(store.researchConsent.blanketConsentWithdrawnAt)
+    }
+
+    private val unreadableWithContact =
+        """{"blanketConsentGranted":"perhaps","contactConsentGranted":true,"contactMethod":"person@example.org",""" +
+            """"contactChannel":"EMAIL","blanketConsentWithdrawnAt":"2026-02-01#000001"}"""
+
+    // M8: turning L1 off erases the address from the quarantined copy too, and keeps every withdrawal mark.
+    // @verifies REQ-CONSENT-23#c
+    @Test
+    fun turningContactOffErasesTheAddressFromAQuarantinedRecord() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(ConsentStore.RESEARCH_KEY, unreadableWithContact)
+        val store = open(kv)
+        assertTrue("person@example.org" in store.quarantinedBlobs.single().blob)
+
+        store.updateResearchConsent(ResearchConsentState())
+
+        val kept = open(kv).quarantinedBlobs.single()
+        assertFalse("person@example.org" in kept.blob, "no copy of the address is left")
+        assertFalse("EMAIL" in kept.blob)
+        assertTrue("2026-02-01#000001" in kept.blob, "the withdrawal mark is kept as found")
+        assertTrue("perhaps" in kept.blob, "and so is everything else")
+    }
+
+    // M8: a record too damaged to parse, and one held as escaped text in an unreadable quarantine list, are scrubbed in place.
+    // @verifies REQ-CONSENT-23#c
+    @Test
+    fun theAddressIsErasedFromTextThatNoLongerParses() {
+        val truncated = """{"contactMethod":"person@example.org","blanketConsentWithdrawnAt":"2026-02-01#000001","bla"""
+        val nested = """[{"key":"np.consent.research","blob":"{\"contactMethod\":\"+15551234567\",\"x"""
+        for ((key, text, address) in listOf(
+            Triple(ConsentStore.RESEARCH_KEY, truncated, "person@example.org"),
+            Triple(ConsentStore.QUARANTINE_KEY, nested, "+15551234567"),
+        )) {
+            val kv = InMemoryKeyValueStore()
+            kv.putString(key, text)
+            val store = open(kv)
+
+            store.updateResearchConsent(ResearchConsentState())
+
+            val kept = open(kv).quarantinedBlobs.single { it.key == key }
+            assertFalse(address in kept.blob, "$key keeps no address")
+            assertTrue("contactMethod" in kept.blob, "only the value is blanked")
+        }
+    }
+
+    // M8: an address the person keeps (L1 on) is not touched; only L1 off erases it.
+    // @verifies REQ-CONSENT-23#c
+    @Test
+    fun aQuarantinedAddressIsErasedWhenARestoredWithdrawalTurnsContactOff() {
+        val kv = InMemoryKeyValueStore()
+        kv.putString(ConsentStore.RESEARCH_KEY, unreadableWithContact)
+        val store = open(kv)
+        store.updateResearchConsent(categories(ResearchCategory.SLEEP))
+        assertTrue("person@example.org" in store.quarantinedBlobs.single().blob, "L1 on keeps it")
+
+        store.applyWithdrawals(buildJsonObject { put("contactConsentWithdrawnAt", "2099-01-01#000001") })
+
+        assertFalse("person@example.org" in open(kv).quarantinedBlobs.single().blob)
+    }
+
+    // L15: a stop a consent withdrawal causes is recorded on the invitation as a withdrawal.
+    // @verifies REQ-CONSENT-11#c
+    @Test
+    fun aStopCausedByAWithdrawalIsRecordedAsAWithdrawalNotADecline() {
+        val (store, _) = storeWith(blanket)
+        store.ingestStudyDescriptor(study("A", ResearchCategory.DEPRESSION))
+
+        store.withdrawBlanketResearchConsent()
+
+        assertIs<life.neurone.core.models.StudyInvitation.StudyDecision.Withdrawn>(store.pendingInvitations.single().decision)
+    }
+
+    // L15: an L3 opt-out is a withdrawal; declining a consent request is still a decline.
+    // @verifies REQ-CONSENT-11#c
+    @Test
+    fun anOptOutIsAWithdrawalAndARefusalIsADecline() {
+        val (l3, _) = storeWith(blanket)
+        l3.ingestStudyDescriptor(study("A", ResearchCategory.DEPRESSION))
+        l3.declineInvitation("A")
+        assertIs<life.neurone.core.models.StudyInvitation.StudyDecision.Withdrawn>(l3.pendingInvitations.single().decision)
+        assertTrue(l3.active().isEmpty())
+
+        val (l2, kv) = storeWith(categories(ResearchCategory.DEPRESSION))
+        l2.ingestStudyDescriptor(study("B", ResearchCategory.DEPRESSION))
+        l2.declineInvitation("B")
+        assertIs<life.neurone.core.models.StudyInvitation.StudyDecision.Declined>(open(kv).pendingInvitations.single().decision)
     }
 }

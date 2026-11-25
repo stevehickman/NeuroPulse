@@ -164,7 +164,7 @@ const SURFACE: Record<string, Reach> = {
   grantResearchAnalytics: {
     kind: "ui",
     note:
-      "REQ-CONSENT-27: the one place that opens the research analytics gate. Compose calls it from the Settings switch after the " +
+      "REQ-CONSENT-28: the one place that opens the research analytics gate. Compose calls it from the Settings switch after the " +
       "disclosure is confirmed (ResearchAnalyticsSection)",
   },
   revokeResearchAnalytics: {

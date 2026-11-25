@@ -8,6 +8,10 @@
 CREATE TABLE warranty_registrations (
     id                   BIGSERIAL    PRIMARY KEY,
     warranty_token       BYTEA        NOT NULL UNIQUE,  -- 32-byte TRNG token
+    -- The serial format is not yet defined. If it encodes the factory, line or date
+    -- of manufacture, it narrows the SHDR devices row it belongs to (factory_id,
+    -- hw_revision, month of manufacture) without any shared identifier; that is
+    -- why SHDR keeps only the month (schema Rev G, OI-PRIV-58, beside OI-EMMC2-08).
     serial_number        VARCHAR(32)  NOT NULL,
     device_model         VARCHAR(32)  NOT NULL,
     registered_name      VARCHAR(128) NOT NULL,

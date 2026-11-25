@@ -62,7 +62,7 @@ class ConsentStoreTests {
         assertEquals(1, backend.resetCount)
     }
 
-    // @verifies REQ-CONSENT-27#a
+    // @verifies REQ-CONSENT-28#a
     @Test
     fun grantingResearchAnalytics_opensTheGate_andConfiguresTheBackend() {
         val kv = InMemoryKeyValueStore()
@@ -74,7 +74,7 @@ class ConsentStoreTests {
         assertTrue(gate.isOpen)
     }
 
-    // @verifies REQ-CONSENT-27#b
+    // @verifies REQ-CONSENT-28#b
     @Test
     fun turningResearchAnalyticsOffAfterOn_recordsTheDay_andNeverAskedRecordsNothing() {
         var day = "2026-11-20"
@@ -889,29 +889,47 @@ class ConsentStoreTests {
     // handed the clinician the new elements over every session ever recorded — the retroactive
     // decision taken silently, and taken yes.
 
-    private fun grantedYesterday(tier: ClinicianUseCaseTier) = ClinicianConsentGrant(
+    /** Every use case [tier] offers, which is what a grant or a request made "for the whole tier" selects. */
+    private fun allUseCasesOf(tier: ClinicianUseCaseTier): List<String> =
+        ConsentEngine.useCasesAvailableFor(tier).map { it.id }.sorted()
+
+    /** What the use cases of [tier] need within it: the most a grant at [tier] can reach (`REQ-CONSENT-15` a). */
+    private fun derivedAt(tier: ClinicianUseCaseTier): Set<UHDRElement> =
+        ConsentEngine.minimumNecessaryElements(allUseCasesOf(tier).toSet()) intersect tier.uhdrElements
+
+    private fun grantedYesterday(
+        tier: ClinicianUseCaseTier,
+        useCaseIds: List<String> = allUseCasesOf(tier),
+    ) = ClinicianConsentGrant(
         id = "grant-1",
         clinicianName = "Dr. Test",
         clinicianOrganization = "Test Hospital",
         tier = tier,
         grantedAtDay = LocalDate.now().minusDays(1).toString(),
         expiresAtDay = LocalDate.now().plusDays(30).toString(),
-        // As the form makes it: the tier's elements, with "include my earlier sessions" answered yes.
+        // As the form makes it: the use cases' elements within the tier, with "include my earlier sessions" answered yes.
         accessScopes = listOf(
-            ClinicianAccessScope(
-                elements = tier.uhdrElements,
-                effectiveFromDay = LocalDate.now().minusDays(1).toString(),
+            ConsentEngine.initialAccessScope(
+                selectedUseCaseIds = useCaseIds.toSet(),
+                tier = tier,
+                grantedAtDay = LocalDate.now().minusDays(1).toString(),
                 includesPriorData = true,
             ),
         ),
+        useCaseIds = useCaseIds,
     )
 
-    private fun requestTo(tier: ClinicianUseCaseTier) = ClinicianAccessExpansionRequest(
-        id = "req-1",
+    private fun requestTo(
+        tier: ClinicianUseCaseTier,
+        useCaseIds: List<String>? = allUseCasesOf(tier),
+        id: String = "req-1",
+    ) = ClinicianAccessExpansionRequest(
+        id = id,
         grantId = "grant-1",
         fromTier = ClinicianUseCaseTier.MONITOR,
         toTier = tier,
         requestedAtDay = LocalDate.now().toString(),
+        useCaseIds = useCaseIds,
     )
 
     // @verifies REQ-CONSENT-16#b
@@ -1016,7 +1034,7 @@ class ConsentStoreTests {
         assertEquals(ClinicianUseCaseTier.ASSESS, store.clinicianGrants.single().tier)
     }
 
-    // @verifies REQ-CONSENT-16
+    // @verifies REQ-CONSENT-16 REQ-CONSENT-26#b
     @Test
     fun revokingAGrantWithdrawsItsPendingRequest() {
         val (store, _, _) = makeStore()
@@ -1026,9 +1044,11 @@ class ConsentStoreTests {
         store.revokeClinicianAccess("grant-1")
 
         assertTrue(store.expansionRequests.isEmpty())
-        // And approving it afterwards must not resurrect anything.
+        // And approving it afterwards must not resurrect anything: the revoked grant stays as it was revoked.
         store.approveExpansion("req-1", includePriorData = true)
-        assertTrue(store.clinicianGrants.isEmpty())
+        val kept = store.clinicianGrants.single()
+        assertFalse(kept.isInForce(LocalDate.now().toString()))
+        assertEquals(ClinicianUseCaseTier.MONITOR, kept.tier)
     }
 
     // @verifies REQ-CONSENT-16
@@ -1038,15 +1058,7 @@ class ConsentStoreTests {
         store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR))
         store.addExpansionRequest(requestTo(ClinicianUseCaseTier.ASSESS))
         // The grant is widened past the request's target by a second, later request.
-        store.addExpansionRequest(
-            ClinicianAccessExpansionRequest(
-                id = "req-2",
-                grantId = "grant-1",
-                fromTier = ClinicianUseCaseTier.MONITOR,
-                toTier = ClinicianUseCaseTier.FULL_CLINICAL,
-                requestedAtDay = LocalDate.now().toString(),
-            ),
-        )
+        store.addExpansionRequest(requestTo(ClinicianUseCaseTier.FULL_CLINICAL, id = "req-2"))
         store.approveExpansion("req-2", includePriorData = false)
 
         // req-1 was superseded when req-2 arrived, so there is nothing to approve; and even if it
@@ -1054,8 +1066,7 @@ class ConsentStoreTests {
         store.approveExpansion("req-1", includePriorData = true)
         assertEquals(ClinicianUseCaseTier.FULL_CLINICAL, store.clinicianGrants.single().tier)
         assertEquals(
-            ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements -
-                ClinicianUseCaseTier.MONITOR.uhdrElements,
+            derivedAt(ClinicianUseCaseTier.FULL_CLINICAL) - ClinicianUseCaseTier.MONITOR.uhdrElements,
             store.clinicianGrants.single().forwardOnlyElements,
         )
     }
@@ -1068,15 +1079,7 @@ class ConsentStoreTests {
         store.addExpansionRequest(requestTo(ClinicianUseCaseTier.ASSESS))
         store.denyExpansion("req-1")
 
-        store.addExpansionRequest(
-            ClinicianAccessExpansionRequest(
-                id = "req-2",
-                grantId = "grant-1",
-                fromTier = ClinicianUseCaseTier.MONITOR,
-                toTier = ClinicianUseCaseTier.ASSESS,
-                requestedAtDay = LocalDate.now().toString(),
-            ),
-        )
+        store.addExpansionRequest(requestTo(ClinicianUseCaseTier.ASSESS, id = "req-2"))
 
         // The denial stays on the record; only the outstanding request is superseded.
         assertEquals(2, store.expansionRequests.size)
@@ -1125,21 +1128,22 @@ class ConsentStoreTests {
     @Test
     fun aChangeThatIsNotAnExpansionHasNoDifferential() {
         val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
+        val today = LocalDate.now().toString()
         // Nothing new.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.MONITOR, LocalDate.now().toString()))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, requestTo(ClinicianUseCaseTier.MONITOR), today))
         // Something lost — a re-scope, not a widening.
         val full = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)
-        assertEquals(null, ConsentEngine.accessDifferential(full, ClinicianUseCaseTier.ASSESS, LocalDate.now().toString()))
+        assertEquals(null, ConsentEngine.accessDifferential(full, requestTo(ClinicianUseCaseTier.ASSESS), today))
         // Either side Research: its element set is IRB-defined per study descriptor, not derivable
         // from the tier, so the emptiness must never be read as a set.
-        assertEquals(null, ConsentEngine.accessDifferential(monitor, ClinicianUseCaseTier.RESEARCH, LocalDate.now().toString()))
+        assertEquals(null, ConsentEngine.accessDifferential(monitor, requestTo(ClinicianUseCaseTier.RESEARCH), today))
         assertEquals(
             null,
             ConsentEngine.accessDifferential(
                 grantedYesterday(ClinicianUseCaseTier.RESEARCH),
-                ClinicianUseCaseTier.FULL_CLINICAL,
-                LocalDate.now().toString(),
-),
+                requestTo(ClinicianUseCaseTier.FULL_CLINICAL),
+                today,
+            ),
         )
     }
 
@@ -1148,9 +1152,9 @@ class ConsentStoreTests {
     fun theDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
         val differential = ConsentEngine.accessDifferential(
             grantedYesterday(ClinicianUseCaseTier.MONITOR),
-            ClinicianUseCaseTier.ASSESS,
+            requestTo(ClinicianUseCaseTier.ASSESS),
             LocalDate.now().toString(),
-)!!
+        )!!
 
         assertEquals(
             ClinicianUseCaseTier.ASSESS.uhdrElements - ClinicianUseCaseTier.MONITOR.uhdrElements,
@@ -1172,6 +1176,134 @@ class ConsentStoreTests {
             differential.newlyVisibleElements.size + differential.alreadyVisibleElements.size +
                 differential.stillNotAccessibleElements.size,
         )
+    }
+
+    // ── OI-PRIV-64: an expansion is derived from use cases; grants are validated and kept on revoke ──
+
+    // M5: widening to Full Clinical for the HRV use case adds what it needs, not the tier's whole set.
+    // @verifies REQ-CONSENT-15#f
+    @Test
+    fun wideningAddsOnlyWhatTheRequestedUseCasesNeed() {
+        val (store, _, _) = makeStore()
+        assertTrue(store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR)))
+        store.addExpansionRequest(requestTo(ClinicianUseCaseTier.FULL_CLINICAL, useCaseIds = listOf("hrv_outcomes")))
+
+        store.approveExpansion("req-1", includePriorData = false)
+
+        val grant = store.clinicianGrants.single()
+        assertEquals(ClinicianUseCaseTier.FULL_CLINICAL, grant.tier)
+        assertEquals(ConsentEngine.minimumNecessaryElements(setOf("hrv_outcomes")), grant.approvedElements)
+        assertFalse(
+            UHDRElement.EYE_STATE_LOGS in grant.approvedElements,
+            "the tier holds an element no use case needs, and widening does not hand it over",
+        )
+        assertEquals(listOf("adherence_monitoring", "hrv_outcomes"), grant.useCaseIds)
+    }
+
+    // M5: a request for the grant's own tier widens only by the use cases it names.
+    // @verifies REQ-CONSENT-15#f
+    @Test
+    fun aRequestForTheGrantsOwnTierWidensOnlyByItsUseCases() {
+        val today = LocalDate.now().toString()
+        val narrow = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL, useCaseIds = listOf("adherence_monitoring"))
+
+        val differential = ConsentEngine.accessDifferential(
+            narrow, requestTo(ClinicianUseCaseTier.FULL_CLINICAL, useCaseIds = listOf("eeg_review")), today,
+        )!!
+        assertEquals(
+            setOf(UHDRElement.EEG_WAVEFORMS, UHDRElement.NEUROFEEDBACK_SCORES, UHDRElement.PBM_DOSE_LOGS),
+            differential.newlyVisibleElements,
+        )
+        assertEquals(
+            UHDRElement.entries.toSet() - narrow.approvedElements - differential.newlyVisibleElements,
+            differential.stillNotAccessibleElements,
+        )
+        assertNull(
+            ConsentEngine.accessDifferential(narrow, requestTo(ClinicianUseCaseTier.FULL_CLINICAL, useCaseIds = null), today),
+            "a request that names no use case widens nothing",
+        )
+    }
+
+    // M5: a use case the target tier does not offer is refused, not clamped.
+    // @verifies REQ-CONSENT-15#f
+    @Test
+    fun aRequestedUseCaseAboveTheTargetTierIsRefused() {
+        val monitor = grantedYesterday(ClinicianUseCaseTier.MONITOR)
+        assertNull(
+            ConsentEngine.accessDifferential(
+                monitor, requestTo(ClinicianUseCaseTier.ASSESS, useCaseIds = listOf("hrv_outcomes")), LocalDate.now().toString(),
+            ),
+        )
+    }
+
+    // L11: a grant is built from use cases its tier offers, and its scopes reach nothing they do not need.
+    // @verifies REQ-CONSENT-15#g
+    @Test
+    fun aGrantNotBuiltFromItsUseCasesIsRefused() {
+        val (store, _, _) = makeStore()
+        val full = grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)
+
+        assertFalse(store.grantClinicianAccess(full.copy(useCaseIds = null)), "no use cases")
+        assertFalse(store.grantClinicianAccess(full.copy(useCaseIds = emptyList())), "an empty selection")
+        assertFalse(store.grantClinicianAccess(full.copy(accessScopes = null)), "no scope, so nobody was asked the history question")
+        assertFalse(
+            store.grantClinicianAccess(
+                full.copy(
+                    accessScopes = listOf(ClinicianAccessScope(ClinicianUseCaseTier.FULL_CLINICAL.uhdrElements, full.grantedAtDay, true)),
+                ),
+            ),
+            "the tier's whole set reaches an element no selected use case needs",
+        )
+        assertFalse(
+            store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR, useCaseIds = listOf("eeg_review"))),
+            "a use case above the tier",
+        )
+        assertFalse(store.grantClinicianAccess(full.copy(isActive = false)), "a grant is not recorded already revoked")
+        assertTrue(store.clinicianGrants.isEmpty())
+
+        assertTrue(store.grantClinicianAccess(full))
+        assertTrue(
+            store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.RESEARCH).copy(id = "grant-r", useCaseIds = emptyList())),
+            "the research tier carries no use case and no element",
+        )
+    }
+
+    // L11: a grant never replaces one with the same id.
+    // @verifies REQ-CONSENT-26#d
+    @Test
+    fun aGrantWithAnIdAlreadyHeldIsRefused() {
+        val (store, _, _) = makeStore()
+        assertTrue(store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR)))
+
+        assertFalse(store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.FULL_CLINICAL)), "a live grant is not widened by replacement")
+        store.revokeClinicianAccess("grant-1")
+        assertFalse(store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.MONITOR)), "nor is a revoked one rewritten")
+
+        assertEquals(ClinicianUseCaseTier.MONITOR, store.clinicianGrants.single().tier)
+        assertNotNull(store.clinicianGrants.single().revokedOnDay)
+    }
+
+    // L10: revoking keeps the grant, inactive and dated, as the record of who had access.
+    // @verifies REQ-CONSENT-26#a,c
+    @Test
+    fun revokingKeepsTheGrantAsAnInactiveRecord() {
+        val kv = InMemoryKeyValueStore()
+        val gate = ResearchAnalyticsGate(kv, RecordingBackend())
+        val store = ConsentStore(kv, gate)
+        val today = LocalDate.now().toString()
+        assertTrue(store.grantClinicianAccess(grantedYesterday(ClinicianUseCaseTier.ASSESS)))
+
+        store.revokeClinicianAccess("grant-1")
+        store.revokeClinicianAccess("grant-1")
+
+        val kept = ConsentStore(kv, gate).clinicianGrants.single()
+        assertFalse(kept.isActive)
+        assertEquals(today, kept.revokedOnDay)
+        assertFalse(kept.isInForce(today))
+        assertTrue(kept.elementsVisibleForDataRecordedOn(today, today).isEmpty(), "it reaches nothing")
+        assertEquals(derivedAt(ClinicianUseCaseTier.ASSESS), kept.approvedElements, "and still says what it reached")
+        assertEquals("Dr. Test", kept.clinicianName)
+        assertNull(ConsentEngine.accessDifferential(kept, requestTo(ClinicianUseCaseTier.FULL_CLINICAL), today))
     }
 
     // @verifies REQ-CONSENT-02
@@ -1319,7 +1451,7 @@ class ConsentStoreTests {
     // @verifies REQ-CONSENT-16#c
     @Test
     fun aGrantWithNoUseCasesOrScopesFallsBackToTheTierGoingForwardOnly() {
-        val bare = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null)
+        val bare = grantedYesterday(ClinicianUseCaseTier.ASSESS).copy(accessScopes = null, useCaseIds = null)
         assertNull(bare.useCaseIds)
         assertEquals(ClinicianUseCaseTier.ASSESS.uhdrElements, bare.approvedElements)
         assertTrue(

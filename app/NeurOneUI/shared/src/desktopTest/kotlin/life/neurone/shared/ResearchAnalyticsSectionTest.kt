@@ -21,7 +21,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The Settings switch for research analytics: what it sends is shown before it is turned on, and the store records the decision (`REQ-CONSENT-27`). */
+/** The Settings switch for research analytics: what it sends is shown before it is turned on, and the store records the decision (`REQ-CONSENT-28`). */
 @OptIn(ExperimentalTestApi::class)
 class ResearchAnalyticsSectionTest {
     private val used = listOf(
@@ -40,7 +40,7 @@ class ResearchAnalyticsSectionTest {
         ResearchAnalyticsSection(store)
     }
 
-    // @verifies REQ-CONSENT-27#a
+    // @verifies REQ-CONSENT-28#a
     @Test
     fun turningItOn_showsWhatIsSent_andNothingIsOnUntilThePersonConfirms() = runComposeUiTest {
         val store = store()
@@ -60,7 +60,7 @@ class ResearchAnalyticsSectionTest {
         onAllNodes(isToggleable()).onFirst().assertIsOn()
     }
 
-    // @verifies REQ-CONSENT-27#b
+    // @verifies REQ-CONSENT-28#b
     @Test
     fun turningItOff_isRecordedByTheStore_andTheScreenSaysWhen() = runComposeUiTest {
         val store = store(day = "2026-11-22").also { it.grantResearchAnalytics() }

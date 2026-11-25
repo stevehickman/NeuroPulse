@@ -164,30 +164,12 @@ static void log_crit_exit(uint32_t saved)
 
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
-/*
- * log_cvns_event — write the SHDR record, if any, for a CVNS re-enable
- * lifecycle event.  np_cvns_reenable_shdr_code() decides which events reach
- * SHDR: the cutoff flag only (NP-FW-CVNS-001 §8.2: "cutoff occurred flag";
- * OI-PRIV-28 (NP-PRIV-ANALYSIS-004), REQ-FWHUB-91).  The rest of the lifecycle says what the wearer
- * did after a cardiac event and is not written to SHDR at all.
- *
- * Privacy: the code is a flag only.  The 0 passed as the timestamp argument is
- * belt-and-braces — np_log_shdr_fault() discards `session_ms` for every caller
- * and every fault type, because fault event timing is UHDR.  That suppression
- * is UNCONDITIONAL and therefore leaks nothing about which fault occurred; do
- * NOT make it conditional on the event being cardiac (CLAUDE.md §5.1 — a
- * redaction applied conditionally on a sensitive predicate leaks that
- * predicate).  Dropping the non-cutoff events is not such a redaction: they
- * are never written, whatever happened, so their absence says nothing.
- */
-static void log_cvns_event(np_cvns_reenable_event_t ev)
-{
-    uint8_t code = np_cvns_reenable_shdr_code(ev);
-    if (code == 0U) {
-        return;
-    }
-    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, code, 0U /* ts suppressed */);
-}
+/* No cervical VNS re-enable lifecycle event is written to SHDR, the cutoff
+ * included (REQ-FWHUB-91; the principal's ruling on OI-PRIV-22
+ * (NP-PRIV-ANALYSIS-004), 2026-11-23: a safety interlock that trips on a
+ * reading of the wearer → UHDR).  The cutoff withdraws the CVNS grant, which
+ * the safety SPI latches cause-free into the session-end record's
+ * stopped_early flag (REQ-FWHUB-89 (c)). */
 
 /* Active user posted by np_hub_set_active_user() (app-transport task), sent to
  * the safety MCU by task_safety_heartbeat.  Single writer each way. */
@@ -224,12 +206,11 @@ static void task_safety_heartbeat(void *arg)
 
         uint8_t  mcu_status = np_safety_spi_get_status();
         uint32_t now_ms     = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
-        np_cvns_reenable_event_t ev = np_cvns_reenable_on_heartbeat(
+        (void)np_cvns_reenable_on_heartbeat(
             mcu_status,
             (state == NP_SESSION_RUNNING),
             now_ms);
         np_safety_spi_set_cvns_reenable(np_cvns_reenable_bit_active());
-        log_cvns_event(ev);
 
         /* NP-SW-FAULTMSG-001 §9.6: publish CVNS_FAULT_STATUS when it changes
          * (re-enable state, the safety MCU's per-user flags, a new fault) and

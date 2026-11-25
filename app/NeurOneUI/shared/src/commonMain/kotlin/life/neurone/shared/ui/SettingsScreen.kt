@@ -403,7 +403,7 @@ internal fun SessionHistorySection(store: life.neurone.core.session.SessionHisto
 }
 
 /**
- * The research analytics switch (`REQ-CONSENT-27`, NP-PRIV-ANALYSIS-006 F-09). Turning it on shows what is sent and asks the person to
+ * The research analytics switch (`REQ-CONSENT-28`, NP-PRIV-ANALYSIS-006 F-09). Turning it on shows what is sent and asks the person to
  * confirm; the decision is the consent store's, which records the day it is turned off, so "never asked" and "said stop" stay apart.
  * The switch follows the screen's own state, so it moves when it is tapped.
  */

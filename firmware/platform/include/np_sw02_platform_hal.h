@@ -141,8 +141,13 @@ extern "C" {
  * _profile_erase() and np_uhdr_hal_recovery_kdf(), declared in
  * np_uhdr_profile.h: the per-person key records in Config and the KDF that
  * turns a person's recovery code into the key of their portable wrap.
+ *
+ * 127 → 128 on 2026-11-24 (NP-FW-EMMC-002 §C.8.7, OI-PRIV-34 of
+ * NP-PRIV-ANALYSIS-004): np_uhdr_hal_file_kdf(), declared in np_uhdr_seal.h,
+ * the KDF that derives each sealed UHDR file's key from its owner's profile
+ * key and the file's random id.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   127
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   128
 
 /* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
  *
