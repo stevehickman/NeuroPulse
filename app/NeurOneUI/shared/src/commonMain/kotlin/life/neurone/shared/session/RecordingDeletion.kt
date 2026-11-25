@@ -6,7 +6,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // Deleting the EEG recordings this device holds, when the person asks (REQ-SW03-37 (b); NP-PRIV-ANALYSIS-006 F-16). The biometric
 // release says a recording stays on the device until the person deletes it; withdrawing the release is where they are offered it.
 // Only the app's UHDR folder is touched: a backup is in a place the person chose and may not be reachable now, and its copies stay
-// (the screen says so). Whether a withdrawal must also destroy those is a decision, not a detail (`OI-PRIV-79`).
+// (the screen says so). Whether a withdrawal must also destroy those is a decision, not a detail (`OI-PRIV-80`).
 
 /** The recordings in the folder: the files the app names after a hub session (`session_<id>.edf`), and nothing else. */
 suspend fun UhdrFolder.recordingNames(): List<String> = store.list("session_").filter(WaveformBackup::isRecordingName)

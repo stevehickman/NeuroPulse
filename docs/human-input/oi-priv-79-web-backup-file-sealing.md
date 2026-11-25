@@ -1,4 +1,4 @@
-# OI-PRIV-78: should the React web app's backup file be sealed?
+# OI-PRIV-79: should the React web app's backup file be sealed?
 
 **Status:** DRAFT, not sent
 **GitHub issue:** [stevehickman/NeuroPulse#1068](https://github.com/stevehickman/NeuroPulse/issues/1068)
