@@ -90,6 +90,21 @@ class HubTokenTable(
         store(Parsed(salt, t.entries))
     }
 
+    /**
+     * The key of this helmet's line, `SHA-256(salt ‖ identifier)` in hex, or `null` when the table has no salt yet (nothing was
+     * ever kept). It names the helmet without naming its identifier, so the caller may use it where the table's own value cannot
+     * go: the name of the helmet's staged SHDR file (`REQ-SHDR-08` (f)). It makes no salt: a key that a later salt would change
+     * would name nothing.
+     */
+    fun keyOf(hub: String): String? = migrated().salt?.let { keyFor(it, hub) }
+
+    /** Remove this helmet's line, so the helmet reads as never kept. Every other helmet's line, and the salt, stay. */
+    fun remove(hub: String) {
+        val t = migrated()
+        val salt = t.salt ?: return
+        if (t.entries.remove(keyFor(salt, hub)) != null) store(t)
+    }
+
     private fun hexBytes(h: String): ByteArray = ByteArray(h.length / 2) { h.substring(2 * it, 2 * it + 2).toInt(16).toByte() }
 
     private companion object {

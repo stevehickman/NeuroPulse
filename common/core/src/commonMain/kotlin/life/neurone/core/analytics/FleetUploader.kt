@@ -15,7 +15,21 @@ import life.neurone.core.platform.toHex
 interface DeviceTokenStore {
     /** The token kept for this helmet, or `null` if there is none. A token is per helmet, never per phone (REQ-SHDR-05). */
     fun load(hub: String): String?
+
+    /** Keep an interim (locally generated) token for this helmet. */
     fun save(hub: String, token: String)
+
+    /**
+     * The hub-provisioned token kept for this helmet, or `null` when the token kept is an interim one or there is none. A hub token
+     * replaced by a different one is a change of custody (`REQ-SHDR-09` (d)); an interim one replaced by a hub token is not.
+     */
+    fun loadHubToken(hub: String): String?
+
+    /** Keep the hub-provisioned token for this helmet, in place of whatever was kept. */
+    fun saveHubToken(hub: String, token: String)
+
+    /** Forget whatever token is kept for this helmet: its previous owner's, at a change of custody (`REQ-SHDR-09` (d)). */
+    fun forget(hub: String)
 }
 
 /**
@@ -39,18 +53,46 @@ class SealedDeviceTokenStore(
         table.migrateLegacy()
     }
 
-    override fun load(hub: String): String? = table.load(hub)
+    override fun load(hub: String): String? = table.load(hub)?.removePrefix(HUB_PREFIX)
 
     override fun save(hub: String, token: String) = table.save(hub, token)
+
+    override fun loadHubToken(hub: String): String? = table.load(hub)?.takeIf { it.startsWith(HUB_PREFIX) }?.removePrefix(HUB_PREFIX)
+
+    override fun saveHubToken(hub: String, token: String) = table.save(hub, HUB_PREFIX + token)
+
+    override fun forget(hub: String) = table.remove(hub)
+
+    private companion object {
+        /**
+         * Marks a line whose token the hub provisioned. A token is hex, so it never starts with this. A hub token kept by an earlier
+         * version has no mark and reads as interim: the first hub token after it is adopted without a change of custody.
+         */
+        const val HUB_PREFIX = "hub:"
+    }
 }
 
-/** Where the hub leaves the SHDR record for the app to upload: a file in the app's own folder. */
+/**
+ * Where the hub's SHDR record waits for the app to upload it: one record per helmet, in the app's own folder (`REQ-SHDR-08` (f)).
+ *
+ * Every call names the helmet by [helmetKey], the warranty owner's store's salted hash for it ([WarrantyOwnerStore]): 64 lowercase
+ * hex digits, never the helmet's identifier (`REQ-SHDR-05` (d)). A record is read only under the key it was staged under, so one
+ * helmet's record cannot leave under another helmet's consent and token. The implementation refuses a key of any other form.
+ */
 interface ShdrStaging {
-    /** The staged record, or null when nothing is staged. */
-    fun read(): ByteArray?
+    /** The record staged for this helmet, or null when nothing is staged for it. */
+    fun read(helmetKey: String): ByteArray?
 
-    /** Remove it, after the fleet service has taken it. */
-    fun clear()
+    /** Stage [record] for this helmet, replacing any earlier one. Called by the host's hub path. */
+    fun stage(helmetKey: String, record: ByteArray)
+
+    /** Remove this helmet's record: after the fleet service has taken it, on a revoke, or at a change of custody. */
+    fun clear(helmetKey: String)
+
+    companion object {
+        /** The form of a helmet key: a SHA-256 in lowercase hex. */
+        val HELMET_KEY = Regex("^[0-9a-f]{64}$")
+    }
 }
 
 /**
@@ -93,28 +135,42 @@ class FleetUploader(
      * provisions its TRNG token. Never per phone. `null` when no helmet is connected, and then nothing is sent.
      */
     val deviceToken: String?
-        get() {
-            val hub = hubIdentifier ?: return null
-            return tokenStore.load(hub) ?: randomBytes(32).toHex().also { tokenStore.save(hub, it) }
-        }
+        get() = hubIdentifier?.let(::tokenFor)
+
+    private fun tokenFor(hub: String): String = tokenStore.load(hub) ?: randomBytes(32).toHex().also { tokenStore.save(hub, it) }
 
     /**
-     * OI-BLE-01: swap in the hub-provisioned TRNG warranty token (exactly 32 bytes) for the connected helmet.
+     * OI-BLE-01: swap in the hub-provisioned TRNG warranty token (exactly 32 bytes) for [hub], by default the connected helmet, read
+     * once. The wiring passes the helmet the GATT link named when the token arrived, so the token is kept for the helmet that sent it.
+     *
+     * A hub token different from the hub token already stored for this helmet is what a factory reset or a change of owner produces
+     * (`NP-FW-EMMC-002` §A.6), so it is a change of custody (`REQ-SHDR-09` (d)): the previous owner's consent, enrolment, epoch and
+     * the helmet's staged record are forgotten ([WarrantyAnalyticsGate.endCustody]) first, with the previous owner's token, so a
+     * later delivery of the new token is not taken for another change of custody. The same token again changes nothing,
+     * and a hub token over an interim one is the ordinary upgrade.
      *
      * The hub serves its token to any paired phone, not only the warranty owner's (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004)), and the
      * token is what links the helmet's fleet records to its warranty registration. So it is stored only for a helmet whose warranty
      * owner has consented on this install (`REQ-SHDR-08` (e)). Otherwise it is held for this link only, and stored by the first
      * upload after the consent opens; a disconnect or another helmet drops it. A phone that never uploads for the helmet, a patient's
-     * on a clinic helmet, keeps no copy of the owner's token.
+     * on a clinic helmet, keeps no copy of the owner's token. After a change of custody the helmet reads as never asked, so the new
+     * owner's token is held, not stored, until that owner consents.
      */
-    fun upgradeDeviceToken(hubToken: ByteArray) {
+    fun upgradeDeviceToken(hubToken: ByteArray, hub: String? = hubIdentifier) {
         if (hubToken.size != 32) return
-        val hub = hubIdentifier ?: return
+        if (hub == null) return
+        val incoming = hubToken.toHex()
+        val kept = tokenStore.loadHubToken(hub)
+        if (kept == incoming) return
+        if (kept != null) {
+            warrantyGate.endCustody(hub)
+            tokenStore.forget(hub)
+        }
         if (warrantyGate.isOpen(hub)) {
             heldHubToken = null
-            tokenStore.save(hub, hubToken.toHex())
+            tokenStore.saveHubToken(hub, incoming)
         } else {
-            heldHubToken = hub to hubToken.toHex()
+            heldHubToken = hub to incoming
         }
     }
 
@@ -122,21 +178,38 @@ class FleetUploader(
     private fun storeHeldToken(hub: String) {
         val held = heldHubToken ?: return
         if (held.first != hub) return
-        tokenStore.save(hub, held.second)
+        tokenStore.saveHubToken(hub, held.second)
         heldHubToken = null
     }
 
     /**
-     * Upload an SHDR payload; true only when the fleet service itself took it. No-ops (false) unless the connected helmet's warranty owner
-     * has consented, a helmet is connected and a gateway key is set. The payload is device telemetry only: the SHDR schema contains no
-     * user biology by construction (`CLAUDE.md` §5.1), and this class does not inspect it.
+     * Upload the SHDR record staged for [hub], by default the connected helmet; true only when the fleet service itself took it, and
+     * then that helmet's staged record is deleted. The helmet is read once and that one value names the consent asked for, the
+     * token sent and the record read (`REQ-SHDR-08` (f)), so a reconnect to another helmet midway cannot mix them. Nothing is read
+     * unless that helmet's warranty owner has consented.
      */
-    suspend fun upload(shdrPayload: ByteArray): Boolean {
-        // The consent asked for is the connected helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
-        val hub = hubIdentifier
-        if (!warrantyGate.isOpen(hub)) return false
-        hub?.let(::storeHeldToken)
-        val token = deviceToken ?: return false
+    suspend fun uploadStaged(hub: String? = hubIdentifier): Boolean {
+        if (hub == null) return false
+        val record = warrantyGate.stagedRecord(hub) ?: return false
+        return uploadFor(hub, record).also { if (it) warrantyGate.clearStaged(hub) }
+    }
+
+    /**
+     * Upload [shdrPayload] for the connected helmet, read once. For the tests of the sealed transport only: a payload handed in is
+     * bound to no helmet, so production sends only through [uploadStaged].
+     */
+    internal suspend fun upload(shdrPayload: ByteArray): Boolean = uploadFor(hubIdentifier, shdrPayload)
+
+    /**
+     * Upload an SHDR payload for [hub]; true only when the fleet service itself took it. No-ops (false) unless that helmet's warranty
+     * owner has consented, a helmet is named and a gateway key is set. The payload is device telemetry only: the SHDR schema contains
+     * no user biology by construction (`CLAUDE.md` §5.1), and this class does not inspect it.
+     */
+    private suspend fun uploadFor(hub: String?, shdrPayload: ByteArray): Boolean {
+        // The consent asked for is this helmet's and no other's (`REQ-SHDR-08`); with none connected it is closed.
+        if (hub == null || !warrantyGate.isOpen(hub)) return false
+        storeHeldToken(hub)
+        val token = tokenFor(hub)
         if (gatewayKeyConfigHex.isEmpty()) return false
         val sealed = try {
             FleetOhttp.seal(
@@ -168,27 +241,14 @@ object FleetUploadWiring {
     /**
      * OI-BLE-01 token upgrade. Adopt the hub-provisioned 32-byte TRNG token when it arrives. A null value (a disconnect clearing the
      * flow) is never forwarded, because that would downgrade the device identity back to the CSPRNG fallback;
-     * [FleetUploader.upgradeDeviceToken] separately rejects any non-32-byte value.
+     * [FleetUploader.upgradeDeviceToken] separately rejects any non-32-byte value. [hub] is the helmet the GATT link names as the
+     * token arrives, taken from the same source as the token rather than from the uploader's copy, so a token is never kept for
+     * the helmet before it; with none named nothing is kept.
      */
-    fun applyWarrantyToken(token: ByteArray?, uploader: FleetUploader) {
-        token?.let { uploader.upgradeDeviceToken(it) }
+    fun applyWarrantyToken(token: ByteArray?, hub: String?, uploader: FleetUploader) {
+        if (token != null && hub != null) uploader.upgradeDeviceToken(token, hub)
     }
 
     /** Which helmet the link is to (`null` after a disconnect); the uploader keeps its token per helmet. */
     fun applyHubIdentifier(hub: String?, uploader: FleetUploader) = uploader.setHubIdentifier(hub)
-
-    /**
-     * Upload only when the hub signalled a pending upload, the warranty owner has consented and the hub staged a payload;
-     * [onResult] runs only if an upload was attempted. [FleetUploader.upload] re-checks the gate as a backstop.
-     */
-    suspend fun applyUploadPending(
-        pending: Boolean,
-        warrantyGateOpen: Boolean,
-        stagingPayload: ByteArray?,
-        uploader: FleetUploader,
-        onResult: (Boolean) -> Unit = {},
-    ) {
-        if (!pending || !warrantyGateOpen || stagingPayload == null) return
-        onResult(uploader.upload(stagingPayload))
-    }
 }
