@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 18
-**Date:** 2026-11-22
+**Revision:** 19
+**Date:** 2026-11-25
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -208,7 +208,7 @@ Layer 1 — UHDR Master Key (UKMD):
   - Stored in Config partition encrypted under the Layer 2 wrapper key
 
 Layer 2 — Master Key Wrapper Key (WKMD):
-  - Derived from user's biometric/PIN using Argon2id in two stages: the NP-FW-EMMC-001 Rev 1 §6 parameters on the phone, then a 256 KiB stage on the hub (§C.4, Rev {NP-FW-EMMC-002 to})
+  - Derived from user's biometric/PIN using Argon2id in two stages: the NP-FW-EMMC-001 Rev 1 §6 parameters on the phone, then a 256 KiB stage on the hub (§C.4, Rev 19)
   - Used only to encrypt/decrypt the 64-byte UKMD stored in Config
   - Held in on-chip SRAM only during the unlock window (app foreground session)
   - Zeroed from SRAM using memset_explicit when app moves to background
@@ -252,7 +252,7 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > AES-256 (the CAAM's, or the vetted software library EMMC-UHDR-06 allows). That document is a `.docx` and is not
 > edited here (`OI-CONV-04`).
 
-> **Rev {NP-FW-EMMC-002 to} (2026-11-24): the Argon2id question of the Rev 12 note is settled; the credential is stretched
+> **Rev 19 (2026-11-24): the Argon2id question of the Rev 12 note is settled; the credential is stretched
 > twice (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) Finding M10; settled in the `OI-PRIV-35` working session that day).**
 > The memory-hard stage keeps the written figure, 64 MiB, `t = 4`, `p = 1`, and runs on the phone, which has the memory
 > and which §C.8 already makes the place the credential is derived (`REQ-EMMC2-08`). The hub then runs Argon2id at
@@ -1363,6 +1363,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 16 | 2026-11-24 | **§B.2: a callout records the principal's ruling (2026-11-23, `OI-PRIV-27` (NP-PRIV-ANALYSIS-004)): only the warranty owner may start a factory reset, which wipes every person's UHDR on a shared helmet; every attempt first lists every user with data on the helmet; each row is associable with a user and shows none of their data; users current on the helmet start selected for export and the rest deselected (2026-11-24), none selected wiping everything; the export (§C.8.4) is followed by the wipe (§B.3), and a failed export erases nothing; the command is a signed reset blob on the upload path. It supersedes §B.2's user trigger and gate. Not built; built with §C.8.** |
 | 17 | 2026-11-24 | **New §C.8.7 and REQ-EMMC2-07: increment 2 of §C.8, per-file sealing (np_uhdr_seal.c), is built and host-tested as a buffer library with no caller yet: a 32-byte clear header with a random file id, 512-byte chunks (one log staging block, 496 bytes of plaintext), a per-file key derived from the profile key and the file id, AES-256-GCM per chunk with the index as nonce and a final flag in the AAD, refusal of any changed, reordered, dropped, duplicated, appended or truncated chunk, and names from the random id only. One new seam (file KDF, SW-02 count 127 to 128). §C.8.5 records the Mode 3 question as the principal's. With the principal's rulings of 2026-11-24, the profile attempt limit becomes per profile (REQ-EMMC2-05 rewritten; the record grows to 216 bytes) and the profile cap becomes 24 (UC-204, ASSUMED). The backend wiring, the mount change and the file export are increment 3 (OI-PRIV-34, NP-PRIV-ANALYSIS-004, #962).** |
 | 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
+| 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 
 Open items created by this document:
 
