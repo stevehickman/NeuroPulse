@@ -108,11 +108,15 @@ fun SettingsScreen(
             onDone = { showOwner = false },
             modifier = modifier,
         )
-        showProfiles -> ProfilesScreen(
-            store = app.limitsStore,
-            onDone = { showProfiles = false },
-            modifier = modifier,
-        )
+        showProfiles -> {
+            val hub by app.gattManager.hubIdentifier.collectAsState()
+            ProfilesScreen(
+                store = app.limitsStore,
+                onDone = { showProfiles = false },
+                modifier = modifier,
+                stealthLockedByOwner = app.stealthForbidden(hub),
+            )
+        }
         showZones -> ZoneEditorScreen(
             library = app.protocolLibrary,
             onDone = { showZones = false },

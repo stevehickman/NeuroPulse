@@ -47,7 +47,7 @@ stack: it writes a test event under a throwaway ID, erases it through this code 
 Configuration is from the environment: CLICKHOUSE_URL (http://clickhouse:8123), ERASE_CLICKHOUSE_USER, ERASE_CLICKHOUSE_PASSWORD,
 ERASE_TABLES (default posthog.sharded_events, comma separated), ERASE_LISTEN (default 0.0.0.0:8080), ERASE_RATE_PER_SECOND
 (default 5), ERASE_BURST (default 20), ERASE_QUEUE_PATH (default /var/lib/np-erase/queue), ERASE_BATCH_SECONDS (default 60),
-ERASE_BATCH_MAX (default 500), ERASE_MUTATION_TIMEOUT_SECONDS (default 600). The last three have no derivation (UC-208). The
+ERASE_BATCH_MAX (default 500), ERASE_MUTATION_TIMEOUT_SECONDS (default 600). The last three have no derivation (UC-210). The
 password is never printed.
 """
 import http.server
@@ -69,7 +69,7 @@ DISTINCT_ID = re.compile(r"^[0-9A-Za-z-]{16,64}$")
 TABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
 DEFAULT_TABLES = ("posthog.sharded_events",)
 DEFAULT_QUEUE_PATH = "/var/lib/np-erase/queue"
-# No derivation (UC-208): a batch a minute keeps a withdrawal's deletion far inside the 30 days NP-APP-TELEMETRY-001 §5 allows
+# No derivation (UC-210): a batch a minute keeps a withdrawal's deletion far inside the 30 days NP-APP-TELEMETRY-001 §5 allows
 # while running few mutations; 500 IDs keeps one mutation's IN list and URL small; 600 s is a guess at the longest one mutation
 # over a 30-day events table takes. A batch that times out stays queued and is tried again.
 DEFAULT_BATCH_SECONDS = 60

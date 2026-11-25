@@ -269,7 +269,7 @@ services:
       ERASE_LISTEN: 0.0.0.0:8080
       ERASE_RATE_PER_SECOND: ${ERASE_RATE_PER_SECOND:-5}
       ERASE_BURST: ${ERASE_BURST:-20}
-      # The pending IDs, on a volume so a restart loses none. The batch figures have no derivation (UC-208).
+      # The pending IDs, on a volume so a restart loses none. The batch figures have no derivation (UC-210).
       ERASE_QUEUE_PATH: /var/lib/np-erase/queue
       ERASE_BATCH_SECONDS: ${ERASE_BATCH_SECONDS:-60}
       ERASE_BATCH_MAX: ${ERASE_BATCH_MAX:-500}
