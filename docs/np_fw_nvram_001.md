@@ -17,6 +17,19 @@
 
 ---
 
+> **Rev {NP-FW-NVRAM-001 to} (2026-11-25) — `OI-NVRAM-20` CLOSED: Map 3 is one running-total row per module, and the retired journal codec is gone.**
+>
+> The §8.5 row is complete. `NP_CFG_FILE_MODULE_USAGE` (`np_module_usage.c`, `REQ-FWHUB-93`) **is** Map 3: one
+> upserted record of one 64-byte row per module (§3.3.1.6), holding sessions present and used with their time, faults
+> per code, mate cycles, `dose_accum`, `throttle_count`, `fault_flags` and `detail_lost`. The per-session layout of
+> §3.3.1.5 stays retired in place, and its codec (`np_map3_record.{h,c}`, `np_map3_record_tests`) is removed, because
+> nothing may write it. §4.2(b), §6, §6.3 and §7.2 are revised for an upserted record: a download is a snapshot read that
+> changes nothing on the helmet, a full table gives up a row visibly instead of dropping detail, and the record has one
+> fixed length so a later version's longer row is read and carried through (D-35 to D-37). Who sees which field is
+> §8.5's table: the app every field, the fleet the totals under the month anchor, `dose_accum` and `throttle_count`
+> only under `NP-MOD-ID-001` §7's opt-in, and `fault_flags` bit 0 never. `map3.jrn` and the store's journal API have no
+> consumer left; whether they go is **`OI-NVRAM-21`**.
+
 > **⚠ REV 11 (2026-09-28, GitHub #444) — `OI-HEXMAP-01` CLOSED: the module map's blob has a store, and a restored record waits for the poll.**
 >
 > `np_hexmap_nvram_read()` and `np_hexmap_nvram_write()` were a pair of platform traps. They are now
@@ -488,7 +501,12 @@ provably safe: the code has never used the offset. `np_uhdr_key.c` reaches the r
 `np_uhdr_hal_config_read_ukmd()` / `_write_ukmd()`, so *"Config partition offset 0x1000"* was a
 spec-side artifact with no implementation depending on it. **D-22.**
 
-#### 3.3.1.5 The Map 3 file budget — closes `OI-NVRAM-13`
+#### 3.3.1.5 The Map 3 file budget — closes `OI-NVRAM-13` *(RETIRED Rev 16; replaced by §3.3.1.6 at Rev {NP-FW-NVRAM-001 to})*
+
+> **RETIRED, NEVER WRITTEN.** Everything in this section describes the per-session journal the principal's ruling of
+> 2026-11-23 replaced (§8.5). No helmet ever wrote a row of it, and its codec was removed at Rev {NP-FW-NVRAM-001 to} so that nothing
+> can. It stays here, unedited below this note, as the record of what was replaced and why each number was chosen.
+> The row Map 3 keeps is §3.3.1.6.
 
 With the journal as its own LittleFS file (D-5), `file_max` = 65,536 B applies **per file**, so Map 3
 has the whole of it rather than competing with the 14,012-byte inventory blob. §3.5's warning — that
@@ -542,6 +560,59 @@ assumption costs **detail, never a session and never a total** — §6.3's journ
 running totals, drops per-window detail and sets `detail_lost`, and D-12 forbids both wrapping over
 unsynced rows and blocking a session; **(iii)** the failure is visible, because `detail_lost` is a
 flag the control software reads, not a silent truncation. **D-24.**
+
+#### 3.3.1.6 The Map 3 row as built — added at Rev {NP-FW-NVRAM-001 to} (`OI-NVRAM-20`)
+
+Map 3 is `NP_CFG_FILE_MODULE_USAGE` (`np_module_usage.h`): one REPLICATED record holding one row per module, upserted
+at each session end (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`). It is not a journal, so nothing is appended and nothing
+is retired.
+
+**The row: 64 bytes, version 1, little-endian.** A tile's row is keyed by its UID; an accessory's by its port (slot and
+module type), because accessories report no identity (`NP-FW-HUB-001` `OI-FWHUB-38`).
+
+```
+off  size  field              off  size  field
+  0     1  key kind             26     4  fault_code[4]
+  1     1  fault_flags          30    16  fault_count[4]
+  2     8  id (UID or port)     46     4  faults_other
+ 10     4  sessions_present     50     4  mate_cycles
+ 14     4  present_s            54     4  dose_accum (mJ/cm², summed over wavelengths)
+ 18     4  sessions_used        58     4  throttle_count
+ 22     4  used_s               62     1  detail_lost (0 or 1)
+                                63     1  reserved, written 0, never reused
+                                                                      ── 64 B
+header: version (1) | row length (1) | row count (2)                  ──  4 B
+```
+
+Every count is 32 bits and stored whole, with no field holding a ceiling (`OI-UINT16-01`). The arithmetic adds with
+saturation at 2³² − 1, as every running total in `np_module_usage.c` does. There is no `ordinal`, no `seq`, no
+watermark and no clock (§8.5). A per-window value exists only in the app (§6).
+
+**Size.** The version-1 fields take 63 bytes, and one reserved byte makes 64. **Rows:** `NP_MU_MAX_ROWS` = 128 socket
+addresses (`NP_HEXMAP_MAX_SOCKETS`) + 19 hub slots (`NP_HUB_SLOT_MAX`) = **147**, one for every module that can be fitted
+at once. At version 1 the rows take 4 + 147 × 64 = **9,412 B**.
+
+**The record is 12,288 B whatever the row length** (`NP_MU_TABLE_BYTES`, `NP_CFG_REPLICA_TABLE_MAX_PAYLOAD`). The store
+reads a replicated record at one fixed length, so a record whose length changed with its row would be unreadable to the
+firmware on either side of the change (§7.2). Fixing the length leaves room for the row to grow: the longest row that
+fits is ⌊(12,288 − 4) / 147⌋ = **83 B** (147 × 83 + 4 = 12,205 ≤ 12,288; at 84 B it would be 12,352). A later version
+can therefore add up to 19 bytes per row without changing the record. 12,288 is 3 × 4,096, the smallest multiple of
+4 KiB above 9,412 that leaves that room. Each copy on the medium is 12 + 12,288 + 4 = 12,304 B, in a file of its own
+under `file_max` (65,536 B), and the two copies are 24,608 B.
+
+**What the §4.2(b) rules become, and which are dropped.**
+
+| §4.2(b) rule (journal) | For this record | Why |
+|---|---|---|
+| 1. No row straddles a program unit | **Does not bind.** 64 B would put four rows in a 256-byte unit, but the rows start at file offset 16 + 64 *i* (the 12-byte envelope header and the 4-byte table header), so row 3 spans bytes 208 to 271 | The rule protected a row appended alone, which a tear could half-program. This record is never written in part: each copy is replaced whole and littlefs commits it at close (D-6, L-3), the envelope's CRC-32 covers every byte, and the twin holds the previous generation. A torn write leaves a copy that fails its CRC, and the reader takes the other. No row can be half-accepted, so the row size is chosen by its content, not by the program unit |
+| 2. A CRC per row, binding the UID | **Dropped.** One CRC-32 over the whole record, in the store's envelope | The per-row CRC stopped a row being recovered into the wrong module's history. Rows are never recovered one by one: the record verifies whole or is refused whole (`REQ-FWHUB-93` (d)) |
+| 3. A monotonic `seq` per row | **Dropped** | Recovery is the twin, not a scan to the last good row |
+| 4. Two watermarks | **Dropped** | Nothing is acknowledged or retired (§6) |
+| `len` and `ver` per row (D-25) | **Kept, in the header:** one version and one row length for every row of the record | Every row of a record is written by one firmware at one length. The reader steps by the header's row length, as the journal's reader stepped by each row's `len` |
+
+**Cost.** Static RAM in the store grows from 3 × 8,208 to 3 × 12,304 B (its two read buffers and its write envelope),
+and `np_module_usage.c` holds the 12,288-byte image. Writes: 24,608 B per session end, which is 1/1,024 of the
+25.2 MB per session §3.5 found would wear Config out in 4.6 years, so about a thousand times that life at the same rate.
 
 ### 3.4 SNVS is not a candidate, and two existing callers assume otherwise
 
@@ -773,7 +844,30 @@ Torn write degrades to: **CRC or length mismatch → `NP_HUB_ERR_BAD_MAGIC`/`_CR
 the hub re-polls every socket.** That is the same recovery as a first boot, it is already tested, and
 it is correct **because the blob is a cache** (§7.2).
 
-**(b) Map 3 — append-only, self-checking, fixed-size records.**
+**(b) Map 3 — one record, upserted whole, two copies.** *(Rev {NP-FW-NVRAM-001 to}; the journal discipline it replaced follows,
+retired.)*
+
+Map 3 is now one row per module (§8.5, §3.3.1.6), and a row is changed in place at each session end, never appended.
+So it takes (a)'s discipline, not a journal's: the record is replaced whole, and littlefs commits the replacement at
+close (D-6, L-3). Because nothing else remembers what it holds, it is not a cache, and it is kept REPLICATED: two
+copies in two metadata pairs, each in an envelope with a generation and a CRC-32 over every byte, the newer valid copy
+read and the other repaired from it (`np_cfg_store.h`).
+
+1. **The whole record, at one fixed length**, written once per session end. A tear costs that one write: the copy
+   being written fails its CRC and the twin, one generation older, is read.
+2. **Unknown is never zero (D-7).** A record that exists and cannot be read is never overwritten, the session's
+   contributions are dropped and counted, and each affected module's row is marked `detail_lost` at the next commit
+   that succeeds (`REQ-FWHUB-93` (d), (g)). The download reports such a table as unknown (§6).
+3. **The rows carry no recovery fields.** No per-row CRC, `seq` or watermark (§3.3.1.6 says why each is dropped).
+
+**A torn write degrades to: the previous session end's record, intact.** The write amplification that made (a)'s
+discipline wrong for a journal does not arise: the record is 12,288 B, written once per session, not 14 KB per event
+(§3.3.1.6, cost). **D-35.**
+
+> **Retired with the per-session journal (Rev 1 to Rev 17), kept for the record.** The discipline below was never
+> built for a written row; `np_cfg_store`'s journal API remains, with no production caller (`OI-NVRAM-21`).
+
+*Map 3 — append-only, self-checking, fixed-size records (retired).*
 
 An accumulating record cannot use (a)'s discipline: rewriting 14 KB to append 16 bytes is the write
 amplification §3.5 costs at 4.6 years, and worse, it puts the *entire* history at risk on every
@@ -829,6 +923,11 @@ re-inventoried"`).
 store is unbound, `np_hexmap_nvram_read()` returns `NP_HUB_ERR_INVALID_ARG` and `restore()` leaves
 the map empty. That is the first-boot path, and it is correct. §10.2's three consequences therefore
 still hold **on target**. They now wait on those two items, not on this one.
+
+*(Rev {NP-FW-NVRAM-001 to}: for the upserted record, "declare the gap" is three behaviours. The download reports an unreadable table as
+unknown, never as an empty one (`np_mu_snapshot()` returns `NP_HUB_ERR_STORE_IO` with no rows, `REQ-FWHUB-93` (i)). A
+session end never writes over a record it could not read. A module whose contribution was dropped carries
+`detail_lost`. The paragraph below states the principle in the journal's terms.)*
 
 **Fail-closed means something different for a record than for a cache, and the difference must be
 stated.** For the inventory, fail-closed is "assume nothing is present and re-poll" — availability is
@@ -930,6 +1029,10 @@ directly.
 > per-record `seq` for intra-session ordering. No new counter is introduced and no wall-clock field
 > exists in any record this HAL writes.** **D-9.**
 
+*(Rev {NP-FW-NVRAM-001 to}: Map 3 no longer has an ordering, a window or a watermark. Its row holds running totals only (§8.5,
+§3.3.1.6), so D-9 now constrains nothing Map 3 writes. Its second half stands: no record this HAL writes has a clock
+field.)*
+
 This is not merely available, it is the correct choice on its own merits: a second monotonic counter
 would have to be kept consistent with the first across factory reset, and two counters that can
 disagree are a worse foundation than one that cannot.
@@ -1026,6 +1129,29 @@ not a thresholded flag.
 
 ### 6.1 The definition
 
+> **Rev {NP-FW-NVRAM-001 to} (§8.5, D-35): a sync is a snapshot read.** The control software reads the whole Map 3 table, every row as
+> it stands (`np_mu_snapshot()`). Nothing on the helmet changes because it was read: there is no watermark, no
+> acknowledgement and no row retired. The app keeps the snapshot it read last time, computes each row's difference
+> from it, stamps the difference with its own time, and keeps both in Map 2 (§8.3, D-19). A table the helmet could not
+> read is reported as unknown, never as a table with no rows (D-7).
+>
+> What follows from it, in place of properties 2 and 3 below:
+>
+> - **The app's previous snapshot is kept per helmet and per row.** A module's row counts only what this helmet saw
+>   of it, starting at zero, and another helmet keeps its own row for the same UID. An accessory's row counts its port,
+>   not the part. So a difference is taken against the same helmet's previous value for the same row key, and never
+>   across helmets.
+> - **A row that went down, or that disappeared, is not negative use.** A row disappears when a full table gave it up
+>   (§6.3); the row it gets if the module comes back starts at zero with `detail_lost` set. The app takes the new value
+>   as the difference when `detail_lost` is newly set or the value fell, and never subtracts.
+> - **Properties 1 and 4 stand unchanged.** The control software initiates every read (D-10), and a read is not a
+>   consent event and grants no upload (§8).
+>
+> **Not built:** the wire command that carries the snapshot to the app, and Map 2 itself. Nothing in this revision
+> builds either; they must keep to the above.
+
+*The journal's definition, Rev 1 to Rev {NP-FW-NVRAM-001 from}, retired with it:*
+
 > **A sync is a transfer of Map 3 records above a watermark the control software supplies, followed by
 > an acknowledgement by ordinal, after which the helmet may retire the acknowledged rows.**
 
@@ -1045,12 +1171,36 @@ Four properties, each with its reason.
 
 ### 6.2 What happens to Map 3 rows after a successful sync
 
+*(Rev {NP-FW-NVRAM-001 to}: nothing. The rows are running totals and stay as they are, so a control software instance that lost its own
+store reads the same totals again. The paragraph below, and D-11, applied to the journal.)*
+
 They stop being the authoritative copy and become reclaimable. They are **not** required to disappear
 immediately, and there is a reason not to rush: a control software instance that loses its own store
 (app reinstall, phone replacement) can re-request from a lower watermark for as long as the rows are
 still there. The helmet reclaims lazily, when space is needed, oldest-acknowledged first. **D-11.**
 
 ### 6.3 The journal-full policy — the decision that is easy to get wrong
+
+> **Rev {NP-FW-NVRAM-001 to} — what it becomes when rows are per module (D-37).** The table fills with **modules, not sessions**. It
+> holds 147 rows, one for every socket address and hub slot, so every module that can be fitted at once has a row, and
+> no number of sessions fills it. It fills only once a helmet has seen more distinct modules than that (tiles swapped in
+> from a pool, for example). Then:
+>
+> | | Behaviour | Why |
+> |---|---|---|
+> | **A newcomer takes a row** | The row of the module with the fewest sessions present and nothing pending this session (UC-208) | A session is never refused and a fitted module is never left uncounted, for the reasons the table below gives against *Stop* |
+> | **The loss is visible** | The given-up module's row is gone from the next snapshot. The newcomer's row starts with `detail_lost` set, and so does the row a given-up module gets if it returns | The helmet has forgotten a module, so it cannot say any new row's totals start there for the first time. Marking every row made in a full table is how the app learns that a returning module restarted at zero (§6.1) |
+> | **A dropped commit is visible too** | When the record cannot be read at session end, the session's contributions are dropped, never written over it, and each affected module's row gets `detail_lost` at the next commit that succeeds | Unknown is not zero (D-7) |
+>
+> **What is lost, and what is not.** A given-up module loses the growth since the app's last snapshot of this helmet;
+> what the app already read stays in Map 2 and in the fleet's last upload. Map 4 on the module is untouched, so its
+> odometer never goes backwards. The journal's *detail* no longer exists to drop, so "keep totals, drop detail" becomes
+> "keep every fitted module's totals, give up the least-used absent one, and say so". **The file bound** is the fixed
+> record of §3.3.1.6: 12,288 B of payload, 12,304 B per copy, two copies, each under `file_max`. It does not grow with
+> sessions, so there is no sessions-between-sync assumption to state.
+
+*The journal's policy, Rev 1 to Rev {NP-FW-NVRAM-001 from}, retired with it; its reasoning against Wrap and Stop still
+decides the rule above:*
 
 A bounded journal that fills while unsynced has three candidate behaviours, and two of them lose data
 invisibly:
@@ -1080,6 +1230,10 @@ degradation summary with **no linkage record created anywhere**. So:
 3. At the next sync, Map 2 learns of a module it has never seen, with a **carried-in baseline** —
    and per **MODID-6** that baseline is **coarsened before it reaches SHDR**, because an exact
    carried-in count is joinable against the previous fleet's last reported partial.
+
+*(Rev {NP-FW-NVRAM-001 to}: the row holds only what this helmet observed and starts at zero; it stores no baseline. A carried-in
+baseline is Map 4's, read from the module, and the app holds it beside the row in Map 2. Reading Map 4 from a tile is
+not built: it needs the module link, `OI-HEXMAP-02`.)*
 
 **Corollary, worth stating because it inverts an intuition: Map 2 is not authoritative for a module's
 existence. Only the socket is.** A uid in Map 2 that no socket reports is a module that is elsewhere
@@ -1167,6 +1321,15 @@ lost among the false ones. **D-29:**
 4. **The difference is never written into Map 4.** Map 4 records what the part observed (§6.5). A
    helmet adding sessions to it would make the carried-in baseline one fleet's claim instead of the
    part's.
+
+*(Rev {NP-FW-NVRAM-001 to}: with running totals there is no row per ordinal to leave out. `fault_flags` bit 0 is sticky
+(`NP_MU_FAULT_UNSEATED_AT_CLOSE`): set, it says the module closed at least one session unseated in this helmet. Each
+interrupted session needs an extraction, and the module was mated again before Map 4 could be read, so the shortfall it
+explains is at most the module's mate cycles in this helmet. The comparison becomes: Map 4 is expected to reach at least
+the carried-in baseline plus sessions present, less the row's mate cycles when bit 0 is set; only a shortfall below
+that is an anomaly. That is coarser than one exclusion per session and never flags the benign shortfall the rule exists
+for, but it reads a mate the hub did not see as a real shortfall. Nothing sets bit 0 or counts a tile's mate yet: both
+need the inventory poll, `OI-HEXMAP-02`.)*
 
 **The flag stays off SHDR.** A count of mid-session extractions records how the wearer handles the
 helmet, which is the same class of object as the placement-event rate `NP-FW-EMMC-002` `OI-EMMC2-08`
@@ -1263,7 +1426,42 @@ four-map architecture forces:
 and asserts no record is lost — and per `NP-CONV-001` §8 that check must be **falsified in both
 directions** before it is trusted.
 
+> **Rev {NP-FW-NVRAM-001 to} — the rule for the upserted record (D-36).** Map 3 is now one record rewritten at each session end
+> (§3.3.1.6), not a journal appended to, so rule 2 is restated for a record. The opposition to reject-and-rebuild is
+> unchanged: the totals are history, and a firmware update or rollback that made them unreadable would drop every
+> session after it (never overwrite them, `REQ-FWHUB-93` (d), but never count them either).
+>
+> 1. **The record has one length for ever, 12,288 B**, whatever the row length, because the store reads a replicated
+>    record at a fixed length and a record of another length is unreadable.
+> 2. **Bytes 0 to 63 of a row are fixed for ever**, the reserved byte 63 included. A later version appends fields after
+>    byte 63 and raises the header's version and row length; it never moves, resizes or reuses a version-1 field.
+> 3. **The reader accepts any version ≥ 1 and any row length from 64 to 83 B** (the most that fits, §3.3.1.6). It steps
+>    from row to row by the header's row length, decodes the version-1 fields at their offsets and ignores the rest.
+>    Version 0 is never written and is refused.
+> 4. **The writer carries what it does not know.** It rewrites the version-1 fields of each row in place, leaves every
+>    byte after them as it read them, and keeps the header's version and row length. A row it creates starts those bytes
+>    at zero. So after a rollback, a newer firmware's fields are not lost: they stop growing while the older firmware
+>    runs (a lower bound, like Map 4), and they are zero in a row the older firmware created.
+> 5. **Not tail-additive, so it needs a converter that runs before the new firmware's first write:** a different record
+>    length, a row longer than 83 B, or more rows than the older firmware's 147. An older firmware refuses such a record
+>    whole and never writes over it.
+>
+> No helmet has written a record, so version 1 is the first layout and nothing is migrated. `np_module_usage_tests`
+> is the check (§7.2.1).
+
 #### 7.2.1 The check, as written — added at Rev 3 (`OI-NVRAM-08` closed)
+
+> **Rev {NP-FW-NVRAM-001 to}: the check below was for the retired journal, and it is removed with the journal's codec.** Its rule now
+> binds the upserted record (§7.2, D-36), and `np_module_usage_tests` checks it against the production reader and
+> writer (`REQ-FWHUB-93` (h)): a version-2 record with 76-byte rows and a tail after byte 63 is loaded with every
+> version-1 field intact, the row length steps to the next row, a session's rewrite keeps the version, the row length
+> and every tail byte, a row the rewrite creates has a zero tail, and the totals run on. It refuses version 0, a row
+> shorter than 64 B or longer than 83 B, more rows than 147 and an unknown key kind, and a record of another length is
+> unreadable, never empty. **Falsified by hand (2026-11-25):** with the reader refusing any version but 1 (the
+> reject-and-rebuild policy, RISK-NVRAM-01's cause) the check fails 7 assertions; with the reader taking only a 64-byte
+> row (fixed stride) it fails 7; with the writer zeroing every row before writing it (dropping a newer firmware's fields)
+> it fails 1. Each mutant was reverted and the check passes. The store's own variable-length journal reader keeps its
+> check (`np_cfg_store_tests` case 9, on a fixture row of its own) until `OI-NVRAM-21` decides the journal API.
 
 `firmware/hub_control/tests/np_map3_record_tests.c` (ctest `np_map3_record_tests`, Class B) checks
 the production reader, `np_map3_scan()`. **Version tolerance is a property of the scan, not a
@@ -1379,16 +1577,16 @@ custody constraint that makes this a storage question and not only an upload que
 | `cal[9]` factory coefficients | Inventory blob | **SHDR** | Measured on the part at manufacture (`NP-FW-PBM1064-001` §6.6); a factory fact |
 | Element type list | Inventory blob | **SHDR** | Configuration |
 | `session_count` per module | Map 3 / Map 4 | **SHDR — as a bare unsigned count only** | Directly on precedent: *"device session count (unsigned integer) → SHDR; session timestamps → UHDR."* The qualifier is the whole rule (§8.2). *(Rev 15:* in Map 3's per-session row it is not a bare count but one step per session beside `ordinal`, so it goes with the `ordinal` row below until `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 is ruled.) *(Rev 16, ruled: the count of sessions the module was present for, kept as a running total per module, is SHDR. Presence is not use; exposure to a session is wear (§8.5).)* |
-| `mate_cycles_observed` | Map 4, mirrored in Map 3 | **SHDR as a total; per-event record is not written at all** | An aggregate insertion count is wear data on a contact rated ≥500 cycles. A per-event *record* is a log of when the wearer reconfigured their helmet — which areas they changed treating — and it is not needed for anything (§8.4) |
+| `mate_cycles_observed` | Map 4, mirrored in Map 3 *(Rev {NP-FW-NVRAM-001 to}: Map 3's `mate_cycles` is this helmet's own count, §3.3.1.6)* | **SHDR as a total; per-event record is not written at all** | An aggregate insertion count is wear data on a contact rated ≥500 cycles. A per-event *record* is a log of when the wearer reconfigured their helmet — which areas they changed treating — and it is not needed for anything (§8.4) |
 | `emitter_on_seconds`, `thermal_seconds_over_threshold`, `throttle_events`, `peak_ntc` | Map 4 | **SHDR only under `NP-MOD-ID-001` §7's opt-in**, per-socket, cohort-scoped | Already decided there and not re-opened. Per-socket optical duty at 80-socket resolution is treatment geography; `DOSE-01` is narrowed, not removed |
 | `pd_ratio_last` | Map 4 | **SHDR** | The fouling-vs-aging discriminator; a property of the window and the emitter |
 | `ordinal` *(Rev 15; retired Rev 16)* | Map 3 row, Config | **Not stored. The per-session row it keyed is retired (§8.5)** | *Rev 15 reasoning, kept:* A row per module per session keyed by `(uid, ordinal)` says which module was worn in which session. That is the content of the session fitting record, which is UHDR (`data-architecture-detail.md` §5.1, `NP_LOG_TAG_UHDR_FITTING`), and the per-socket montage the F1 ruling puts in UHDR. §8.2 found the hazard at upload; §3.2 makes the write itself the disclosure, because Config's key is NeurOne-derivable. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
 | `dose_accum` *(Rev 15; ruled Rev 16)* | Map 3 row, Config | **SHDR class as a running total per module, never per session or per window. Reaches the fleet only under `NP-MOD-ID-001` §7's opt-in** (§8.5) | *Rev 15 reasoning, which still decides the per-session form:* Dose on one module in one session window is dose per socket per session, ruled UHDR (F2, `data-architecture-detail.md` §5.1). A running total does not escape it: two consecutive rows give the session's dose by subtraction. A lifetime dose on the module is Map 4's `emitter_on_seconds` question, SHDR only under `NP-MOD-ID-001` §7's opt-in. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
 | `throttle_count` *(Rev 15; ruled Rev 16)* | Map 3 row, Config | **SHDR class as a running total per module, never per session or per window. Reaches the fleet only under `NP-MOD-ID-001` §7's opt-in** (§8.5) | *Rev 15 reasoning, which still decides the per-session form:* Which socket throttled in a session is ruled UHDR (F8); a per-module, per-session count is that ruling with a number attached. `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1 |
-| `seq`, `synced_upto`, `retired_upto` | Map 3 store | **Device-internal. Never uploaded in any form** | §8.2 |
-| `detail_lost` flag (§6.3) | Map 3 store | **SHDR** | A storage-condition boolean with no magnitude |
+| `seq`, `synced_upto`, `retired_upto` *(retired Rev {NP-FW-NVRAM-001 to})* | Map 3 store | **Not stored: the record has no journal, no sync acknowledgement and no watermark (§6.1, §3.3.1.6)** | §8.2, which they were classified under, still forbids any of them reaching SHDR |
+| `detail_lost` flag (§6.3) | Map 3 row | **SHDR** | A storage-condition boolean with no magnitude. *(Rev {NP-FW-NVRAM-001 to}: per row and sticky; set when the row took another module's place or a contribution to it was dropped, §6.3)* |
 | Map 2 → Map 4 divergence | Reconciliation (§6.5) | **SHDR as a boolean only** | Magnitude is a join key, `NP-MOD-ID-001` §6.3. *(Rev 7: computed against the expectation that excludes interrupted sessions, §6.5.1, D-29)* |
-| `NP_MAP3_FAULT_UNSEATED_AT_CLOSE` *(Rev 7)* | Map 3 `fault_flags` bit 0, mirrored in Map 2 | **Device- and app-internal. Never uploaded in any form** | A count of mid-session extractions records how the wearer handles the helmet (compare `NP-FW-EMMC-002` `OI-EMMC2-08`). It is used only to compute the divergence boolean above (§6.5.1, D-29) |
+| `NP_MAP3_FAULT_UNSEATED_AT_CLOSE` *(Rev 7; `NP_MU_FAULT_UNSEATED_AT_CLOSE` since Rev {NP-FW-NVRAM-001 to}, sticky)* | Map 3 `fault_flags` bit 0, mirrored in Map 2 | **Device- and app-internal. Never uploaded in any form** | A count of mid-session extractions records how the wearer handles the helmet (compare `NP-FW-EMMC-002` `OI-EMMC2-08`). It is used only to compute the divergence boolean above (§6.5.1, D-29) |
 | Anything else | — | **Not stored here at all** | §3.2's custody rule: Config's key is NeurOne-derivable |
 
 > **Rev 15 (2026-11-21, `OI-PRIV-38` (NP-PRIV-ANALYSIS-004) part 1) — the Map 3 row as laid out in
@@ -1542,10 +1740,22 @@ upload's snapshot under its month anchor. `dose_accum` and `throttle_count` keep
 
 *Built as:* `NP_CFG_FILE_MODULE_USAGE`, one REPLICATED fixed-size record upserted at each session end
 (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`), not as rows in `map3.jrn`: a tail-additive journal can only append, and an
-appended row per session is the per-session history this section rules out. `map3.jrn` and `np_map3_record` stay as
-§3.3.1.5 left them, retired and unwritten. Still owed under `OI-NVRAM-20`: mate cycles, `fault_flags` and `detail_lost`
-in the row; `dose_accum` and `throttle_count` behind the opt-in; the revision of §6, §6.3 and §7.2 for an upserted
-record; and the removal of the retired journal codec.
+appended row per session is the per-session history this section rules out. *(Rev {NP-FW-NVRAM-001 to}, `OI-NVRAM-20` closed:* the row
+is complete, §3.3.1.6; §4.2(b), §6, §6.3 and §7.2 are revised for it; `np_map3_record` is removed, and `map3.jrn`,
+never written, waits on `OI-NVRAM-21`.)*
+
+**Who sees which field (Rev {NP-FW-NVRAM-001 to}).** The helmet keeps every field below; nothing in this table adds a field to any
+upload, and the hub side of the fleet upload is not built (`NP-FW-HUB-001` §2.5).
+
+| Field | Helmet (Config) | App (Map 2, the person's) | Fleet (SHDR, month anchor) |
+|---|---|---|---|
+| Key (UID, or port) | Yes | Yes | A tile as `module_ref = HMAC(fleet_key, uid)`, never the raw UID (MODID-1); a port as its slot and module type |
+| Sessions present, time present, sessions used, time used, faults per code | Running totals | Snapshot, and its differences stamped with the app's time | The totals (the 2026-11-24 amendment) |
+| Mate cycles | Running total | As above | The total (the table above) |
+| `dose_accum`, `throttle_count` | Running totals | As above | The totals, **only under `NP-MOD-ID-001` §7's opt-in** |
+| `detail_lost` | Sticky boolean | As above | The boolean (§8.1) |
+| `fault_flags` bit 0 | Sticky bit | Yes, for reconciliation (§6.5.1) | **Never** (§8.1, D-29) |
+| A difference between two snapshots | Never computed | Yes | **Never** (D-18) |
 
 ## 9. IEC 62304 classification
 
@@ -1693,14 +1903,14 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-2** | **The medium is the eMMC Config partition.** No discrete NOR, FRAM or MRAM. It already exists, already mounts before session start, is already zeroed by factory reset R-7, and adds no BOM on a gross-margin-negative configuration |
 | **D-3** | **Config's key is NeurOne-derivable, so nothing of UHDR class may be written there** — a storage boundary, stricter than the upload boundary, and it decides what the HAL is allowed to offer a writer for |
 | **D-4** | **No SNVS register is part of any durability property.** With no `VBAT` rail the LP GPRs are warm-reset-only; two existing callers assume otherwise (`OI-NVRAM-05`) |
-| **D-5** | **Map 3 is a separate file with its own magic, version and policy** — reached independently from `file_max` (§3.5), from cache-versus-record (§7.2), and from write granularity (§3.5) |
+| **D-5** | **Map 3 is a separate file with its own magic, version and policy** — reached independently from `file_max` (§3.5), from cache-versus-record (§7.2), and from write granularity (§3.5) *(Rev {NP-FW-NVRAM-001 to}: Map 3 is now `NP_CFG_FILE_MODULE_USAGE`, a REPLICATED record of its own, not `map3.jrn`. The separation from the blob, and the opposite version rule, stand: D-35, D-36)* |
 | **D-6** | **`np_hexmap_nvram_write()` must never destroy the live record before the replacement is durable.** No truncate-in-place; LittleFS's copy-on-write commit supplies A/B semantics without a second slot |
 | **D-7** | **Fail-closed means "declare the gap", not "report zero", for a record.** An unreadable journal reports *unknown since ordinal S*; a fabricated zero would drive Map 2's totals backwards |
 | **D-8** | **No last-gasp write.** `SEAT#` has no firmware consumer, is aggregated at Class B, and its pre-break window is undimensioned. Correctness never depends on advance warning *(Rev 6: the undimensioned window is not what D-8 rests on. A dimensioned one would support no write either, §4.3.1.)* |
-| **D-9** | **Every ordinal is the existing Config eMMC session counter plus a per-record `seq`.** No new counter, no wall-clock field, ever |
+| **D-9** | **Every ordinal is the existing Config eMMC session counter plus a per-record `seq`.** No new counter, no wall-clock field, ever *(Rev {NP-FW-NVRAM-001 to}: Map 3 keeps no ordinal, window or watermark, so this binds nothing it writes; no clock field, still)* |
 | **D-10** | **The control software initiates every sync.** The helmet cannot know which peer holds Map 2 for these modules |
-| **D-11** | **Acknowledgement precedes retirement; retirement is a watermark advance, not an erase.** A peer that loses its own store can re-request from a lower watermark |
-| **D-12** | **Journal-full degrades: keep totals, drop detail, set `detail_lost`.** Never wrap over unsynced rows; never block a session for want of a phone |
+| **D-11** | **Acknowledgement precedes retirement; retirement is a watermark advance, not an erase.** A peer that loses its own store can re-request from a lower watermark *(Rev {NP-FW-NVRAM-001 to}: superseded for Map 3 by D-35. Nothing is acknowledged or retired; a read changes nothing)* |
+| **D-12** | **Journal-full degrades: keep totals, drop detail, set `detail_lost`.** Never wrap over unsynced rows; never block a session for want of a phone *(Rev {NP-FW-NVRAM-001 to}: superseded for Map 3 by D-37, which keeps "never wrap silently, never block a session")* |
 | **D-13** | **Map 2 is not authoritative for a module's existence. Only the socket is** |
 | **D-14** | **Reconcile monotone counters by `max`; never sum, never roll back, and never upload a divergence magnitude** — a divergence is as joinable as a baseline (`NP-MOD-ID-001` §6.3) |
 | **D-15** | **Map 1 is a legitimate generated artefact under `NP-NPPS-REF-001` §1.6 on origin grounds, but §1.6's stated *reason* does not transfer** — a new tile minor needs no rebuild — which is what makes the update check mandatory rather than convenient |
@@ -1712,17 +1922,20 @@ are decisions, and no amount of firmware work substitutes for either.
 | **D-21** *(Rev 2)* | **The Config journal is LittleFS files. `EMMC-CFG-02`'s raw-write region is void — and its *justification* is refuted, not merely outweighed.** At `prog_size` 256 B an append costs one 256-byte program; a raw region cannot make the program unit smaller, because the unit belongs to the eMMC. The cost the clause was aimed at is the 14 KB whole-blob rewrite, which **D-5** already removes. §3.3.1.1 |
 | **D-22** *(Rev 2)* | **The UKMD record is a named LittleFS file, not "Config partition offset 0x1000".** A byte offset into a mounted partition names a block the filesystem owns and may relocate. Safe to correct because no code ever used it — `np_uhdr_hal_config_read_ukmd()` has always abstracted it. `NP-FW-EMMC-002` §C.3 corrected in the same change. §3.3.1.4 |
 | **D-23** *(Rev 2)* | **Widen the Config specification, do not forbid the write.** `EMMC-CFG-01`'s contents list and `EMMC-CFG-02`'s normal-operation whitelist gain the `"NPMP"` blob and the Map 3 journal. `np_module_map_persist()` is correct and the specification predates the hex-tile architecture; the divergence had to become a decision rather than stay silent. §3.3.1.4 |
-| **D-24** *(Rev 2)* | **Map 3 is a 32-byte record in a 49,152-byte file — 1,536 rows, ~19 per socket at 80 sockets.** 32 B so eight records fit one program unit and none straddles it; 48 KiB not `file_max` so a future 40-byte row still fits without re-deciding the bound. Stated assumption: one row per module per session — 19 days of margin at home cadence, 1.6 days at clinic cadence, beyond which §6.3 degrades to totals-plus-`detail_lost` rather than failing. Closes `OI-NVRAM-13`. §3.3.1.5 |
-| **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 is the row of D-34 (64 B). A later version appends before the CRC; offsets [2, 60) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) |
+| **D-24** *(Rev 2)* | **Map 3 is a 32-byte record in a 49,152-byte file — 1,536 rows, ~19 per socket at 80 sockets.** 32 B so eight records fit one program unit and none straddles it; 48 KiB not `file_max` so a future 40-byte row still fits without re-deciding the bound. Stated assumption: one row per module per session — 19 days of margin at home cadence, 1.6 days at clinic cadence, beyond which §6.3 degrades to totals-plus-`detail_lost` rather than failing. Closes `OI-NVRAM-13`. §3.3.1.5 *(Rev {NP-FW-NVRAM-001 to}: retired with the journal; the record's size is §3.3.1.6)* |
+| **D-25** *(Rev 3)* | **The Map 3 row describes itself: §3.3.1.5's two padding bytes are `len` and `ver`, and the reader steps by `len`.** Version 1 is the row of D-34 (64 B). A later version appends before the CRC; offsets [2, 60) are fixed for ever, and `reserved` is never reused. The reader accepts any `ver ≥ 1` and skips a tail it does not know. This is what makes §7.2's rule enforceable, and `np_map3_record_tests` enforces it (`OI-NVRAM-08`) *(Rev {NP-FW-NVRAM-001 to}: retired with the journal; its self-description survives as the record header's version and row length, D-36)* |
 | **D-26** *(Rev 3)* | **Map 2's code carries `Map2` as a word in the name of every file, type and module that holds it.** `check-map2-shdr-boundary.ts` clause A finds Map 2 by that name and cannot find it otherwise (`OI-NVRAM-09`, §8.3.1) |
 | **D-27** *(Rev 3, principal 2026-09-26)* | **A factory reset keeps durable evidence that it started, in the Config partition it erases last (§3.4.1 option A).** Written at R-3 before any erase, and a reset that cannot write it does not start. At boot, the SNVS flag, the marker **or a Config with no filesystem** completes the reset from R-5. An unreadable Config does not. Accepted consequence: a Config lost for any other reason also resets the device and mints a new warranty token (`OI-NVRAM-05`) |
 | **D-28** *(Rev 7)* | **Every per-session value `NP-MOD-ID-001` §7.2 admits is accumulated by the hub while the session runs, never read from `U1` once at session end and never computed as a difference of Map 4 reads.** Map 4 has no socket field and loses the session an extraction interrupts, so any other source drops those sessions from §7.4's exposure covariate, possibly not at random. With this rule the Map 4 loss reaches §7.4's model only through the carried-in baseline, within MODID-6's 250-session rounding. No polling interval is set (`OI-NVRAM-06`, §6.5.1) |
-| **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) |
+| **D-29** *(Rev 7)* | **A session interrupted by extraction is a benign Map 4 shortfall, not a §6.5 anomaly.** The hub sets Map 3 `fault_flags` bit 0 (`NP_MAP3_FAULT_UNSEATED_AT_CLOSE`) on a row it closes after the module has stopped answering on its socket. Map 4 is compared against the carried-in baseline plus unflagged rows only, counting a session once per ordinal. Only a shortfall below that is an anomaly. The difference is never written into Map 4, and the flag is never uploaded (§6.5.1, §8.1) *(Rev {NP-FW-NVRAM-001 to}: bit 0 is sticky in the per-module row, and the comparison uses the row's mate cycles in place of per-ordinal exclusion, §6.5.1)* |
 | **D-30** *(Rev 8)* | **`NP-MOD-ID-001` §7.4's fit carries presence (`module_session_count`) and calendar age (`last_seen_month` − `module_manufacture_date`, months, same `module_life` row) as covariates beside exposure.** Without them, idle aging in a rarely-driven socket reads as a socket effect, the false positive §7.4's decision rule turns on. Both are already in SHDR: **no field, no clock finer than `TIME-01`'s month and no Map 3 change** is added, and sub-month cadence stays unrecoverable (D-18). The gate states the assumption it cannot test: cadence acts only through the measured thermal fields. §5.3.1 |
 | **D-32** *(Rev 11)* | **`REQ-LFS-02` is a property of `np_module_map`, not of the boot sequence.** Every socket record carries a RAM-only `confirmed` flag. `load()` leaves it false, and it is set only when `apply_poll()` sees the record's UID in that socket or inventories a new module there. Every reader (resolve, resolve_group, check_placement, get_cal, set_cal, socket_uid) answers only from a record that is present **and** confirmed. The alternative, an ordering rule on the boot integration ("poll before anything reads the map"), was rejected. Nothing enforces an ordering but its callers, and the failure it guards against, a valid old blob, is invisible to every check below it. §4.2.1 |
 | **D-33** *(Rev 13, `OI-UINT16-01`)* | **SUPERSEDED by D-34.** It made Map 3 a 64-byte version-2 row beside a 32-byte version 1, with the version-1 count fields holding 0xFFFF above 16 bits. There is no version 2 or ceiling now. The 64-byte size and its reason (four rows to a program unit; a 40-byte row would straddle one) stand. §3.3.1.5 |
-| **D-34** *(Rev 13, `OI-UINT16-01`)* | **Map 3 has one layout: a 64-byte row, version 1, with 32-bit counts stored whole and no ceiling field.** No hardware has shipped and no Map 3 row has ever been written, so there is no stored history and nothing to read in an older layout (the principal, 2026-11-19). The 32-byte row, its 16-bit counts, the duplicate 32-bit tail and the 0xFFFF compatibility ceiling are removed. Offsets: `len` 0, `ver` 1, `uid` 2, `seq` 10, `ordinal` 14, `session_count` 18, `dose_accum` 22, `throttle_count` 26, `fault_flags` 30, reserved [31, 60), CRC 60. §7.2's tail-additive rule is unchanged: a later version appends before the CRC and offsets [2, 60) are fixed for ever. File bound unchanged: 768 rows, 9 per socket at 80 sockets. §3.3.1.5 |
+| **D-34** *(Rev 13, `OI-UINT16-01`)* | **Map 3 has one layout: a 64-byte row, version 1, with 32-bit counts stored whole and no ceiling field.** No hardware has shipped and no Map 3 row has ever been written, so there is no stored history and nothing to read in an older layout (the principal, 2026-11-19). The 32-byte row, its 16-bit counts, the duplicate 32-bit tail and the 0xFFFF compatibility ceiling are removed. Offsets: `len` 0, `ver` 1, `uid` 2, `seq` 10, `ordinal` 14, `session_count` 18, `dose_accum` 22, `throttle_count` 26, `fault_flags` 30, reserved [31, 60), CRC 60. §7.2's tail-additive rule is unchanged: a later version appends before the CRC and offsets [2, 60) are fixed for ever. File bound unchanged: 768 rows, 9 per socket at 80 sockets. §3.3.1.5 *(Rev {NP-FW-NVRAM-001 to}: retired with the journal. Its rule for counts, 32 bits stored whole with no ceiling, carries over to the record, §3.3.1.6)* |
 | **D-31** *(Rev 10)* | **A mate is decided by the hub and applied by `U1`, and is written when it happens, not at session end.** The hub counts a mate when a poll returns a UID and its previous observation of that socket (this power-on, or the valid inventory cache at boot) was empty or a different UID. It never counts a first observation. `U1` honours the increment at most once per power-up, because every genuine mate power-cycles it (`VCC_3V3` is in contact group 3). A count of `U1` power-ups alone was rejected, because every hub power cycle would add a mate to every seated tile. The count is a lower bound, and it adds no field. **D-20** holds: nothing about the event is stored. `NP-MOD-ID-001` §5.3.1 |
+| **D-35** *(Rev {NP-FW-NVRAM-001 to}, `OI-NVRAM-20`)* | **Map 3 is one upserted record of one row per module (`NP_CFG_FILE_MODULE_USAGE`), and a download is a snapshot read.** The record is replaced whole at each session end and kept REPLICATED. Reading it changes nothing on the helmet: no watermark, no acknowledgement, no row retired. The app differences each row against its previous snapshot of the same helmet and row, and stamps the difference with its own time, in Map 2. An unreadable table is reported unknown. §4.2(b), §6.1 |
+| **D-36** *(Rev {NP-FW-NVRAM-001 to})* | **The record has one length for ever (12,288 B); its rows grow only at the tail, and a rewrite carries what it does not know.** The header holds one version and one row length; the reader takes any version from 1 and any row length from 64 to 83 B; bytes 0 to 63 never move; a row the writer creates starts the tail at zero. A different record length, a row past 83 B or more than 147 rows needs a converter first. The journal's per-row CRC, `seq` and watermarks are dropped because the store's envelope checks the record whole and nothing is recovered row by row. §3.3.1.6, §7.2 |
+| **D-37** *(Rev {NP-FW-NVRAM-001 to})* | **A full table gives up a row visibly; a dropped commit is visible too.** The table fills with modules, not sessions. A newcomer takes the row of the least-present module with nothing pending (UC-208) and starts with `detail_lost` set, as does any row made in a full table; a module whose contribution was dropped because the record could not be read gets `detail_lost` at the next commit that succeeds. A session is never refused and a fitted module is never left uncounted. §6.3 |
 
 ---
 
@@ -1733,13 +1946,13 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 
 | ID | Sev | Hazard | Cause | Consequence | Control | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| **RISK-NVRAM-01** | **HIGH** | Unsynced module history is destroyed by a firmware update | Map 3 inherits the inventory blob's reject-and-rebuild policy, which is correct for a cache and fatal for a record | Irrecoverable loss of the only on-device record of module usage; Map 2 totals silently regress below Map 4 | **D-5** separate file, separate version, tail-additive reader; **D-7** declare-the-gap; **D-14** reconcile by `max` so a regression cannot be written back | FW | **MITIGATED — `OI-NVRAM-08` check written and falsified (Rev 3, §7.2.1, D-25). The store reads a grown row (`OI-NVRAM-16` closed, Rev 5)** |
-| **RISK-NVRAM-02** | **HIGH** | A per-window delta plus an app-side clock reconstructs per-socket usage over time in SHDR | Map 3's natural output is a delta; the initiating party holds a clock; `TIME-01` inspects for time *types* and an ordinal is an integer | `NP-MOD-ID-001` §7.5.1.1's registrant-scoped consent model loses the absence it rests on, in every configuration | **D-18** totals only, no boundary field; **D-19** structural separation of Map 2 from any SHDR writer | FW + Privacy | **MITIGATED — `check-map2-shdr-boundary.ts`, falsified (Rev 3, §8.3.1, D-26). Residual: a name check; see the reach it states** |
+| **RISK-NVRAM-01** | **HIGH** | Unsynced module history is destroyed by a firmware update | Map 3 inherits the inventory blob's reject-and-rebuild policy, which is correct for a cache and fatal for a record | Irrecoverable loss of the only on-device record of module usage; Map 2 totals silently regress below Map 4 | **D-5** separate file, separate version, tail-additive reader; **D-7** declare-the-gap; **D-14** reconcile by `max` so a regression cannot be written back | FW | **MITIGATED — `OI-NVRAM-08` check written and falsified (Rev 3, §7.2.1, D-25). The store reads a grown row (`OI-NVRAM-16` closed, Rev 5)** *(Rev {NP-FW-NVRAM-001 to}: the control now binds the upserted record, D-36: one record length for ever, a reader that takes any version and row length that fits, a writer that carries the fields it does not know; checked and falsified in `np_module_usage_tests`, §7.2.1)* |
+| **RISK-NVRAM-02** | **HIGH** | A per-window delta plus an app-side clock reconstructs per-socket usage over time in SHDR | Map 3's natural output is a delta; the initiating party holds a clock; `TIME-01` inspects for time *types* and an ordinal is an integer | `NP-MOD-ID-001` §7.5.1.1's registrant-scoped consent model loses the absence it rests on, in every configuration | **D-18** totals only, no boundary field; **D-19** structural separation of Map 2 from any SHDR writer | FW + Privacy | **MITIGATED — `check-map2-shdr-boundary.ts`, falsified (Rev 3, §8.3.1, D-26). Residual: a name check; see the reach it states** *(Rev {NP-FW-NVRAM-001 to}: Map 3 now produces no delta at all; the app computes one from two snapshots and keeps it in Map 2, D-35. The controls stand)* |
 | **RISK-NVRAM-03** | **HIGH** | The store this HAL needs cannot legally exist as specified | `EMMC-CFG-02`'s raw journal area has no address space inside a LittleFS instance that owns all 16 MiB | Either the journal is built on corrupting writes, or it is not built and Map 3 has no high-frequency substrate | None yet — it is a specification decision, not a firmware one | FW + Quality | **OPEN — `OI-NVRAM-01`, BLOCKING** |
 | **RISK-NVRAM-04** | **HIGH** | A tile is driven against substituted limits | Unknown `(major, minor)`; nearest-known-minor substitution is the tempting recovery | Over- or under-drive of an emitter whose specifics the minor exists to track; only backstop is the 62 °C thermal cutoff | **D-17** absolute substitution ban; present-and-unclassified state; `check_placement()` refusal | FW + Safety | **MITIGATED — but see `OI-NVRAM-10`** *(2026-09-24: a hardware optical bound is decided, `NP-HW-HEXTILE-001` D-9, not yet built — `OI-HEXTILE-24`)* |
 | **RISK-NVRAM-05** | MEDIUM | A torn write discards a good inventory unnecessarily | `np_hexmap_nvram_write()` implemented as truncate-then-write | One spurious full re-poll per interrupted write; user-visible bring-up delay, no data loss | **D-6** contract on the HAL, plus a power-fail-injection test at each program-unit offset | FW | **ALARP — test not written** |
-| **RISK-NVRAM-06** | MEDIUM | Config partition wears out early | Per-event journalling implemented as full-blob rewrite: 25.2 MB/session, ~4.6 years at clinic rate (§3.5) | eMMC `PRE_EOL_INFO` reaches 0x03 and `EMMC-WE-02` blocks session start | **D-5** small append records instead of blob rewrite; `EMMC-WE-01` already logs the wear indicator every boot | FW | **MITIGATED by design choice** |
-| **RISK-NVRAM-07** | MEDIUM | Map 3 outgrows the file it shares with the inventory | `file_max` on Config is 65,536 B; the blob takes 14,012 at 80 sockets, leaving 644 B/module and no warning until a write fails | Silent truncation or a run-time write failure mid-session | **D-5** separate file with an explicit stated bound; **D-12** degrade-with-flag when it is reached | FW | **MITIGATED — bound not yet chosen (`OI-NVRAM-13`)** |
+| **RISK-NVRAM-06** | MEDIUM | Config partition wears out early | Per-event journalling implemented as full-blob rewrite: 25.2 MB/session, ~4.6 years at clinic rate (§3.5) | eMMC `PRE_EOL_INFO` reaches 0x03 and `EMMC-WE-02` blocks session start | **D-5** small append records instead of blob rewrite; `EMMC-WE-01` already logs the wear indicator every boot | FW | **MITIGATED by design choice** *(Rev {NP-FW-NVRAM-001 to}: the upserted record rewrites 24,608 B per session end, 1/1,024 of the 25.2 MB the hazard names, §3.3.1.6)* |
+| **RISK-NVRAM-07** | MEDIUM | Map 3 outgrows the file it shares with the inventory | `file_max` on Config is 65,536 B; the blob takes 14,012 at 80 sockets, leaving 644 B/module and no warning until a write fails | Silent truncation or a run-time write failure mid-session | **D-5** separate file with an explicit stated bound; **D-12** degrade-with-flag when it is reached | FW | **MITIGATED — bound not yet chosen (`OI-NVRAM-13`)** *(Rev {NP-FW-NVRAM-001 to}: Map 3 is a fixed 12,288-byte record in files of its own, so it can neither outgrow nor share a file; the bound is fixed, §3.3.1.6)* |
 | **RISK-NVRAM-08** | MEDIUM | An interrupted factory reset is not detected | `NP_SNVS_RESET_IN_PROGRESS` survives a warm reset, not a power removal, and there is no `VBAT` rail | Device boots with UHDR/SHDR/Config half-erased — the exact outcome `np_main.c` says must not happen | **D-27**: a durable Config marker written before the first erase; the boot check completes the reset on the marker or on a Config with no filesystem, and never on an unreadable one. Power-cut simulation at every step and a 24-cut sweep of the marker write | FW + Privacy | **MITIGATED — implemented and host-tested (Rev 3, §3.4.1). Residual: called at bring-up since Rev 9 (`OI-NVRAM-17` closed), but every boot refuses UHDR/SHDR until #340 binds a block device; a refused boot admits no session (`OI-NVRAM-19`, option b); target eMMC behaviour unverified (`OI-LFS-07`)** |
 | **RISK-NVRAM-09** | MEDIUM | The filesystem every durability claim rests on is unmanaged SOUP | `NP-SW-001` §9.4 lists LittleFS as *"2.x"*, Class B, verification *"Power-loss testing per LittleFS test suite"* — no vendored copy, no pinned tag, no SHA, no §7.1.2 anomaly evaluation, and nothing under `firmware/vendor/` | Every atomicity property in §4 is asserted against a component with no configuration identity | None yet | FW + Quality | **OPEN — `OI-NVRAM-12`, BLOCKING** |
 | **RISK-NVRAM-10** | LOW | Map 4's layout does not fit the part actually fitted | `NP-MOD-ID-001` §5.2 sizes four 32-byte slots at **exactly** 128 B, against ATtiny424/426/427; CLAUDE.md §3 still names the retired design's **ATtiny402** for the on-module MCU | Fewer slots than the crash-safety argument assumes, or no room for a version field | `NP-HW-HEXTILE-001` §6.2 selects ATtiny426/427-class, which is the governing document | FW + EE | **MITIGATED — documentation drift only (`OI-NVRAM-14`)** |
@@ -1769,7 +1982,9 @@ Scales per `NP-RM-001` §4. Status: **MITIGATED** (controls in place, residual a
 | ~~**OI-NVRAM-17**~~ | ✅ **CLOSED 2026-09-28 (Rev 9, #444, §3.4.1).** `np_hub_control_app_main()` calls `np_factory_reset_boot_check()` before `np_log_backend_init()`, `np_session_count_load()`, `np_cvfs_init()` and `np_cons_init()`. It opens UHDR and SHDR only when `np_factory_reset_boot_permits_data()` says so (`NONE`, `RESUMED`). On `RESUME_FAILED` or `UNKNOWN` it calls `np_log_backend_refuse()` and `np_cvfs_init_unpersisted()`, and neither partition is touched. `scripts/check-hub-bringup-order.ts` gains the six orderings and a when-present rule that `np_cfg_store_bind()` precedes the check. Wired ahead of #340 rather than after it: until the store is bound, the check reads `UNKNOWN` and every boot refuses, which is fail-closed. **Residual:** the answer is only `UNKNOWN` until #340 binds the block device (`OI-LOG-05..07`, `OI-HEXMAP-01`), and `OI-NVRAM-19` | — (closed) | — |
 | ~~**OI-NVRAM-18**~~ | ✅ **CLOSED 2026-09-28 (Rev 10, #444, D-31).** Resolved in the owning document, `NP-MOD-ID-001` §5.3.1 (MODID-4a), as this item asked. The hub decides that a mate happened, from its previous observation of the socket, and never from a first observation. `U1` writes the increment at once, at most once per power-up. So a mate no longer depends on a completed session. The candidate named here, a `U1` write on every power-up, was rejected, because a hub power cycle powers up every seated tile and would count it as a mate. The count is a lower bound: re-seating in the same socket while the hub is off, a clamp release that leaves contacts made, and a break too short to reset `U1` are not counted, and §5.3.1 names each one. No field is added and no mate-limit threshold is set. Found in passing: `distinct_socket_count` has no computation either (`NP-MOD-ID-001` `OI-MODID-09`). Original text: ~~`mate_cycles_observed` has no specified increment point. `NP-MOD-ID-001` §5.2 carries the field, and §5.3's cadence writes Map 4 only at session end. A module seated and removed without a completed session therefore never records that mate, and that insert-and-remove handling is what the ≥500-cycle contact rating counts. Not an input to §7.4's model, so outside `OI-NVRAM-06`. Resolve in `NP-MOD-ID-001` §5.3, which this document does not re-open (§1). One candidate is a `U1` write on power-up after mating, which the four-slot rotation already protects against extraction. Not decided here~~ | — (closed) | — |
 | ~~**OI-NVRAM-19**~~ | ✅ **DECIDED and CLOSED 2026-09-28 (Rev 9, principal: option b).** *Raised:* a boot that refused UHDR and SHDR still admitted a stimulation session, which wrote no UHDR record, no SHDR dirty-session marker (`OI-FMEA-09`) and no session end. Until #340 that was every boot. *Options:* (a) accept, since stimulation safety belongs to the safety MCU; (b) refuse sessions on a refused boot; (c) refuse only on `RESUME_FAILED`. **Chosen: (b).** `np_runner_load()` returns the new `NP_HUB_ERR_BOOT_REFUSED` when `np_log_backend_admits_sessions()` is false. That is checked first, before the lease, and is gated by `check-hub-bringup-order.ts` rule 3. **Accepted consequence:** until #340 binds a block device, no boot admits a session. No target image can run one before the platform layer exists anyway, and afterwards a broken Config binding fails loudly. A log fault after a permitted boot is unchanged | — (closed) | — |
-| **OI-NVRAM-20** | **PARTLY BUILT (2026-11-24): the per-module totals of sessions present and used, their time, and faults per code are `NP_CFG_FILE_MODULE_USAGE` (`REQ-FWHUB-93`, §8.5 amendment); the rest below is still owed.** **Build Map 3 as the §8.5 running-total row** (raised Rev 16, from the principal's ruling on `OI-PRIV-38` (NP-PRIV-ANALYSIS-004), 2026-11-23). Replace the per-session layout of §3.3.1.5 and `np_map3_record.{h,c}` with one upserted row per module; revise §4.2(b), §6 (sync becomes a snapshot read; the app computes differences), §6.3 and §7.2 to match; keep `dose_accum` and `throttle_count` out of any fleet upload unless `NP-MOD-ID-001` §7's opt-in is granted. No row has ever been written, so there is no migration. | Firmware | Map 3's owner |
+| ~~**OI-NVRAM-20**~~ | ✅ **CLOSED 2026-11-25 (Rev {NP-FW-NVRAM-001 to}, D-35 to D-37).** Map 3 is `NP_CFG_FILE_MODULE_USAGE`, one 64-byte row per module in one fixed 12,288-byte record (§3.3.1.6), now holding every field of §8.5: sessions present and used with their time, faults per code, mate cycles, `dose_accum`, `throttle_count`, `fault_flags` and `detail_lost` (`REQ-FWHUB-93` (f) to (i)). An accessory port counts a mate when its occupant changes while the hub runs; a tile's dose and throttle are added at session end. §4.2(b), §6, §6.3 and §7.2 are revised: a download is a snapshot read, a full table gives up a row and marks `detail_lost`, and the record has one length so a later version is read and carried through. Who sees which field is §8.5's new table (`dose_accum` and `throttle_count` reach the fleet only under the opt-in; nothing new is uploaded). The journal codec and its test are removed; `map3.jrn` is `OI-NVRAM-21`. **Not built here:** a tile's mate and `fault_flags` bit 0 need the inventory poll (`OI-HEXMAP-02`); the snapshot's wire command and Map 2 are the app's. *Was:* **PARTLY BUILT (2026-11-24): the per-module totals of sessions present and used, their time, and faults per code are `NP_CFG_FILE_MODULE_USAGE` (`REQ-FWHUB-93`, §8.5 amendment); the rest below is still owed.** **Build Map 3 as the §8.5 running-total row** (raised Rev 16, from the principal's ruling on `OI-PRIV-38` (NP-PRIV-ANALYSIS-004), 2026-11-23). Replace the per-session layout of §3.3.1.5 and `np_map3_record.{h,c}` with one upserted row per module; revise §4.2(b), §6 (sync becomes a snapshot read; the app computes differences), §6.3 and §7.2 to match; keep `dose_accum` and `throttle_count` out of any fleet upload unless `NP-MOD-ID-001` §7's opt-in is granted. No row has ever been written, so there is no migration. | Firmware | Map 3's owner |
+| **OI-NVRAM-21** | **`map3.jrn` and the Config store's journal API have no consumer** (raised 2026-11-25, from `OI-NVRAM-20`). Map 3 is the upserted record (D-35), so `NP_CFG_FILE_MAP3` (tail-additive, never written), `np_cfg_store_journal_append()`, `np_cfg_store_journal_read()` and `np_cfg_store_journal_read_rows()` serve only their own tests. They were kept because removing them changes `NP-SOUP-LFS-001`'s caller rules (`REQ-LFS-01`, `check-lfs-caller-rules.ts` R4 to R6 pin the journal) and the store's power-loss sweeps, which use the journal as a fixture. Decide: remove the file and the API (and narrow R4 to R6 to "no tail-additive file"), or name the record that needs them. **Closes when** the store, the gate and `NP-SOUP-LFS-001` agree on one answer | Firmware | Nothing: no production code reads or writes the file |
+| **OI-NVRAM-22** | **Three Map 3 choices have no derivation** (raised 2026-11-25, from `OI-NVRAM-20`; `docs/status/unjustified-choices.md`). (a) UC-208: which row a full table gives up (fewest sessions present, nothing pending). (b) UC-213: the record length, 12,288 B, which sets the room a later row has to grow (up to 83 B). (c) UC-214: `dose_accum` is one sum over a tile's wavelengths in mJ/cm², because §8.5 names one field. **Closes when** fleet data shows how often a helmet sees more modules than rows and the rule is checked against it, the first version that grows the row shows whether the room was enough, and the opt-in fleet model (`NP-MOD-ID-001` §7.4) says whether it needs dose per wavelength | Firmware | Nothing today |
 
 ---
 
@@ -1871,6 +2086,11 @@ factory-reset correctness question rather than a storage-layer one, and Rev 2 do
 > **Update 2026-09-27 (Rev 5, #444).** `OI-NVRAM-16` is closed: `np_cfg_store_journal_read_rows()`
 > with `np_map3_row_len()` reads a journal whose rows differ in length, and `np_cfg_store_tests`
 > case 9 checks it through the real store (§7.2.1). Map 3's row can now grow without a converter.
+
+> **Update 2026-11-25 (Rev {NP-FW-NVRAM-001 to}, `OI-NVRAM-20` closed).** The two-records summary above still holds in its principle
+> and not in its mechanism: Map 3 is no longer appended. It is one upserted record of running totals per module,
+> replaced whole and kept in two copies (§4.2(b)), read whole at a download (§6.1), and its version rule is the
+> record's form of tail-additive (§7.2, D-36). The journal codec is removed; `map3.jrn` is `OI-NVRAM-21`.
 
 ---
 

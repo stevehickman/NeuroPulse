@@ -75,7 +75,7 @@
  */
 typedef enum {
     NP_CFG_FILE_NPMP = 0,   /* "NPMP" module-map blob — np_module_map        */
-    NP_CFG_FILE_MAP3,       /* Map 3 journal — NP-FW-NVRAM-001 §4.2          */
+    NP_CFG_FILE_MAP3,       /* retired Map 3 journal, never written — NP-FW-NVRAM-001 §4.2(b), OI-NVRAM-21 */
     NP_CFG_FILE_UKMD,       /* ukmd.rec — NP-FW-EMMC-002 §C.3, D-22          */
     NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
     NP_CFG_FILE_WARRANTY_TOKEN, /* warranty token — NP-FW-EMMC-002 §A.2, OI-WA-03 */
@@ -212,9 +212,11 @@ np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
  * returns for each record, never by a length fixed at the call, so a row that
  * a later firmware version grew neither misaligns every record after it nor
  * ends the scan.  `*out_count` is the valid prefix in records and
- * `*out_bytes` the same prefix in bytes.  Map 3 needs this reader from the
- * first version whose row is longer than 32 bytes (NP-FW-NVRAM-001 D-24,
- * D-25), and np_map3_row_len() is the step it supplies.
+ * `*out_bytes` the same prefix in bytes.  It was written for the per-session
+ * Map 3 journal (NP-FW-NVRAM-001 D-24, D-25), which was retired unwritten
+ * (§8.5): Map 3 is now the upserted NP_CFG_FILE_MODULE_USAGE record, and no
+ * production code reads or appends a journal.  Whether the journal API and
+ * map3.jrn stay is OI-NVRAM-21.
  *
  * REQ-LFS-01: the output of both readers is HISTORY.  It must never become
  * the source of a limit.  scripts/check-lfs-caller-rules.ts restricts who may
@@ -272,7 +274,7 @@ np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
  * upserted, never appended: an appended row per change would be a per-session
  * history (NP-FW-NVRAM-001 §8.5).  Every other replicated file keeps the
  * 256-byte limit. */
-#define NP_CFG_REPLICA_TABLE_MAX_PAYLOAD 8192U   /* the next power of two above NP_MU_TABLE_BYTES (7648); np_module_usage.c asserts the table fits */
+#define NP_CFG_REPLICA_TABLE_MAX_PAYLOAD 12288U  /* NP_MU_TABLE_BYTES: the table has one fixed length so a grown row still fits (NP-FW-NVRAM-001 §3.3.1.6); np_module_usage.c asserts it */
 
 np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
                                               const uint8_t *payload,

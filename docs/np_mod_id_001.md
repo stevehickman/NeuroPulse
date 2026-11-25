@@ -260,6 +260,12 @@ increment, at most once per power-up.
    exists only as `U1`'s running total. What reaches SHDR, and whether
    `*_mate_cycles_observed` should reach it at all, stays the live judgment that
    §8.4 leaves to OI-EMMC2-08. This rule adds no field and no upload.
+   *(Rev {NP-MOD-ID-001 to}, 2026-11-25: the principal's ruling recorded in
+   NP-FW-NVRAM-001 §8.5 (2026-11-23) puts a mate-cycle running total in the
+   helmet's per-module Map 3 row, and sends that total to the fleet. That is a
+   total, not an event record, so D-20 holds; the "no Map 3 field" above is
+   superseded for the total only. The helmet counts an accessory port's mates
+   today; a tile's, decided by this rule, wait for the inventory poll.)*
 
 **What the count cannot see.** It is a lower bound, as the field's name says,
 and any consumer must treat it as one.

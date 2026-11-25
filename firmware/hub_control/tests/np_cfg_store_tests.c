@@ -64,7 +64,6 @@
 #include "np_lfs_instance.h"
 #include "np_lfs_powerbd.h"
 #include "np_lfs_sweep.h"
-#include "np_map3_record.h"
 #include "np_module_map.h"
 #include "np_session_count.h"
 #include "np_hub_test_fixtures.h"
@@ -1220,11 +1219,13 @@ static void test_reset_marker_is_durable(void)
 
 /* ── 9. OI-NVRAM-16 — a journal whose rows differ in length ─────────────────
  *
- * D-25 makes each Map 3 row carry its own length.  Here a grown row (the version-2 row,
- * which is 64 bytes since OI-UINT16-01, with an 8-byte tail before the CRC and
- * version 3 in its header, built as §7.2 rule 1 permits) is appended between
- * 32-byte version-1 rows, through the store, and read back two ways.  The
- * version-1 rows are built here, because the production writer writes version 2.
+ * D-25 made each row of the per-session Map 3 journal carry its own length.
+ * That journal was retired unwritten (NP-FW-NVRAM-001 §8.5; Map 3 is now the
+ * upserted per-module record) and its codec is removed, but the store's
+ * variable-length reader stays until OI-NVRAM-21 decides it.  Here a grown row
+ * (a 64-byte row with an 8-byte tail before its CRC, as version 2) is appended
+ * between 64-byte version-1 rows, through the store, and read back two ways.
+ * The rows are the fixture's own (jrow above).
  */
 
 static void put_le32(uint8_t *p, uint32_t v)
@@ -1235,49 +1236,63 @@ static void put_le32(uint8_t *p, uint32_t v)
     p[3] = (uint8_t)(v >> 24);
 }
 
+/* The fixture's self-describing row.  The per-session Map 3 journal this case was
+ * written for is retired (NP-FW-NVRAM-001 §8.5) and its codec removed, so the
+ * case keeps its own row of the same shape: len (1), ver (1), seq (4, LE), fill,
+ * CRC-32 over everything before it (4).  64 bytes at version 1; a "version 2"
+ * row is `tail` bytes longer.  The store's reader is what is under test. */
+#define JROW_BYTES 64U
+#define JROW_MAX   255U
+#define JROW_CRC   4U
+
 /* tail == 0: the 64-byte row; tail > 0: the same row with `tail` bytes more, as version 2. */
-static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
+static size_t jrow(uint32_t i, uint8_t tail, uint8_t *out)
 {
-    np_map3_rec_t r;
-    memset(&r, 0, sizeof(r));
-    for (unsigned k = 0U; k < NP_MAP3_UID_LEN; k++) {
-        r.uid[k] = (uint8_t)(0x30U + i + k);
-    }
-    r.seq = 100U + i;
-    r.session_count = i;
-    if (np_map3_encode(&r, out, NP_MAP3_ROW_BYTES) != NP_MAP3_ROW_BYTES) {
-        return 0U;
-    }
-    if (tail == 0U) {
-        return NP_MAP3_ROW_BYTES;
-    }
-    size_t len = NP_MAP3_ROW_BYTES + tail;
-    for (size_t k = 0U; k < tail; k++) {
-        out[NP_MAP3_FIELDS_END + k] = (uint8_t)(0xC0U + k);
-    }
+    size_t len = JROW_BYTES + tail;
+    memset(out, 0, len);
     out[0] = (uint8_t)len;
-    out[1] = 2U;
-    put_le32(&out[len - NP_MAP3_CRC_BYTES],
-             np_crc32(out, (uint32_t)(len - NP_MAP3_CRC_BYTES)));
+    out[1] = (tail == 0U) ? 1U : 2U;
+    put_le32(&out[2], 100U + i);
+    for (size_t k = 6U; k < len - JROW_CRC; k++) {
+        out[k] = (uint8_t)(0x30U + i + k);
+    }
+    put_le32(&out[len - JROW_CRC], np_crc32(out, (uint32_t)(len - JROW_CRC)));
     return len;
 }
 
-/* The step Map 3's owner hands the store. */
-static size_t map3_step(const uint8_t *rec, size_t left, uint32_t index,
+static uint32_t get_le32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+/* The length of the verified row at `p`, or 0: the step a caller hands the store. */
+static size_t jrow_len(const uint8_t *p, size_t left)
+{
+    if (left < JROW_BYTES) {
+        return 0U;
+    }
+    size_t len = p[0];
+    if (len < JROW_BYTES || len > left || p[1] == 0U) {
+        return 0U;
+    }
+    return (np_crc32(p, (uint32_t)(len - JROW_CRC)) == get_le32(&p[len - JROW_CRC])) ? len : 0U;
+}
+
+static size_t jrow_step(const uint8_t *rec, size_t left, uint32_t index,
                         void *ctx)
 {
     (void)index;
     (void)ctx;
-    return np_map3_row_len(rec, left);
+    return jrow_len(rec, left);
 }
 
 /* The only check the fixed-length reader can make: a whole row in the slice. */
-static bool map3_fixed_verify(const uint8_t *rec, size_t rec_len,
+static bool jrow_fixed_verify(const uint8_t *rec, size_t rec_len,
                               uint32_t index, void *ctx)
 {
     (void)index;
     (void)ctx;
-    return np_map3_row_len(rec, rec_len) == rec_len;
+    return jrow_len(rec, rec_len) == rec_len;
 }
 
 static size_t step_zero(const uint8_t *rec, size_t left, uint32_t i, void *c)
@@ -1292,14 +1307,20 @@ static size_t step_overrun(const uint8_t *rec, size_t left, uint32_t i, void *c)
     return left + 1U;
 }
 
-static bool seq_in_order(const np_map3_row_t *row, void *ctx)
+/* The rows of a valid prefix carry seq 100, 101, … in order; returns how many do. */
+static uint32_t seq_in_order(const uint8_t *buf, size_t bytes)
 {
-    uint32_t *next = (uint32_t *)ctx;
-    if (row->rec.seq != 100U + *next) {
-        return false;
+    uint32_t next = 0U;
+    size_t at = 0U;
+    while (at < bytes) {
+        size_t len = jrow_len(&buf[at], bytes - at);
+        if (len == 0U || get_le32(&buf[at + 2U]) != 100U + next) {
+            break;
+        }
+        next++;
+        at += len;
     }
-    (*next)++;
-    return true;
+    return next;
 }
 
 /* @verifies REQ-FWHUB-51 */
@@ -1307,32 +1328,29 @@ static void test_journal_rows_of_differing_length(void)
 {
     enum { ROWS = 10U, GROWN = 4U, TAIL = 8U };
     static uint8_t jrn[1024];
-    uint8_t row[NP_MAP3_MAX_BYTES];
+    uint8_t row[JROW_MAX];
     size_t want_bytes = 0U;
 
-    printf("[OI-NVRAM-16] a Map 3 journal with a grown row is read whole\n");
+    printf("[OI-NVRAM-16] a journal with a grown row is read whole\n");
     fresh();
     for (uint32_t i = 0U; i < ROWS; i++) {
-        size_t n = map3_row(i, (i == GROWN) ? (uint8_t)TAIL : 0U, row);
+        size_t n = jrow(i, (i == GROWN) ? (uint8_t)TAIL : 0U, row);
         ASSERT(n != 0U, "row encode");
         ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_MAP3, row, n) == NP_HUB_OK,
                "append");
         want_bytes += n;
     }
-    ASSERT(want_bytes == (ROWS - 1U) * NP_MAP3_ROW_BYTES + NP_MAP3_ROW_BYTES + TAIL, "the fixture has one grown row");
+    ASSERT(want_bytes == (ROWS - 1U) * JROW_BYTES + JROW_BYTES + TAIL, "the fixture has one grown row");
 
     /* The reader stepping by each row's own length gets every row back. */
     uint32_t count = 0U;
     size_t bytes = 0U;
     ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
+                                          &count, &bytes, jrow_step, NULL)
                == NP_HUB_OK, "variable-length read");
     ASSERT(count == ROWS, "a row was lost across the grown row");
     ASSERT(bytes == want_bytes, "the valid prefix does not end at the journal's end");
-    uint32_t next = 0U;
-    np_map3_scan_t sc;
-    np_map3_scan(jrn, bytes, seq_in_order, &next, &sc);
-    ASSERT(sc.rows == ROWS && sc.end == NP_MAP3_END_CLEAN && next == ROWS,
+    ASSERT(seq_in_order(jrn, bytes) == ROWS,
            "the rows read back are not the rows written, in order");
 
     /* Falsified: the fixed-length reader on the same file stops at the grown
@@ -1341,8 +1359,8 @@ static void test_journal_rows_of_differing_length(void)
      * above proves nothing. */
     uint32_t fixed = 0U;
     ASSERT(np_cfg_store_journal_read(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                     NP_MAP3_ROW_BYTES, &fixed,
-                                     map3_fixed_verify, NULL) == NP_HUB_OK,
+                                     JROW_BYTES, &fixed,
+                                     jrow_fixed_verify, NULL) == NP_HUB_OK,
            "fixed-length read");
     ASSERT(fixed == GROWN, "the fixed-length reader did not lose the rows after the "
            "grown one — the fixture does not exercise OI-NVRAM-16");
@@ -1359,17 +1377,17 @@ static void test_journal_rows_of_differing_length(void)
            "a step past the end was accepted");
 
     /* A torn tail costs the torn row only (L-4). */
-    size_t n = map3_row(ROWS, 0U, row);
+    size_t n = jrow(ROWS, 0U, row);
     ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_MAP3, row, n / 2U) == NP_HUB_OK,
            "append half a row");
     ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
+                                          &count, &bytes, jrow_step, NULL)
                == NP_HUB_OK && count == ROWS && bytes == want_bytes,
            "a torn tail cost more than the torn row");
 
     /* The policy and the mandatory check hold for this reader too. */
     ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_NPMP, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
+                                          &count, &bytes, jrow_step, NULL)
                == NP_HUB_ERR_INVALID_ARG,
            "the variable-length reader accepted a rebuild cache");
     ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),

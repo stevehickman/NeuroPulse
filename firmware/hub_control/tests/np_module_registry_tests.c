@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include "np_module_registry.h"
+#include "np_module_usage.h"
 
 #ifndef RESCAN_FN
 #define RESCAN_FN np_mod_reg_rescan_slot
@@ -114,6 +115,28 @@ DRIVER_DOUBLES(np_mod_clin_tacs)
 DRIVER_DOUBLES(np_mod_hd_tdcs)
 DRIVER_DOUBLES(np_mod_vibrotactile)
 
+/* The per-module running totals: only the mates the registry notes (REQ-FWHUB-93 (f)). */
+static unsigned g_mates[NP_HUB_SLOT_MAX];
+static uint8_t  g_mate_type[NP_HUB_SLOT_MAX];
+
+np_mu_key_t np_mu_key_port(uint8_t slot, np_hub_mod_type_t type)
+{
+    np_mu_key_t k;
+    memset(&k, 0, sizeof k);
+    k.kind  = (uint8_t)NP_MU_KEY_PORT;
+    k.id[0] = slot;
+    k.id[1] = (uint8_t)type;
+    return k;
+}
+
+void np_mu_note_mate(const np_mu_key_t *key)
+{
+    if (key->kind == (uint8_t)NP_MU_KEY_PORT && key->id[0] < NP_HUB_SLOT_MAX) {
+        g_mates[key->id[0]]++;
+        g_mate_type[key->id[0]] = key->id[1];
+    }
+}
+
 /* The type each accessory slot's driver reports. */
 static const np_hub_mod_type_t SLOT_TYPE[NP_HUB_SLOT_MAX] = {
     [NP_HUB_SLOT_ZONE_0]       = NP_MOD_PBM_BASE,
@@ -157,6 +180,8 @@ static void boot_empty(void)
     for (uint8_t s = 0U; s < NP_HUB_SLOT_MAX; s++) {
         g_slot[s].detect_calls = g_slot[s].init_calls = g_slot[s].shutdown_calls = 0U;
     }
+    memset(g_mates, 0, sizeof g_mates);
+    memset(g_mate_type, 0, sizeof g_mate_type);
 }
 
 /* ── Tests ───────────────────────────────────────────────────────────────────── */
@@ -315,6 +340,40 @@ static void test_fixed_slots_are_harmless_to_rescan(void)
     }
 }
 
+/* @verifies REQ-FWHUB-93#f */
+static void test_a_port_counts_a_mate_for_each_new_occupant_and_none_at_boot(void)
+{
+    /* The boot scan's first look is not a mate (NP-MOD-ID-001 MODID-4a rule 2). */
+    memset(g_mates, 0, sizeof g_mates);
+    boot_empty();
+    unsigned at_boot = 0U;
+    for (uint8_t s = 0U; s < NP_HUB_SLOT_MAX; s++) { at_boot += g_mates[s]; }
+    check(at_boot == 0U, "mates: the boot scan counts no mate, not even for what it finds present");
+
+    const uint8_t s = NP_HUB_SLOT_VNS_HRV;
+    g_slot[s].present = true;
+    (void)RESCAN_FN(s);
+    check(g_mates[s] == 1U && g_mate_type[s] == (uint8_t)NP_MOD_VNS_HRV,
+          "mates: an accessory inserted while the hub runs is one mate of its port and type");
+    for (int poll = 0; poll < 10; poll++) { (void)RESCAN_FN(s); }
+    check(g_mates[s] == 1U, "mates: polls of a module still seated add none");
+    g_slot[s].present = false;
+    (void)RESCAN_FN(s);
+    check(g_mates[s] == 1U, "mates: a removal adds none");
+    g_slot[s].present = true;
+    (void)RESCAN_FN(s);
+    check(g_mates[s] == 2U, "mates: re-seating is a second mate");
+
+    const uint8_t t = NP_HUB_SLOT_CLIN_TACS;
+    g_slot[t].present = true;
+    (void)RESCAN_FN(t);
+    g_slot[t].type = NP_MOD_HD_TDCS;            /* swapped without an empty poll between */
+    (void)RESCAN_FN(t);
+    check(g_mates[t] == 2U && g_mate_type[t] == (uint8_t)NP_MOD_HD_TDCS,
+          "mates: a different module type in the port is a mate of the new occupant");
+    check(g_mates[NP_HUB_SLOT_EEG] == 0U, "mates: a fixed slot rescanned adds none");
+}
+
 /* @verifies REQ-FWHUB-07 */
 static void test_retired_zone_slots_refused_unprobed(void)
 {
@@ -346,6 +405,7 @@ int main(void)
     test_type_change_reinitialises();
     test_failed_init_not_retried_until_reseated();
     test_fixed_slots_are_harmless_to_rescan();
+    test_a_port_counts_a_mate_for_each_new_occupant_and_none_at_boot();
     test_retired_zone_slots_refused_unprobed();
     test_out_of_range_refused();
 
