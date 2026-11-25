@@ -19,6 +19,18 @@
 
 name: neurone-analytics
 
+# Every service's container log is bounded (OI-PRIV-57, OI-PRIV-46 (1)). With no `logging:` Docker's default
+# json-file driver keeps a container's output with no size or age limit, and these logs are where Caddy's access and
+# error entries, PostHog's and the erasure relay's output go. `local` keeps at most max-file files of max-size each per
+# container, compressed, and `docker compose logs` still reads them. This bounds SIZE, not age: Docker's log drivers
+# have no age option, so how long a line survives depends on how much the service writes. The figures have no
+# derivation (UC-211); ci/test_posthog_infra.py P10 holds every service to them.
+x-logging: &bounded-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 # Shared environment block — referenced by all three PostHog services
 x-posthog-env: &posthog-env
   SECRET_KEY: "${SECRET_KEY:?Set SECRET_KEY in .env (generate one with python3 -c 'import secrets; print(secrets.token_hex(32))')}"
@@ -65,6 +77,7 @@ services:
   # dashboards, action definitions. Does NOT store raw analytics events
   # (those go to ClickHouse).
   db:
+    logging: *bounded-logging
     image: postgres:15.6-alpine
     restart: unless-stopped
     environment:
@@ -87,6 +100,7 @@ services:
   # save "" and appendonly no: no persistence — Redis is ephemeral here.
   # Data is reconstructed from PostgreSQL/ClickHouse on restart.
   redis:
+    logging: *bounded-logging
     image: redis:7.2-alpine
     restart: unless-stopped
     command: >
@@ -109,6 +123,7 @@ services:
   # ClickHouse distributed coordination. Required even in single-node setups
   # because PostHog's schema uses ReplicatedMergeTree table engines.
   zookeeper:
+    logging: *bounded-logging
     image: zookeeper:3.7.2
     restart: unless-stopped
     environment:
@@ -129,6 +144,7 @@ services:
   # NP-APP-TELEMETRY-001 §5: a withdrawn person's ID is deleted within 30 days) is applied as a ClickHouse TTL by
   # apply_event_retention.py, and checked with --check. Read the warning in .env.example before raising it. See §3.4 and §7.1.
   clickhouse:
+    logging: *bounded-logging
     image: clickhouse/clickhouse-server:23.12-alpine
     restart: unless-stopped
     depends_on:
@@ -164,6 +180,7 @@ services:
   # 1 GB max size prevents unbounded disk growth if the plugin server falls
   # behind (this would be surfaced as a PostHog health alert).
   kafka:
+    logging: *bounded-logging
     image: bitnami/kafka:2.8.1-debian-10-r99
     restart: unless-stopped
     depends_on:
@@ -187,6 +204,7 @@ services:
   # Django/Gunicorn application. Handles the management UI, REST API, and
   # the /capture event ingestion endpoint that the iOS SDK posts to.
   posthog:
+    logging: *bounded-logging
     image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
@@ -220,6 +238,7 @@ services:
   # Handles async tasks: cohort calculations, scheduled exports, email, action
   # matching, and data deletion requests (GDPR erasure — important for us).
   posthog-worker:
+    logging: *bounded-logging
     image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
@@ -236,6 +255,7 @@ services:
   # server-side property denylist before events reach ClickHouse.
   # See docs/np_analytics_001.md §4 for denylist configuration.
   posthog-plugin-server:
+    logging: *bounded-logging
     image: posthog/posthog:${POSTHOG_VERSION:?Set POSTHOG_VERSION in .env to a pinned release tag, never latest}
     restart: unless-stopped
     depends_on:
@@ -256,6 +276,7 @@ services:
   # NOT yet exercised against a live stack: run `docker compose run --rm erase-relay python /app/erase_relay.py --self-check`
   # (np_analytics_001 §7.6, OI-ANALYTICS-01) before relying on it.
   erase-relay:
+    logging: *bounded-logging
     image: python:3.12-alpine
     restart: unless-stopped
     depends_on:
@@ -298,6 +319,7 @@ services:
   # Usage:
   #   docker compose --profile https up -d
   caddy:
+    logging: *bounded-logging
     image: caddy:2.8-alpine
     restart: unless-stopped
     depends_on:

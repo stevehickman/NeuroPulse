@@ -114,6 +114,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Reference:** Permanent Storage anti-pattern; GDPR Art. 5(1)(e).
 - **Remediation:** Add `logging: {driver: local, options: {max-size: ..., max-file: ...}}` to the `caddy` service (and to `erase-relay`), with figures entered in the unjustified-choices register like `UC-095`, and a P10 check.
 - **Existing coverage:** New. The fleet figure is `UC-095`, under `OI-FLEET-01` (f).
+- **Status, 2026-11-25: closed (`OI-PRIV-57`).** Every service in the compose file, not only `caddy` and `erase-relay`, has a bounded `local` log driver (three 10 MB files per container, `UC-211`), and P10 in `ci/test_posthog_infra.py` holds every service to it. **What is not bounded is age:** Docker's log drivers have no age option, so a quiet service can keep a line past 30 days. That stays with `OI-PRIV-46` (from the `infra/` review), with ClickHouse's own server log.
 
 ### F8. LOW: the no-join gate cannot see a join on combinations of ordinary fields (`OI-PRIV-58`)
 
@@ -194,7 +195,7 @@ The owning entries are in `docs/status/pending-decisions.md`, under "Privacy rev
 | `OI-PRIV-54` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
 | `OI-PRIV-55` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
 | `OI-PRIV-56` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
-| `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check |
+| `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check. **Closed 2026-11-25** on the size bound and P10; the age bound is carried by `OI-PRIV-46`. |
 | `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened. **Closed 2026-11-22.** |
 
 ## Revision history
