@@ -222,6 +222,34 @@ class NPLimitsStoreTests {
         assertFalse("n".repeat(max + 1) in kv.getString(NPLimitsStore.PROFILES_KEY)!!)
     }
 
+    // @verifies REQ-SW03-32#d
+    @Test
+    fun aProfilesStealthChoiceIsKeptAndFalseIsNotWritten() {
+        val kv = InMemoryKeyValueStore()
+        val store = NPLimitsStore(kv)
+        val alex = NPIndividualProfile(name = "Alex")
+        store.saveProfile(alex)
+        assertFalse("stealth" in kv.getString(NPLimitsStore.PROFILES_KEY)!!, "false is the default and is not written")
+        store.saveProfile(alex.copy(stealth = true))
+        assertTrue(NPLimitsStore(kv).profiles.single().stealth, "the choice survives a restart")
+        // A profile stored before the field existed reads as false.
+        kv.putString(NPLimitsStore.PROFILES_KEY, """[{"id":"p1","name":"Alex","notes":""}]""")
+        assertFalse(NPLimitsStore(kv).profiles.single().stealth)
+    }
+
+    // @verifies SWR-IND-01#b
+    @Test
+    fun savingOrDeletingAProfileIsAnnounced() {
+        val store = NPLimitsStore(InMemoryKeyValueStore())
+        var calls = 0
+        store.onProfilesChanged = { calls++ }
+        val alex = NPIndividualProfile(name = "Alex")
+        store.saveProfile(alex)
+        store.saveProfile(alex.copy(stealth = true))
+        store.deleteProfile(alex.id)
+        assertEquals(3, calls)
+    }
+
     // @verifies SWR-WO-07#c
     @Test
     fun aSharedLimitsFileNamesNoHelmetAndNoPerson_andTheStoredFormStillDoes() {
