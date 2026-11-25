@@ -57,8 +57,50 @@ class ProtectedStorage private constructor(
          *   its binding cannot call; then nothing can be sealed or told apart, and the host's store is used as it is.
          */
         fun open(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
-            return openInternal(host, secrets, protectedKeys)
+            return openInternal(host, secrets, protectedKeys, gateOffered = false)
         }
+
+        /**
+         * The same, on a host that offers the presence gate (it supplies a [GatedSecretKeyStore]) and opens ungated on this run. **It
+         * fails closed** (`REQ-PRES-11` (b), `OI-PRIV-62` H2): if a protected value is sealed and does not open under [secrets], it was
+         * sealed under a key this run does not hold (the gated key, whose flag or record was lost), and opening it ungated would read it
+         * as absent and seal the next write over it under a key the device releases alone, the downgrade `REQ-PRES-09` forbids. The run
+         * is [StorageProtection.LOCKED] instead: the protected keys are held in memory and nothing on disk changes. Values left by a clear
+         * that destroyed the key and stopped part-way (`SWR-MG-08`) are not counted: the clear's own progress says the key is gone.
+         *
+         * Only a host that offers the gate fails closed this way. On one that does not, a value that does not open under its key was
+         * sealed under a key the keystore lost, and reading it as absent is what that host has always done (`SWR-MG-06`).
+         */
+        fun openOnGateHost(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
+            return openInternal(host, secrets, protectedKeys, gateOffered = true)
+        }
+
+        /**
+         * Whether [host] holds a protected value that is sealed and does not open under [secrets]: evidence that the gate is on whatever
+         * its flag says (`REQ-PRES-11` (b)), because the only key this install seals under besides [secrets] is the gated key. A keystore
+         * that cannot be asked answers true (it cannot be shown otherwise). Values a part-way clear left under a destroyed key do not
+         * count. Reads only; the probe's key is wiped.
+         */
+        fun holdsValueSealedElsewhere(host: KeyValueStore, secrets: SecretKeyStore, protectedKeys: Set<String>): Boolean {
+            if (clearDestroyedTheKey(host)) return false
+            val sealed = protectedKeys.filter { isSealed(host, it) }
+            if (sealed.isEmpty()) return false
+            val probe = EncryptedKeyValueStore(host, secrets, sealed.toSet())
+            return try { sealed.any { probe.getString(it) == null } } finally { probe.forgetKey() }
+        }
+
+        /** The gate's own records (`REQ-PRES-11` (a)): never sealed by the tiers, whatever list a caller passes. Empty only when the core cannot be asked. */
+        private fun hostPlain(): Set<String> = runCatching { EncryptedKeyValueStore.hostPlainKeys() }.getOrDefault(emptySet())
+
+        /** Whether a clear has destroyed the data key and not yet finished (`SWR-MG-08`): the sealed values it left are under no key. */
+        private fun clearDestroyedTheKey(host: KeyValueStore): Boolean {
+            val progressKey = runCatching { EncryptedKeyValueStore.clearProgressKey() }.getOrNull() ?: return false
+            val progress = try { host.getString(progressKey) } catch (ignored: ClassCastException) { null } ?: return false
+            return progress.split(',').any { it.trim() == "destroyEncryptionKey" }
+        }
+
+        private fun isSealed(host: KeyValueStore, key: String): Boolean =
+            (try { host.getString(key) } catch (ignored: ClassCastException) { null })?.startsWith(EncryptedKeyValueStore.PREFIX) == true
 
         /**
          * The same, with the person's presence required for the UHDR tier (`NP-APP-PRESENCE-001`): the device tier (`deviceTierKeys`) is
@@ -78,7 +120,7 @@ class ProtectedStorage private constructor(
             // neither read the host's store (a sealed value would read as text) nor write to it (a UHDR value would land in the
             // clear over the sealed one). The whole run is held in memory and the host's store is left exactly as it is. The
             // ungated [open] keeps the host's store in this case; a gated install must not (`REQ-PRES-09` (b)).
-            val all = runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null, null, lock)
+            val all = (runCatching(protectedKeys).getOrNull() ?: return ProtectedStorage(InMemoryKeyValueStore(), StorageProtection.LOCKED, null, null, lock)) - hostPlain()
             val deviceKeys = runCatching(deviceTierKeys).getOrNull()?.intersect(all) ?: emptySet()
             val uhdrKeys = all - deviceKeys
             // A gated install that cannot open its tiers fails closed: the protected keys are held in memory for this run and nothing
@@ -93,9 +135,9 @@ class ProtectedStorage private constructor(
             return ProtectedStorage(TieredKeyValueStore(host, device, uhdr, deviceKeys, uhdrKeys, lock), StorageProtection.SEALED, uhdr, all, lock)
         }
 
-        private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>): ProtectedStorage {
-            val keys = runCatching(protectedKeys).getOrNull()
-                ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null, emptySet())
+        private fun openInternal(host: KeyValueStore, secrets: SecretKeyStore?, protectedKeys: () -> Set<String>, gateOffered: Boolean): ProtectedStorage {
+            val keys = (runCatching(protectedKeys).getOrNull()
+                ?: return ProtectedStorage(host, StorageProtection.UNSEALED, null, emptySet())) - hostPlain()
             if (secrets != null) {
                 val sealing = runCatching {
                     // Building the store does not touch the keystore when there is nothing plain to seal, so ask it once here: a
@@ -103,17 +145,22 @@ class ProtectedStorage private constructor(
                     // and the run is LOCKED (or UNSEALED if nothing is sealed); a null answer is "no key", not a failure: after a
                     // clear destroyed the key the store must still be built, so that a clear interrupted part-way resumes at the
                     // next launch (SWR-MG-08).
-                    secrets.load()
+                    secrets.load()?.fill(0)
+                    // Asked before anything is written: a value sealed under the gated key is left exactly as it is (`REQ-PRES-11` (b)).
+                    if (gateOffered && holdsValueSealedElsewhere(host, secrets, keys)) return lockedRun(host, keys)
                     EncryptedKeyValueStore(host, secrets, keys).also { it.migrate() }
                 }.getOrNull()
                 if (sealing != null) return ProtectedStorage(sealing, StorageProtection.SEALED, sealing, keys)
             }
             return if (holdsSealedValue(host, keys)) {
-                ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, keys, removeStaleFromInner = false), StorageProtection.LOCKED, null, keys)
+                lockedRun(host, keys)
             } else {
                 ProtectedStorage(host, StorageProtection.UNSEALED, null, emptySet())
             }
         }
+
+        private fun lockedRun(host: KeyValueStore, keys: Set<String>) =
+            ProtectedStorage(MemoryOnlyKeysKeyValueStore(host, keys, removeStaleFromInner = false), StorageProtection.LOCKED, null, keys)
 
         /** Whether any protected key in [host] holds a sealed value. A key stored as another type is not a sealed value. */
         fun holdsSealedValue(host: KeyValueStore, keys: Set<String>): Boolean = keys.any { key ->

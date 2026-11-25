@@ -28,6 +28,9 @@ interface SecretKeyStore {
      * nothing else**: when the keystore cannot be asked or its answer cannot be read (a timeout, a locked keychain, a tool that
      * fails), throw [SecretKeyUnavailableException]. A caller that took "could not ask" for "no key" would make a new key over the
      * real one, and everything sealed under the real one would be lost (OI-DESKTOP-01, item 3).
+     *
+     * **The array returned is a fresh copy the caller owns** and the caller fills it with zeros when it is done (`OI-PRIV-62`, M10):
+     * an implementation never hands out the array it keeps.
      */
     fun load(): ByteArray?
 
@@ -103,7 +106,7 @@ class EncryptedKeyValueStore(
         val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: return null
         if (!stored.startsWith(PREFIX)) return stored
         val k = (try { key() } catch (ignored: SecretKeyUnavailableException) { null }) ?: return null
-        return open(name, stored, k) ?: legacyKey()?.let { open(name, stored, it) }
+        return open(name, stored, k) ?: legacyKey()?.let { old -> try { open(name, stored, old) } finally { old.fill(0) } }
     }
 
     private fun open(name: String, stored: String, k: ByteArray): String? {
@@ -111,8 +114,18 @@ class EncryptedKeyValueStore(
         return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
     }
 
-    /** The earlier key, or null if there is none or it cannot be asked (then an unmoved value reads as absent until it can). */
+    /**
+     * The earlier key, or null if there is none or it cannot be asked (then an unmoved value reads as absent until it can). **A fresh
+     * copy: the caller fills it with zeros when it is done** (`OI-PRIV-62`, M10).
+     */
     private fun legacyKey(): ByteArray? = try { legacy?.load() } catch (ignored: SecretKeyUnavailableException) { null }
+
+    /**
+     * Whether the last [resealFromLegacy] pass left nothing to move: every value opens under this store's key, or under neither key.
+     * False before the first pass, and after a pass the earlier key could not be asked for or a write stopped (`OI-PRIV-62`, M10).
+     */
+    var legacyPassComplete: Boolean = false
+        private set
 
     /**
      * Move every value still sealed under the earlier key to the key of this store (`REQ-PRES-07`). A value that already opens under this
@@ -122,8 +135,20 @@ class EncryptedKeyValueStore(
      * earlier key is not touched. Returns the number moved.
      */
     fun resealFromLegacy(): Int {
-        val old = legacyKey() ?: return 0
+        legacyPassComplete = false
+        if (legacy == null) { legacyPassComplete = true; return 0 }
+        val old = try { legacy.load() } catch (ignored: SecretKeyUnavailableException) { return 0 }
+            ?: run { legacyPassComplete = true; return 0 }
+        try {
+            return resealUnder(old)
+        } finally {
+            old.fill(0)
+        }
+    }
+
+    private fun resealUnder(old: ByteArray): Int {
         var moved = 0
+        var complete = true
         for (name in protectedKeys) {
             val stored = try { inner.getString(name) } catch (ignored: ClassCastException) { null } ?: continue
             if (!stored.startsWith(PREFIX)) continue
@@ -135,8 +160,9 @@ class EncryptedKeyValueStore(
             } catch (ignored: SecretKeyUnavailableException) {
                 return moved
             }
-            if (read(name) == value) moved++ else inner.putString(name, stored)
+            if (read(name) == value) moved++ else { inner.putString(name, stored); complete = false }
         }
+        legacyPassComplete = complete
         return moved
     }
 
@@ -240,5 +266,16 @@ class EncryptedKeyValueStore(
          */
         fun deviceTierKeys(): Set<String> =
             NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["deviceTier"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+
+        /**
+         * The keys a host keeps as it stores them and never seals (`REQ-PRES-11`): the presence gate's own records, which the host reads
+         * before anyone is present. [uhdrKeys] already leaves them out; [ProtectedStorage] takes them out of any list it is given as well.
+         */
+        fun hostPlainKeys(): Set<String> =
+            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["hostPlain"]!!.jsonArray.map { it.jsonPrimitive.content }.toSet()
+
+        /** The plain host key an interrupted clear keeps its finished steps under (`SWR-MG-08`), named by the core. */
+        fun clearProgressKey(): String =
+            NppsCore.migration(buildJsonObject { put("op", "itemKeys") })["clearProgressKey"]!!.jsonPrimitive.content
     }
 }
