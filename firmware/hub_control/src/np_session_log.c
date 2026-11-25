@@ -382,8 +382,12 @@ void np_log_telemetry(const np_telem_record_t *rec)
         uhdr_write(&h->coherence_score,     sizeof(h->coherence_score));
         uhdr_write(&h->hr_bpm,              sizeof(h->hr_bpm));
         uhdr_write(&h->impedance_ohm,       sizeof(h->impedance_ohm));
-        /* SHDR: contact pass/fail only — no HR, no impedance raw value. */
-        /* (contact_confirmed bool is written in SHDR fault record on disconnect) */
+        /* Nothing to SHDR, contact_confirmed included: the flag is derived from the
+         * contact impedance check, which measures through the wearer, so it is UHDR
+         * like the reading itself (OI-PRIV-40, NP-PRIV-ANALYSIS-004;
+         * data-architecture-detail.md §5.1).  The UHDR record above does not
+         * write it today, and no SHDR record carries it, on disconnect or
+         * otherwise. */
         break;
     }
 

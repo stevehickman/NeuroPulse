@@ -596,7 +596,9 @@ typedef struct {
     float    coherence_score;   /* LF/(LF+HF)×10 — UHDR */
     float    hr_bpm;            /* instantaneous HR — UHDR */
     uint32_t impedance_ohm;     /* electrode contact impedance — UHDR; 32-bit, never narrowed (OI-UINT16-01) */
-    bool     contact_confirmed; /* SHDR-safe: bool only */
+    bool     contact_confirmed; /* UHDR, never SHDR: derived from the contact impedance check, which measures
+                                 * through the wearer (OI-PRIV-40, NP-PRIV-ANALYSIS-004;
+                                 * data-architecture-detail.md §5.1).  A bool is no safer than the reading. */
 } np_telem_vns_hrv_t;
 
 typedef struct {
