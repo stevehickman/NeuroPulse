@@ -11,6 +11,13 @@ renamed to "docs/superseded/np_mod_ext_001.docx" in an earlier, unrelated
 pass; re-running this script would resurrect a stale file under the old, no-longer-current
 filename. Only docs/np_clin_001.docx (doc, not doc2) is safe to
 regenerate from this script as-is.
+
+NOTE (2026-11-25): do NOT re-run this script at all. NP-CLIN-001 is now maintained in
+Markdown (docs/np_clin_001.md, Rev 2, OI-CLIN-01: the 40 Hz evidence revised after HOPE
+Phase 3). The Word issue of Rev 1 was moved to docs/superseded/np_clin_001.docx. Running
+`doc` would write a stale Rev 1 back into docs/ beside the current Markdown, and its
+40 Hz text ("Very Strong", "results mid-2026") is wrong. The text below is kept as the
+record of how Rev 1 was produced.
 """
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches, Cm
