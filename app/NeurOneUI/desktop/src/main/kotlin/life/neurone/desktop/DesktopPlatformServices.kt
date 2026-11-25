@@ -69,9 +69,6 @@ class DesktopPlatformServices(
         foreground.value = focused
     }
 
-    /** The credential store can be missing on a run (a tool blocked, a keychain locked), and the data is then on disk unsealed. */
-    override val reportsUnsealedStorage: Boolean get() = true
-
     /**
      * Where a backup goes: the folder the person chose, or `backups` beside the app's data, from which they copy it to a USB drive or
      * the new computer. The operating system arbitrates the claim (a hard link), so a folder promises an exclusive create (SWR-MG-07).

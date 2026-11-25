@@ -135,7 +135,11 @@ fun MigrationBackupScreen(
             is BackupStep.ChooseMethod -> {
                 Text(stringResource(Res.string.migration_backup_method_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
-                if (unattended && s.preview.kind == BackupKind.UHDR) {
+                if (unattended && s.preview.kind == BackupKind.UHDR && !model.automaticAvailable) {
+                    // The storage is not sealed on this run, so the code or passphrase would be kept in the clear (`SWR-MG-13` (e)).
+                    Text(stringResource(Res.string.migration_backup_auto_unavailable_unsealed), style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                } else if (unattended && s.preview.kind == BackupKind.UHDR) {
                     var keep by remember { mutableStateOf(model.keepAutomatic) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = keep, onCheckedChange = { keep = it; model.keepAutomatic = it })

@@ -10,6 +10,7 @@ import life.neurone.core.common.InMemoryKeyValueStore
 import life.neurone.core.common.InMemorySecretKeyStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.common.SecretKeyStore
+import life.neurone.core.common.SecretKeyUnavailableException
 import life.neurone.core.common.StorageProtection
 import life.neurone.core.session.Ed25519ProtocolSigner
 import life.neurone.shared.ble.UnavailableBleCentral
@@ -27,14 +28,13 @@ class StorageNoticeTest {
     private var strings: Map<StringResource, String> = emptyMap()
     private fun text(r: StringResource) = strings.getValue(r)
 
-    private fun services(kv: KeyValueStore, secrets: SecretKeyStore?, reports: Boolean, memoryOnly: Boolean = false) = AppServices(
+    private fun services(kv: KeyValueStore, secrets: SecretKeyStore?, memoryOnly: Boolean = false) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
             override val secretKeyStore = secrets
-            override val reportsUnsealedStorage = reports
             override val holdsStateInMemoryOnly = memoryOnly
             @androidx.compose.runtime.Composable
             override fun rememberBleConnectAction(): () -> Unit = {}
@@ -46,7 +46,7 @@ class StorageNoticeTest {
     private fun sealedHost(): Pair<InMemoryKeyValueStore, InMemorySecretKeyStore> {
         val host = InMemoryKeyValueStore()
         val secrets = InMemorySecretKeyStore()
-        services(host, secrets, false).keyValueStore.putString("np.session.history", "history of the person")
+        services(host, secrets).keyValueStore.putString("np.session.history", "history of the person")
         return host to secrets
     }
 
@@ -55,7 +55,7 @@ class StorageNoticeTest {
     fun aLockedRunTellsThePersonAndLeavesTheSealedDataAlone() = runComposeUiTest {
         val (host, _) = sealedHost()
         val before = host.getString("np.session.history")
-        val app = services(host, null, reports = false)
+        val app = services(host, null)
         assertEquals(StorageProtection.LOCKED, app.storageProtection)
 
         setContent {
@@ -70,7 +70,29 @@ class StorageNoticeTest {
     // @verifies SWR-MG-13#c
     @Test
     fun aHostThatKeepsDataOnDiskAndHasNoKeystoreIsToldItIsUnsealed() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), null, reports = true)
+        val app = services(InMemoryKeyValueStore(), null)
+        assertEquals(StorageProtection.UNSEALED, app.storageProtection)
+
+        setContent {
+            strings = used.associateWith { stringResource(it) }
+            NeurOneApp(app)
+        }
+        waitForIdle()
+        onNodeWithText(text(Res.string.storage_unsealed_notice)).assertExists()
+    }
+
+    /** A phone's keystore that cannot be asked at first launch (a Keystore or Keychain that fails): the run is unsealed, and nothing is sealed yet. */
+    private object FailingKeystore : SecretKeyStore {
+        override fun load(): ByteArray? = throw SecretKeyUnavailableException("the keystore did not answer")
+        override fun store(key: ByteArray) = throw SecretKeyUnavailableException("the keystore did not answer")
+        override fun destroy() = throw SecretKeyUnavailableException("the keystore did not answer")
+    }
+
+    // @verifies SWR-MG-13#c
+    @Test
+    fun aPhoneWhoseKeystoreFailedAtFirstLaunchIsToldItIsUnsealed() = runComposeUiTest {
+        // The host declares nothing about the notice: a phone keeps state on disk, so it is told like a computer is (OI-PRIV-61).
+        val app = services(InMemoryKeyValueStore(), FailingKeystore)
         assertEquals(StorageProtection.UNSEALED, app.storageProtection)
 
         setContent {
@@ -83,13 +105,14 @@ class StorageNoticeTest {
 
     // @verifies SWR-MG-13#c
     @Test
-    fun aHostThatKeepsNothingAtRestShowsNoNotice() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), null, reports = false)
+    fun aHostThatKeepsNothingAtRestShowsOnlyTheMemoryNotice() = runComposeUiTest {
+        val app = services(InMemoryKeyValueStore(), null, memoryOnly = true)
         setContent {
             strings = used.associateWith { stringResource(it) }
             NeurOneApp(app)
         }
         waitForIdle()
+        onNodeWithText(text(Res.string.storage_memory_only_notice)).assertExists()
         onNodeWithText(text(Res.string.storage_locked_notice)).assertDoesNotExist()
         onNodeWithText(text(Res.string.storage_unsealed_notice)).assertDoesNotExist()
     }
@@ -97,7 +120,7 @@ class StorageNoticeTest {
     // @verifies SWR-MG-13#c
     @Test
     fun aSealedRunShowsNoNotice() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), InMemorySecretKeyStore(), reports = true)
+        val app = services(InMemoryKeyValueStore(), InMemorySecretKeyStore())
         assertEquals(StorageProtection.SEALED, app.storageProtection)
         setContent {
             strings = used.associateWith { stringResource(it) }
@@ -111,7 +134,7 @@ class StorageNoticeTest {
     // @verifies REQ-SW03-18#b
     @Test
     fun aHostThatKeepsStateInMemoryOnlyTellsThePersonNothingIsSaved() = runComposeUiTest {
-        val app = services(InMemoryKeyValueStore(), null, reports = false, memoryOnly = true)
+        val app = services(InMemoryKeyValueStore(), null, memoryOnly = true)
         setContent {
             strings = used.associateWith { stringResource(it) }
             NeurOneApp(app)
