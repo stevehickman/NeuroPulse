@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 214
-**Date:** 2026-11-23  
+**Revision:** 215
+**Date:** 2026-11-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -916,3 +916,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 212 | 2026-11-24 | NeurOne Firmware Engineering | **§5.2.2: REQ-SW02-16 added, the RPMB floor store (authenticated read with a nonce, raise-only authenticated write checked by counter and read-back; a blank, wrong-key, replayed or erroring RPMB refuses every image). REQ-SW02-15: the store is built and its key, MAC and entropy seams are not, so the device build still refuses every image (OI-PRIV-32 (NP-PRIV-ANALYSIS-004)).** |
 | 213 | 2026-11-24 | NeurOne Software Engineering | **§6.3.8: SWR-UI-01 (f) status: the Compose modality editor's number fields refuse an edit that could not be the start of a number, mark a blank or lone-point field as unread, and disable Save while any field is unread.** |
 | 214 | 2026-11-23 | NeurOne Software Engineering | **§6.3.9 added (`OI-PRIV-37`, the principal's ruling of 2026-11-23): `SWR-IND-01` (the wearer's stealth choice, kept with the profile and sent at every link once encrypted) and `SWR-IND-02` (the warranty owner's per-helmet lock, kept in the owner's store), both built in the Compose app. §5.3.1: `REQ-SW03-32` gains (d), the profile's stealth flag.** |
+| 215 | 2026-11-24 | NeurOne Software Engineering | **§6.3: the Windows C# project is deleted (`OI-UI-KMP-05`, 2026-11-24). Rows that named a Windows library, compiler, wrapper or driver now say it is deleted and what covers the row; no requirement is retired, because every `@verifies` tag in the Windows tests is also carried by a test elsewhere, and the history rows are unchanged. The `SWR-MG-32` row records that both senders of hex keys (the Swift app and the Windows project) are deleted, so the blocker it named is gone; turning the `refuse-hex-keys` feature on remains a separate step.** |

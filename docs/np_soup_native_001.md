@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-NATIVE-001
-**Revision:** 4
-**Date:** 2026-10-21
+**Revision:** 5
+**Date:** 2026-11-24
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -76,3 +76,11 @@ The licence entries were read from the packages' own nuspec files and repositori
 - A change to a SwiftPM dependency or a `PackageReference` changes §2 in the same change, and §5 if the item could reach UHDR-class data. A PostHog version change is an edit to `exactVersion` and to §2 together.
 - The vendored Argon2 (`NeurOneArgon2`, 12 files, phc-winner-argon2 2021 release, CC0-1.0 OR Apache-2.0) was removed in Rev 2; its file hashes are in git history at `app/NeurOneShared/Sources/NeurOneArgon2/phc/VENDOR.md`.
 - This record does not extend `NP-SW-001` §9.4 (the firmware register).
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 5 | 2026-11-24 | NeurOne Software Engineering | **The .NET (Windows) half is retired in place: `app/windows` is deleted, its four NuGet rows are marked retired, and a note records that the Swift half has had the same standing since `app/ios` was deleted (`OI-UI-KMP-05`).** |
