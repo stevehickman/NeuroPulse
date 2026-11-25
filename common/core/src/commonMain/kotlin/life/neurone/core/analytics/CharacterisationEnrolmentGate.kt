@@ -39,6 +39,14 @@ import life.neurone.core.protocol.PersistedKeys
  * names a helmet; with none named the gate is closed and nothing is recorded.
  * It is not user data and never moves with a user's migration or backup
  * (`REQ-SHDR-10`).
+ *
+ * CHANGE OF CUSTODY (`REQ-SHDR-09` (d); NP-MOD-ID-001 §A.4). A consent decision
+ * by a previous registrant must not keep authorising collection for a new one.
+ * When the hub delivers a token different from the one kept for it (a factory
+ * reset or a new owner), [FleetUploader.upgradeDeviceToken] calls
+ * [WarrantyAnalyticsGate.endCustody], which forgets the helmet's whole record:
+ * the enrolment, the epoch and the programme with the fleet consent. The helmet
+ * starts un-enrolled and its new owner's first enrolment is epoch 1.
  */
 class CharacterisationEnrolmentGate(
     private val records: WarrantyOwnerStore,
@@ -92,23 +100,13 @@ class CharacterisationEnrolmentGate(
      * enrolment copy says so at enrolment time rather than at the point someone
      * tries to leave (OI-EMMC2-12).
      *
-     * The epoch is deliberately not reset — it must keep increasing.
+     * The epoch is deliberately not reset — it must keep increasing. Only a
+     * change of custody resets it, with the rest of the helmet's record.
      * No effect on WarrantyAnalyticsGate, ConsentStore or any UHDR flow.
      * A helmet with no record is left with none: it was never enrolled.
      */
     fun withdraw(hub: String?) {
         if (hub == null || records.record(hub) == null) return
         records.update(hub) { it.copy(enrolled = false) }
-    }
-
-    /**
-     * Clear this helmet's enrolment on factory reset / change of custody. A
-     * consent decision by a previous registrant must not keep authorising
-     * collection for a new one (NP-MOD-ID-001 §A.4); a device out of reset
-     * starts un-enrolled and asks again, epoch included.
-     */
-    fun clearForDeviceTransfer(hub: String?) {
-        if (hub == null || records.record(hub) == null) return
-        records.update(hub) { it.copy(enrolled = false, consentEpoch = 0, programmeId = 0) }
     }
 }

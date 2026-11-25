@@ -48,6 +48,7 @@ from test_shdr_schema import (  # noqa: E402
     check_permitted_accel_columns_present,
     check_prohibited_time_types,
     check_month_anchor_constraints,
+    check_no_fleet_wide_order,
 )
 
 # ---------------------------------------------------------------------------
@@ -195,7 +196,7 @@ def test_production_accel_assertion_is_not_vacuous() -> None:
 # ---------------------------------------------------------------------------
 
 def _table(*column_ddl: str) -> str:
-    cols = ",\n".join("    " + c for c in ("id                  BIGSERIAL    PRIMARY KEY",
+    cols = ",\n".join("    " + c for c in ("id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid()",
                                            "warranty_token      BYTEA        NOT NULL") + column_ddl)
     return f"CREATE TABLE fault_log (\n{cols}\n);\n"
 
@@ -236,7 +237,8 @@ def test_counters_named_like_clocks_are_not_rejected() -> None:
 # @verifies REQ-SHDR-11#b
 def test_month_anchor_without_its_check_is_rejected() -> None:
     """TIME-02 must flag a DATE anchor that is month-granular only by its
-    DEFAULT, accept it with the CHECK, and exempt a manufacture date."""
+    DEFAULT, accept it with the CHECK, and give a manufacture date no exemption
+    (schema Rev G, OI-PRIV-58)."""
     anchor = "ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date"
     check = "CONSTRAINT ck_fault_log_month CHECK (ingest_month = DATE_TRUNC('month', ingest_month)::date)"
     default_only = _table(anchor)
@@ -247,7 +249,13 @@ def test_month_anchor_without_its_check_is_rejected() -> None:
     assert check_month_anchor_constraints(in_a_comment, parse_columns(in_a_comment)), \
         "a CHECK that is only a comment was accepted"
     manufacture = _table("manufacture_date    DATE         NOT NULL")
-    assert not check_month_anchor_constraints(manufacture, parse_columns(manufacture))
+    assert [f.check_id for f in check_month_anchor_constraints(manufacture, parse_columns(manufacture))] == ["TIME-02"], \
+        "a day-precise manufacture date was exempted"
+    manufacture_checked = _table(
+        "manufacture_date    DATE         NOT NULL\n"
+        "        CONSTRAINT ck_devices_manufacture_month\n"
+        "        CHECK (manufacture_date = DATE_TRUNC('month', manufacture_date)::date)")
+    assert not check_month_anchor_constraints(manufacture_checked, parse_columns(manufacture_checked))
 
 
 # @verifies REQ-SHDR-11#b
@@ -256,9 +264,9 @@ def test_production_month_anchors_are_all_checked() -> None:
     vacuous), and removing one real CHECK makes it fail."""
     sql = SCHEMA_DEFAULT.read_text(encoding="utf-8")
     columns = parse_columns(sql)
-    anchors = [c for c in columns if c.col_type.strip().upper().startswith("DATE")
-               and not c.column.endswith("manufacture_date")]
-    assert len(anchors) >= 22, f"TIME-02 sees only {len(anchors)} month anchors — the parser has lost tables"
+    anchors = [c for c in columns if c.col_type.strip().upper().startswith("DATE")]
+    assert len(anchors) >= 24, f"TIME-02 sees only {len(anchors)} date columns — the parser has lost tables"
+    assert {"manufacture_date", "module_manufacture_date"} <= {c.column for c in anchors}
     assert not check_month_anchor_constraints(sql, columns)
     assert not check_prohibited_time_types(columns)
     broken = sql.replace(
@@ -267,6 +275,44 @@ def test_production_month_anchors_are_all_checked() -> None:
     assert broken != sql, "the mutation changed nothing — the test and the schema have drifted"
     flagged = {f.location.split(":")[0] for f in check_month_anchor_constraints(broken, parse_columns(broken))}
     assert flagged == {"devices.last_seen_month"}, f"removing ck_devices_month flagged {flagged}"
+
+
+# @verifies REQ-SHDR-11#c
+def test_every_source_of_a_fleet_wide_order_is_rejected() -> None:
+    """SEQ-01 must flag each way a row can carry an insert order or a time:
+    a SERIAL type, an identity column, a sequence, nextval(), and a UUID drawn
+    from a time-based generator."""
+    bad = [
+        _table("seq_no              BIGSERIAL    NOT NULL"),
+        _table("seq_no              SERIAL       NOT NULL"),
+        _table("seq_no              BIGINT       GENERATED ALWAYS AS IDENTITY"),
+        _table("seq_no              BIGINT       NOT NULL DEFAULT nextval('fault_seq')"),
+        "CREATE SEQUENCE fault_seq;\n" + _table(),
+        _table("row_key             UUID         NOT NULL DEFAULT uuidv7()"),
+        _table("row_key             UUID         NOT NULL DEFAULT uuid_generate_v1()"),
+        _table("row_key             UUID         NOT NULL DEFAULT some_time_ordered_uuid()"),
+    ]
+    for sql in bad:
+        assert any(f.check_id == "SEQ-01" for f in check_no_fleet_wide_order(sql, parse_columns(sql))), \
+            f"SEQ-01 did not flag:\n{sql}"
+    good = _table("row_key             UUID         NOT NULL DEFAULT gen_random_uuid()",
+                  "-- an id BIGSERIAL in a comment is not a column")
+    assert not check_no_fleet_wide_order(good, parse_columns(good)), "SEQ-01 flagged a random UUID or a comment"
+
+
+# @verifies REQ-SHDR-11#c
+def test_production_schema_has_no_fleet_wide_order() -> None:
+    """The real schema passes SEQ-01, its row keys are random UUIDs (the check
+    is not vacuous), and putting one BIGSERIAL back makes it fail."""
+    sql = SCHEMA_DEFAULT.read_text(encoding="utf-8")
+    columns = parse_columns(sql)
+    keys = [c for c in columns if c.column == "id"]
+    assert len(keys) >= 22 and all(c.col_type.strip().upper().startswith("UUID") for c in keys), \
+        f"expected the row keys to be UUIDs, saw {sorted({c.col_type for c in keys})}"
+    assert not check_no_fleet_wide_order(sql, columns)
+    broken = sql.replace("UUID         PRIMARY KEY DEFAULT gen_random_uuid()", "BIGSERIAL    PRIMARY KEY", 1)
+    assert broken != sql, "the mutation changed nothing — the test and the schema have drifted"
+    assert any(f.check_id == "SEQ-01" for f in check_no_fleet_wide_order(broken, parse_columns(broken)))
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +330,10 @@ def _main() -> int:
         test_counters_named_like_clocks_are_not_rejected,
         test_month_anchor_without_its_check_is_rejected,
         test_production_month_anchors_are_all_checked,
+        test_every_source_of_a_fleet_wide_order_is_rejected,
+        test_production_schema_has_no_fleet_wide_order,
     ]
-    print("SHDR schema gate self-test — OI-EMMC2-07 (no raw accelerometer columns; TIME-01, TIME-02)")
+    print("SHDR schema gate self-test — OI-EMMC2-07 (no raw accelerometer columns; TIME-01, TIME-02, SEQ-01)")
     print()
     failed = 0
     for t in tests:

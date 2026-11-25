@@ -18,6 +18,7 @@ import platform.Foundation.NSURLSessionAuthChallengePerformDefaultHandling
 import platform.Foundation.NSURLSessionAuthChallengeUseCredential
 import platform.Foundation.credentialForTrust
 import platform.Foundation.dataWithContentsOfFile
+import platform.Foundation.writeToFile
 import platform.Foundation.serverTrust
 import platform.Security.SecCertificateCopyKey
 import platform.Security.SecKeyCopyExternalRepresentation
@@ -160,17 +161,34 @@ private fun spkiHeader(raw: ByteArray): ByteArray? = when {
     else -> null
 }
 
-/** The SHDR record the hub leaves for the app: a file in the app's Documents folder (the same convention the Swift app reads). */
+/**
+ * The hub's SHDR records, one file per helmet in the app's Documents folder (`shdr_staging-<key>.bin`, REQ-SHDR-08 (f)), as
+ * `FileShdrStaging` keeps them on the JVM. The key is the warranty owner's store's salted hash for the helmet. The one unbound
+ * `shdr_staging.bin` an earlier version read names no helmet and is deleted unread.
+ */
 @OptIn(ExperimentalForeignApi::class)
-class IosShdrStaging(private val path: String) : life.neurone.core.analytics.ShdrStaging {
-    override fun read(): ByteArray? {
-        // Transient device telemetry, not user data that needs to survive a restore: kept out of iCloud and device backups, as the Swift app did.
-        NSURL.fileURLWithPath(path).setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null)
-        return NSData.dataWithContentsOfFile(path)?.toByteArray()
+class IosShdrStaging(private val folder: String) : life.neurone.core.analytics.ShdrStaging {
+    init {
+        platform.Foundation.NSFileManager.defaultManager.removeItemAtPath("$folder/shdr_staging.bin", error = null)
     }
 
-    override fun clear() {
-        platform.Foundation.NSFileManager.defaultManager.removeItemAtPath(path, error = null)
+    private fun pathFor(helmetKey: String): String {
+        require(helmetKey.matches(life.neurone.core.analytics.ShdrStaging.HELMET_KEY)) { "not a helmet key" }
+        return "$folder/shdr_staging-$helmetKey.bin"
+    }
+
+    override fun read(helmetKey: String): ByteArray? = NSData.dataWithContentsOfFile(pathFor(helmetKey))?.toByteArray()
+
+    override fun stage(helmetKey: String, record: ByteArray) {
+        val path = pathFor(helmetKey)
+        // Atomic, so a reader never sees half a record.
+        check(record.toNSData().writeToFile(path, atomically = true)) { "the staged record could not be written" }
+        // Transient device telemetry, not user data that needs to survive a restore: kept out of iCloud and device backups, as the Swift app did.
+        NSURL.fileURLWithPath(path).setResourceValue(true, forKey = NSURLIsExcludedFromBackupKey, error = null)
+    }
+
+    override fun clear(helmetKey: String) {
+        platform.Foundation.NSFileManager.defaultManager.removeItemAtPath(pathFor(helmetKey), error = null)
     }
 }
 

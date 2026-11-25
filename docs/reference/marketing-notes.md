@@ -5,6 +5,8 @@
 ## Mastoid LRA pad vs Apple Watch — messaging for marketing literature
 
 > **The Apple Watch app is retired (2026-10-21, `NP-APP-ROADMAP-001` Rev 9).** Do not offer, mention or compare against a NeurOne Watch app. The copy below is kept as history and is not approved for use.
+>
+> **Its pad claims are not approved either (2026-11-23).** *"Results that match the science"* and *"40Hz vibrotactile therapy"* have no human evidence behind them. No human RCT of 40 Hz tactile stimulation exists, and the pivotal trial of 40 Hz light and sound (Cognito's HOPE) missed its primary endpoint. T1 is an FDA-exempt wellness product in any case. A rewrite makes no therapeutic or outcome claim for the pad until `NP-ACC-PRIORITY-001` `OI-ACC-10` closes.
 
 **Framing:** Lead with why our add-on is better, not with why Apple Watch is worse. Acknowledge the Apple Watch sync app exists and is available — but be clear about what it does and doesn't do.
 

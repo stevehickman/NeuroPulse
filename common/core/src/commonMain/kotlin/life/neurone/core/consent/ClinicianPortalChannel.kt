@@ -91,7 +91,7 @@ class ClinicianPortalSync(
         val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
             ?: return ClinicianRequestAdmission.RefusedUnknownGrant
 
-        ConsentEngine.accessDifferential(grant, request.toTier, todayIso())
+        ConsentEngine.accessDifferential(grant, request, todayIso())
             ?: return ClinicianRequestAdmission.RefusedNotAnExpansion
 
         store.addExpansionRequest(request)

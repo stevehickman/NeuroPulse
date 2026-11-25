@@ -39,7 +39,7 @@ TESTS="$REPO_ROOT/ci/shdr/shdr_schema_constraint_tests.sql"
 # CI-Kind: gate
 # CI-Self-Test: ci/shdr/shdr_schema_constraint_tests.sql
 # CI-Scan-Probe: external — needs a live PostgreSQL server
-# CI-Scans: every integrity constraint in the SHDR schema, against a live PostgreSQL
+# CI-Scans: every integrity constraint in the SHDR schema, and the absence of sequences and identity columns, against a live PostgreSQL
 # CI-Scan-Paths: ci/shdr/shdr_fleet_schema.sql ci/shdr/shdr_schema_constraint_tests.sql
 export LC_ALL=C LANG=C
 
@@ -151,9 +151,31 @@ if [[ "$ZONE_COLS" != "0" || "$ZONE_TABLES" != "0" ]]; then
     exit 1
 fi
 
+# SEQ-01 at the live object level (schema Rev G, OI-PRIV-53): a sequence or an
+# identity column gives rows a fleet-wide insert order, and a UUID key drawn from
+# anything but gen_random_uuid() may embed the time. A later migration could add
+# either without the DDL file showing it; the catalog shows it.
+echo
+echo "── No fleet-wide order in the live catalog (SEQ-01) ────────────────────"
+SEQS=$("${PSQL[@]}" -tA -c "
+  SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='public' AND c.relkind='S';")
+IDENTS=$("${PSQL[@]}" -tA -c "
+  SELECT count(*) FROM information_schema.columns
+   WHERE table_schema='public' AND is_identity='YES';")
+BADKEYS=$("${PSQL[@]}" -tA -c "
+  SELECT count(*) FROM information_schema.columns
+   WHERE table_schema='public' AND data_type='uuid'
+     AND column_default IS DISTINCT FROM 'gen_random_uuid()';")
+echo "sequences: $SEQS   identity columns: $IDENTS   uuid keys not from gen_random_uuid(): $BADKEYS"
+if [[ "$SEQS" != "0" || "$IDENTS" != "0" || "$BADKEYS" != "0" ]]; then
+    echo "FAIL: a row in the live SHDR schema can carry a fleet-wide order (SEQ-01)." >&2
+    exit 1
+fi
+
 echo
 echo "── Constraint tests ────────────────────────────────────────────────────"
 "${PSQL[@]}" -q -t -f "$TESTS"
 
 echo
-echo "SHDR Rev 4 live constraint tests: PASS"
+echo "SHDR Rev G live constraint tests: PASS"

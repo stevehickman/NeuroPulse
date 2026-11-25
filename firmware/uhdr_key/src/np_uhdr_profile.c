@@ -161,6 +161,45 @@ static void open_ctx(np_uhdr_profile_ctx_t *ctx, uint8_t slot,
     ctx->open = true;
 }
 
+/* ── Per-profile attempt limit (§C.8, REQ-EMMC2-05; the principal, 2026-11-24)
+ * The count is in the profile's own record.  The back-off reference is the
+ * uptime of that profile's last charged attempt in this boot, kept in RAM and
+ * not persisted, exactly as the helmet-wide limit's (§C.7): uptime restarts at
+ * every boot and a reference of 0 makes a power cycle restart the wait.
+ */
+static uint64_t g_profile_ref_ms[NP_UHDR_PROFILE_MAX];
+
+static np_uhdr_status_t profile_gate(uint8_t slot, const np_uhdr_profile_record_t *r,
+                                     uint64_t *now)
+{
+    *now = np_uhdr_hal_uptime_ms();
+    if (np_uhdr_backoff_remaining_ms(r->failed_attempts, g_profile_ref_ms[slot], *now) > 0U) {
+        return NP_UHDR_ERR_LOCKOUT;          /* no KDF, nothing charged */
+    }
+    return NP_UHDR_OK;
+}
+
+/* Charge BEFORE the secret is tested; refuse untested if it cannot persist. */
+static np_uhdr_status_t profile_charge(uint8_t slot, np_uhdr_profile_record_t *r, uint64_t now)
+{
+    if (r->failed_attempts != UINT32_MAX) {
+        r->failed_attempts++;
+    }
+    if (np_uhdr_hal_profile_write(slot, r) != NP_UHDR_OK) {
+        return NP_UHDR_ERR_CONFIG;
+    }
+    g_profile_ref_ms[slot] = now;
+    return NP_UHDR_OK;
+}
+
+/* The secret authenticated: clear this profile's count.  A clear that cannot
+ * be persisted only makes the next attempt wait longer (fail-safe). */
+static void profile_clear(uint8_t slot, np_uhdr_profile_record_t *r)
+{
+    r->failed_attempts = 0U;
+    (void)np_uhdr_hal_profile_write(slot, r);
+}
+
 /* ── API ──────────────────────────────────────────────────────────────────── */
 
 np_uhdr_status_t np_uhdr_profile_create(uint8_t slot,
@@ -242,14 +281,8 @@ np_uhdr_status_t np_uhdr_profile_unlock(uint8_t slot,
     np_uhdr_profile_record_t r;
     uint8_t wkmd[NP_UHDR_WKMD_LEN];
     uint8_t aad[W1_AAD_LEN];
-    uint32_t failed = 0U;
     uint64_t now = 0U;
     np_uhdr_status_t st;
-
-    st = np_uhdr_attempt_gate(&failed, &now);
-    if (st != NP_UHDR_OK) {
-        return st;
-    }
 
     st = np_uhdr_hal_profile_read(slot, &r);
     if (st != NP_UHDR_OK) {
@@ -265,12 +298,16 @@ np_uhdr_status_t np_uhdr_profile_unlock(uint8_t slot,
         memset(&r, 0, sizeof(r));
         return NP_UHDR_ERR_STATE;           /* dormant: rebind with the code */
     }
-    build_w1_aad(&r, aad);
-
-    if (np_uhdr_attempt_charge(failed, now) != NP_UHDR_OK) {
+    st = profile_gate(slot, &r, &now);
+    if (st != NP_UHDR_OK) {
+        memset(&r, 0, sizeof(r));
+        return st;
+    }
+    if (profile_charge(slot, &r, now) != NP_UHDR_OK) {
         memset(&r, 0, sizeof(r));
         return NP_UHDR_ERR_CONFIG;
     }
+    build_w1_aad(&r, aad);
 
     st = np_uhdr_derive_wkmd(credential, cred_len, r.kdf_salt, r.argon2id_version,
                              r.argon2id_m_cost, r.argon2id_t_cost,
@@ -288,7 +325,7 @@ np_uhdr_status_t np_uhdr_profile_unlock(uint8_t slot,
         return (st == NP_UHDR_ERR_AUTH) ? NP_UHDR_ERR_AUTH : NP_UHDR_ERR_CRYPTO;
     }
 
-    np_uhdr_attempt_clear();
+    profile_clear(slot, &r);
     open_ctx(ctx, slot, &r);
     memset(&r, 0, sizeof(r));
     return NP_UHDR_OK;
@@ -308,14 +345,8 @@ np_uhdr_status_t np_uhdr_profile_rebind(uint8_t slot,
     np_uhdr_profile_record_t r;
     uint8_t rk[NP_UHDR_RECOVERY_KEY_LEN];
     uint8_t aad[W2_AAD_LEN];
-    uint32_t failed = 0U;
     uint64_t now = 0U;
     np_uhdr_status_t st;
-
-    st = np_uhdr_attempt_gate(&failed, &now);
-    if (st != NP_UHDR_OK) {
-        return st;
-    }
 
     st = np_uhdr_hal_profile_read(slot, &r);
     if (st != NP_UHDR_OK) {
@@ -327,12 +358,16 @@ np_uhdr_status_t np_uhdr_profile_rebind(uint8_t slot,
         memset(&r, 0, sizeof(r));
         return st;
     }
-    build_w2_aad(&r, aad);
-
-    if (np_uhdr_attempt_charge(failed, now) != NP_UHDR_OK) {
+    st = profile_gate(slot, &r, &now);
+    if (st != NP_UHDR_OK) {
+        memset(&r, 0, sizeof(r));
+        return st;
+    }
+    if (profile_charge(slot, &r, now) != NP_UHDR_OK) {
         memset(&r, 0, sizeof(r));
         return NP_UHDR_ERR_CONFIG;
     }
+    build_w2_aad(&r, aad);
 
     st = derive_rk(recovery_code, r.rec_salt, rk);
     if (st != NP_UHDR_OK) {
@@ -347,7 +382,7 @@ np_uhdr_status_t np_uhdr_profile_rebind(uint8_t slot,
         fail_ctx(ctx);
         return (st == NP_UHDR_ERR_AUTH) ? NP_UHDR_ERR_AUTH : NP_UHDR_ERR_CRYPTO;
     }
-    np_uhdr_attempt_clear();
+    r.failed_attempts = 0U;                 /* written with the new wrap 1 below */
 
     /* Bind to this helmet: a fresh wrap 1 under the new credential. */
     st = seal_wrap1(&r, ctx->pk, new_credential, new_cred_len);
@@ -424,6 +459,7 @@ np_uhdr_status_t np_uhdr_profile_export(uint8_t slot, np_uhdr_profile_export_t *
         return st;
     }
     zero_wrap1(&r);                         /* the device-bound wrap stays */
+    r.failed_attempts = 0U;
     r.state = NP_UHDR_PROFILE_DORMANT;
     memcpy(out, &r, sizeof(*out));
     memset(&r, 0, sizeof(r));
@@ -452,8 +488,13 @@ np_uhdr_status_t np_uhdr_profile_import(uint8_t slot, const np_uhdr_profile_expo
     if (st != NP_UHDR_ERR_EMPTY) {
         return NP_UHDR_ERR_CONFIG;
     }
-    return (np_uhdr_hal_profile_write(slot, in) == NP_UHDR_OK) ? NP_UHDR_OK
-                                                               : NP_UHDR_ERR_CONFIG;
+    np_uhdr_profile_record_t rec;
+    memcpy(&rec, in, sizeof(rec));
+    rec.failed_attempts = 0U;
+    g_profile_ref_ms[slot] = 0U;
+    st = np_uhdr_hal_profile_write(slot, &rec);
+    memset(&rec, 0, sizeof(rec));
+    return (st == NP_UHDR_OK) ? NP_UHDR_OK : NP_UHDR_ERR_CONFIG;
 }
 
 np_uhdr_status_t np_uhdr_profile_delete(uint8_t slot, np_uhdr_profile_ctx_t *ctx)
@@ -464,6 +505,7 @@ np_uhdr_status_t np_uhdr_profile_delete(uint8_t slot, np_uhdr_profile_ctx_t *ctx
     if (ctx != NULL && ctx->open && ctx->slot == slot) {
         fail_ctx(ctx);
     }
+    g_profile_ref_ms[slot] = 0U;
     return (np_uhdr_hal_profile_erase(slot) == NP_UHDR_OK) ? NP_UHDR_OK
                                                            : NP_UHDR_ERR_CONFIG;
 }
@@ -538,8 +580,16 @@ np_uhdr_profile_record_t *np_uhdr_host_profile_slot_mut(uint8_t slot) { return &
 bool np_uhdr_host_profile_slot_used(uint8_t slot) { return g_host_slot_used[slot]; }
 void np_uhdr_host_profile_write_fail(bool f) { g_host_profile_write_fail = f; }
 
+/* Simulate a reboot for the per-profile limit: the RAM references are lost
+ * (np_uhdr_host_reboot() restarts uptime); the counts in the records survive. */
+void np_uhdr_host_profile_reboot(void)
+{
+    memset(g_profile_ref_ms, 0, sizeof(g_profile_ref_ms));
+}
+
 void np_uhdr_host_profile_reset(void)
 {
+    memset(g_profile_ref_ms, 0, sizeof(g_profile_ref_ms));
     memset(g_host_slots, 0, sizeof(g_host_slots));
     memset(g_host_slot_used, 0, sizeof(g_host_slot_used));
     g_host_profile_write_fail = false;
