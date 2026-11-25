@@ -309,7 +309,9 @@ extern uint32_t        np_mod_vns_hal_now_ms(void);                 /* OI-VNS-10
 extern np_hub_status_t np_mod_audio_hal_codec_init(void);
 extern void  np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
                                            uint32_t beat_mhz, uint8_t level_half_db);
-extern void  np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t level_half_db);
+/* Isochronic: the carrier tone, pulsed at rate_mhz (millihertz, as beat_mhz is).  The rate is not the carrier: the
+ * driver used to pass the carrier alone and the pulse rate never reached the output stage (OI-AUDIOHW-17). */
+extern void  np_mod_audio_hal_set_isochronic(uint16_t carrier_hz, uint32_t rate_mhz, uint8_t level_half_db);
 extern void  np_mod_audio_hal_set_noise(uint8_t type, uint8_t level_half_db);
 extern void  np_mod_audio_hal_stop_planar(void);
 extern void  np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t level_half_db);
