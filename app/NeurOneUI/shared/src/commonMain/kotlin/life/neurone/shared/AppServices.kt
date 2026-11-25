@@ -201,7 +201,7 @@ class AppServices(
 
     val researchAnalyticsGate = ResearchAnalyticsGate(keyValueStore, analyticsBackend, analyticsErasureQueue, scope)
     /** The warranty owner's records, one per helmet, apart from every user's data (`REQ-SHDR-10`). */
-    val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore)
+    val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore, staging = platform.shdrStaging)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(warrantyOwnerStore)
 
     /**
@@ -476,22 +476,22 @@ class AppServices(
     }
 
     /**
-     * The SHDR upload pipeline, the same on every host that has it (`REQ-SHDR-01`, `-02`, `-05`): the helmet the link is to names
-     * the token, a hub-delivered token replaces the interim one (a disconnect never downgrades it), and a pending upload with a
-     * staged record and an open warranty gate is sent, the staged file being removed only once the fleet service took it.
+     * The SHDR upload pipeline, the same on every host that has it (`REQ-SHDR-01`, `-02`, `-05`, `-08`, `-09`): the helmet the link is
+     * to names the token, a hub-delivered token replaces the interim one for the helmet that sent it (a disconnect never downgrades
+     * it, and a different hub token over a kept one ends that helmet's custody), and a pending upload sends the record staged for
+     * that one helmet when its own owner has consented, the staged file being removed only once the fleet service took it.
      */
     private fun composeFleetUpload() {
         val uploader = fleetUploader ?: return
         scope.launch { gattManager.hubIdentifier.collect { FleetUploadWiring.applyHubIdentifier(it, uploader) } }
-        scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, uploader) } }
-        val staging = platform.shdrStaging ?: return
+        scope.launch { gattManager.warrantyToken.collect { FleetUploadWiring.applyWarrantyToken(it, gattManager.hubIdentifier.value, uploader) } }
+        if (platform.shdrStaging == null) return
         scope.launch {
             // One attempt per notification of 0x01 (a repeat is a retry the hub asked for); attempts never overlap, as this collects in turn.
             gattManager.shdrUploadSignal.collect {
-                // The consent of the helmet the link is to, and of no other (`REQ-SHDR-08`).
-                val gateOpen = warrantyAnalyticsGate.isOpen(gattManager.hubIdentifier.value)
-                val payload = if (gateOpen) kotlinx.coroutines.withContext(Dispatchers.Default) { staging.read() } else null
-                FleetUploadWiring.applyUploadPending(true, gateOpen, payload, uploader) { if (it) staging.clear() }
+                // One reading of the helmet names the consent, the token and the staged record (`REQ-SHDR-08` (f)).
+                val hub = gattManager.hubIdentifier.value
+                kotlinx.coroutines.withContext(Dispatchers.Default) { uploader.uploadStaged(hub) }
             }
         }
     }
