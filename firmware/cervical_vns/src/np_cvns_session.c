@@ -7,8 +7,11 @@
  *
  * UHDR record (session timestamps, HR, impedance raw values) written at session
  * end, encrypted with user's biometric-derived AES-256-XTS key via storage HAL.
- * SHDR summary (three device-condition flags, no user biology, REQ-CVNS-15)
- * written to the SHDR partition.
+ * Nothing is written to SHDR: the former three-flag summary (impedance check
+ * passed, cutoff occurred, fault reason) was a record of interlocks tripped by
+ * readings of the wearer, and is retired (REQ-CVNS-15; the principal's ruling
+ * on OI-PRIV-22 (NP-PRIV-ANALYSIS-004), 2026-11-23).  The hub's session-end
+ * record carries the one cause-free stopped_early flag (REQ-FWHUB-89 (c)).
  */
 
 #include "np_cvns_session.h"
@@ -23,10 +26,6 @@ static void platform_uhdr_write(const np_cvns_session_record_t *rec)
     /* OI-CVNS-03: implement with AES-256-XTS biometric key before compliance.  */
     (void)rec;
 }
-
-/* The session writes nothing to SHDR (OI-CVNS-04, retired summary: see
- * np_cvns_types.h).  Its wear reaches SHDR as the hub's per-module running
- * totals (REQ-FWHUB-93), its faults through the hub's fault log. */
 
 /* ── Interlock fault callback (invoked from np_cvns_interlock.c) ─────────────── */
 
@@ -203,6 +202,7 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
         ctx->uhdr_record.stim_current_ua    = config->current_ua;
         ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
         ctx->uhdr_record.electrode_config   = config->electrode_config;
+
     }
 
     /* Initialize stim module (validates config).  A non-NULL safety-response
@@ -285,8 +285,6 @@ void np_cvns_session_tick(np_cvns_session_ctx_t *ctx,
             /* Store impedance in UHDR record (raw measurement = user biology).  */
             ctx->uhdr_record.impedance_left_kohm  = ctx->stim->impedance_kohm[0];
             ctx->uhdr_record.impedance_right_kohm = ctx->stim->impedance_kohm[1];
-            /* SHDR gets nothing from the check, not even a pass flag: the
-             * in-session impedance result is UHDR (REQ-CVNS-15, OI-PRIV-40). */
             ctx->stage = NP_CVNS_STAGE_BASELINE;
         }
         break;

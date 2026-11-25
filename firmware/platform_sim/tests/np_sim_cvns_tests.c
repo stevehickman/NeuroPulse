@@ -267,7 +267,8 @@ static void test_losing_the_r_peaks_in_delivery_cuts_the_session(void)
     run("cvns_run 12000 -1");                        /* no PPG samples at all */
     check(stage() == STAGE_FAULT && !enable_bit() && published_ua() == 0U,
           "data loss: 12 s with no R-peaks faults the session, drops the enable and clears the published current");
-    check(count("\"fn\":\"np_log_shdr_fault\"") == 1, "data loss: and the fault is logged to SHDR once");
+    check(count("\"fn\":\"np_log_shdr_fault\"") == 0,
+          "data loss: and nothing about the fault goes to SHDR; the session-end record's cause-free stop flag is all it learns (REQ-FWHUB-91)");
 }
 
 /* A heart-rate step is not this side's cutoff. */

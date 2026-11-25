@@ -138,6 +138,7 @@ bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
 void np_safety_spi_request_enable(uint16_t channel_mask)          { (void)channel_mask; g_spi_asks++; }
 void np_safety_spi_request_disable(uint16_t channel_mask)         { (void)channel_mask; g_spi_asks++; }
 void np_safety_spi_disable_all(void)                              { g_spi_asks++; }
+bool np_safety_spi_take_grant_withdrawn(void)                     { return false; }
 void np_safety_spi_set_geom_required(bool v)                      { (void)v; g_spi_asks++; }
 void np_safety_spi_set_geom_required_tdcs(bool v)                 { (void)v; g_spi_asks++; }
 void np_safety_spi_set_geom_required_bes(bool v)                  { (void)v; g_spi_asks++; }

@@ -112,7 +112,7 @@ static bool has_pending(const np_mu_key_t *key)
 
 /* The stored row for `key`, created if absent.  A full table gives up the row
  * of the module with the fewest sessions present that has nothing pending
- * (UC-207); NP_MU_MAX_ROWS if every row is pending.  Runner only, called with
+ * (UC-208); NP_MU_MAX_ROWS if every row is pending.  Runner only, called with
  * the critical section held so the pending table it consults stands still. */
 static size_t row_for(const np_mu_key_t *key)
 {

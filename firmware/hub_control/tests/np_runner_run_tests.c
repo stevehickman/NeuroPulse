@@ -322,6 +322,9 @@ bool np_safety_spi_get_tier_report(uint8_t *reason_out, bool *refused_out)
 void np_safety_spi_request_enable(uint16_t channel_mask)  { note(RUN_EV_ENABLE, channel_mask, 0U); }
 void np_safety_spi_request_disable(uint16_t channel_mask) { note(RUN_EV_DISABLE, channel_mask, 0U); }
 void np_safety_spi_disable_all(void)                      { note(RUN_EV_DISABLE_ALL, 0U, 0U); }
+/* REQ-FWHUB-89 (c): the safety SPI's grant-withdrawal latch, set by a test, taken (read and cleared) by the runner. */
+static bool g_grant_withdrawn;
+bool np_safety_spi_take_grant_withdrawn(void)             { bool w = g_grant_withdrawn; g_grant_withdrawn = false; return w; }
 void np_safety_spi_set_geom_required(bool v)              { if (v) { note(RUN_EV_GEOM_CLIN, 0U, 0U); } }
 void np_safety_spi_set_geom_required_tdcs(bool v)         { if (v) { note(RUN_EV_GEOM_TDCS, 0U, 0U); } }
 void np_safety_spi_set_geom_required_bes(bool v)          { if (v) { note(RUN_EV_GEOM_BES, 0U, 0U); } }
@@ -668,6 +671,7 @@ static void fresh(void)
     g_panic_rc = NP_HUB_OK;
     memset(&g_end_uhdr, 0, sizeof g_end_uhdr);
     memset(&g_end_shdr, 0, sizeof g_end_shdr);
+    g_grant_withdrawn = false;
     g_lease_held_at_end = g_lease_held_at_flush = g_lease_held_at_cons = false;
     g_cons_mask = 0U;
     (void)g_unused_decl;
@@ -1038,6 +1042,62 @@ static void test_an_abort_keeps_the_reason_it_was_given(void)
     (void)load_and_run(&b);
     check(g_end_uhdr.abort_reason == NP_ABORT_USER,
           "abort: np_runner_abort(USER) is recorded as a user stop");
+}
+
+/* A grant the safety MCU takes away, and a channel the cervical driver stops, set the same moment-free bit. */
+static void post_grant_withdrawn(void) { g_grant_withdrawn = true; }
+static void post_early_stop(void)      { np_runner_note_early_stop(); }
+
+/* @verifies REQ-FWHUB-89#c */
+static void test_shdr_learns_that_a_session_stopped_early_and_never_why(void)
+{
+    blob_t b;
+
+    fresh();
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: a session that runs to its end leaves the flag 0");
+
+    fresh();
+    long_session(&b, 60000U);
+    script_at(300U, post_abort_user);
+    (void)load_and_run(&b);
+    const uint8_t by_user = g_end_shdr.stopped_early;
+    fresh();
+    long_session(&b, 60000U);
+    script_at(300U, post_abort_seizure);
+    (void)load_and_run(&b);
+    const uint8_t by_halt = g_end_shdr.stopped_early;
+    check(by_user == 1U && by_halt == 1U, "stopped early: an abort sets it, a person's stop and a halt alike");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_grant_withdrawn);
+    (void)load_and_run(&b);
+    check(np_runner_get_state() == NP_SESSION_COMPLETE && g_end_shdr.stopped_early == 1U,
+          "stopped early: a grant the safety MCU withdrew sets it though the session ran to its end");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_early_stop);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 1U,
+          "stopped early: a channel stopped by its driver (a cervical VNS fault, any reason) sets it");
+
+    fresh();
+    g_grant_withdrawn = true;            /* left over from before this session */
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: a withdrawal from before the session does not count");
+
+    fresh();
+    two_command_session(&b);
+    script_at(1500U, post_early_stop);
+    (void)load_and_run(&b);
+    fresh();
+    two_command_session(&b);
+    (void)load_and_run(&b);
+    check(g_end_shdr.stopped_early == 0U, "stopped early: the flag does not carry into the next session");
 }
 
 /* @verifies SWR-SS-06 SWR-SS-05 */
@@ -1619,6 +1679,7 @@ int main(void)
     test_each_stop_event_ends_the_session_with_its_own_reason_and_the_worst_wins();
     test_only_a_stop_and_a_pause_timeout_end_without_a_fault_status();
     test_an_abort_keeps_the_reason_it_was_given();
+    test_shdr_learns_that_a_session_stopped_early_and_never_why();
     test_a_stop_or_a_pause_is_acted_on_when_it_is_posted_not_when_the_sleep_would_have_ended();
     test_waiting_on_the_event_group_does_not_spin();
     test_shutdown_drops_the_enables_first_then_stops_the_modules_then_waits_then_records();

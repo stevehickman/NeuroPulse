@@ -56,7 +56,7 @@ typedef enum {
     NP_CVNS_STIM_FAULT     = 5,
 } np_cvns_stim_phase_t;
 
-/* ── Fault reason codes (SHDR safe — no user biology) ───────────────────────── */
+/* ── Fault reason codes (UHDR: never written to SHDR, REQ-FWHUB-91) ───────────────────────── */
 typedef enum {
     NP_CVNS_FAULT_NONE       = 0,
     NP_CVNS_FAULT_HR_CHANGE  = 1,  /* HR changed > NP_CVNS_HR_CHANGE_LIMIT_BPM */
@@ -111,49 +111,17 @@ typedef struct {
     uint8_t  reserved[2];
 } np_cvns_session_record_t;
 
-/* ── No SHDR session summary (retired 2026-11-24, OI-CVNS-04) ──────────────────
- * np_cvns_shdr_summary_t ({cutoff_occurred, fault_reason}, REQ-CVNS-15, now
- * retired) was never written: its HAL write was a stub.  Wiring it would have
- * put one record per cervical VNS session into SHDR, and its presence alone
- * says a neck-stimulation session ran, which modalities ran being UHDR
- * (data-architecture-detail.md §5.1).  Everything it carried that SHDR may
- * hold already reaches SHDR another way: each cutoff and fault reason through
- * the hub's fault log (NP-FW-HUB-001 §6.3), and the accessory's wear through
- * the per-module running totals (REQ-FWHUB-93: sessions present and used, with
- * their time, and faults per code), which are totals and never a per-session
- * record.  The session's own values stay in np_cvns_session_record_t (UHDR). */
-
-/* ── Safety MCU fault log entry (SHDR) ─────────────────────────────────────────
- * 8 bytes.  Device-condition only: WHICH fault fired, and the session ordinal it
- * fired in.  Deliberately carries NO event timing.
- *
- * `cutoff_offset_ms` was removed 2026-08-12 (NP-FW-CVNS-001 Rev 3).  It recorded
- * "ms after stim enable when cutoff occurred", which for the cardiac reason
- * (NP_CVNS_FAULT_HR_CHANGE) is the latency from stimulation onset to the wearer's
- * heart rate deviating past NP_CARDIAC_HR_DELTA_BPM — an autonomic response
- * latency, i.e. a measurement of the person, not of the device.  NP-FW-CVNS-001
- * §8.2 already classified that same quantity UHDR one row above routing this
- * record to SHDR, and the UHDR session record above already carries it as
- * `cutoff_time_offset_s`; the SHDR copy was a duplicate at FINER resolution
- * (ms vs s), so it was strictly more revealing than the UHDR original.
- *
- * Removal is UNCONDITIONAL — the field is gone from the record shape for every
- * `reason` value.  Zeroing it only for the cardiac reason would have recreated
- * exactly the oracle retired from the fault latch on the same date: a redaction
- * applied conditionally on a sensitive predicate leaks that predicate
- * (CLAUDE.md §5.1).  Here it would leak doubly, since `reason` is in the record.
- *
- * Fault event timing is UHDR generally: the SHDR fleet schema's `fault_log` has
- * no timing column, and np_log_shdr_fault() discards `session_ms` for every
- * caller.  `reason` stays — the fault KIND is the deliberate, already-published
- * SHDR channel (fault_log.fault_type, e.g. 'CVNS_CARDIAC_INTERLOCK_CUTOFF', which names no cause:
- * the cause of a cardiac cutoff is UHDR; OI-PRIV-41 (NP-PRIV-ANALYSIS-004) Q2).
- */
-typedef struct {
-    uint32_t session_id;          /* session counter; no timestamps             */
-    uint8_t  reason;              /* np_cvns_fault_reason_t                     */
-    uint8_t  reserved[3];
-} np_cvns_fault_log_entry_t;
+/* ── Nothing of a cervical VNS session goes to SHDR (REQ-CVNS-15) ──────────────
+ * Retired 2026-11-23 (the principal's ruling on OI-PRIV-22, NP-PRIV-ANALYSIS-004:
+ * a safety interlock that trips on a reading of the wearer → UHDR):
+ *   np_cvns_shdr_summary_t {impedance_check_pass, cutoff_occurred, fault_reason}
+ *     — each field is, or can carry, an interlock tripped by a reading of the
+ *     wearer (skin-contact impedance, heart rate); and
+ *   np_cvns_fault_log_entry_t {session_id, reason} — its reason names HR_CHANGE.
+ * Both stay in np_cvns_session_record_t above, under the user's key.  SHDR learns
+ * only that a session or channel stopped early, for any cause, from the hub's
+ * session-end record (REQ-FWHUB-89 (c)).  Do not add an SHDR struct here without
+ * a data-architecture-detail.md §5.1 row that puts its fields in SHDR. */
 
 /* ── Display state (sent to app) ─────────────────────────────────────────────── */
 typedef struct {

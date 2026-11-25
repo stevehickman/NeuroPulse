@@ -161,6 +161,7 @@ class ConsentStorePresenceTests {
             id = "grant-1", clinicianName = "Dr. Test", clinicianOrganization = "Test Hospital", tier = tier,
             grantedAtDay = today.toString(), expiresAtDay = today.plusDays(30).toString(),
             accessScopes = listOf(ClinicianAccessScope(tier.uhdrElements, today.toString(), false)),
+            useCaseIds = listOf("adherence_monitoring"),
         )
 
         assertFalse(store.grantClinicianAccess(grant))

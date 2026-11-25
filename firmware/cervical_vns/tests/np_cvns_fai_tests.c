@@ -615,10 +615,59 @@ static void fai_hr_report(void)
                                              &hr_x10, &age_ms));
 }
 
-/* ── No SHDR session summary (OI-CVNS-04) ───────────────────────────────────── */
-/* The summary these tests read (REQ-CVNS-15) is retired: the session writes
- * nothing to SHDR, and the accessory's wear reaches it as the hub's per-module
- * running totals (REQ-FWHUB-93, np_module_usage_tests). */
+/* ── Nothing of the session goes to SHDR; it stays in UHDR (REQ-CVNS-15) ───── */
+/*
+ * The library once kept a three-flag SHDR summary (impedance passed, cutoff
+ * occurred, fault reason), and before that kΩ values and the dose.  Since the
+ * principal's ruling on OI-PRIV-22 (NP-PRIV-ANALYSIS-004, 2026-11-23) it keeps no
+ * SHDR record at all: the session context has no SHDR member and the library
+ * calls no SHDR sink (scripts/check-redaction-shape.ts).  These tests drive a real
+ * session through the impedance check and show that what the summary held is in
+ * the UHDR record.
+ */
+
+/* @verifies-none recording callback helper whose name begins test_; not a test case */
+static void test_session_end_cb(const np_cvns_session_record_t *rec, np_cvns_status_t reason)
+{
+    (void)rec;
+    (void)reason;
+}
+
+/* Starts a session, answers its impedance check with imp[], ticks once and stops it. */
+static void run_session(np_cvns_session_ctx_t *session, np_cvns_interlock_ctx_t *interlock,
+                        np_cvns_stim_ctx_t *stim, const float imp[NP_CVNS_ELECTRODE_COUNT])
+{
+    np_cvns_interlock_config_t icfg = { .ppg_sample_rate_hz = NP_CVNS_PPG_SAMPLE_RATE_HZ, .now_s = 0U };
+    ASSERT_OK(np_cvns_interlock_init(interlock, icfg, test_fault_cb));
+    ASSERT_OK(np_cvns_session_init(session, interlock, stim, test_session_end_cb, NULL));
+    np_cvns_session_config_t cfg = { .freq_hz = 25U, .current_ua = 1500U, .pulse_width_us = 500U,
+                                     .duration_s = 120U, .electrode_config = 1U };
+    ASSERT_OK(np_cvns_session_start(session, &cfg, 1000U, 1700000000U));
+    np_cvns_stim_safety_mcu_response(stim, false, imp);
+    np_cvns_session_tick(session, 1010U, 1U);
+    np_cvns_session_stop(session, 2000U);
+}
+
+/* @verifies REQ-CVNS-15#b */
+static void test_cvns_session_facts_stay_in_uhdr(void)
+{
+    printf("\n[Session facts stay in UHDR, REQ-CVNS-15]\n");
+    np_cvns_session_ctx_t   session;
+    np_cvns_interlock_ctx_t interlock;
+    np_cvns_stim_ctx_t      stim;
+    const float imp[NP_CVNS_ELECTRODE_COUNT] = { 1.25f, 1.75f };
+
+    run_session(&session, &interlock, &stim, imp);
+
+    ASSERT_APPROX(session.uhdr_record.impedance_left_kohm, 1.25f, 1e-6f);
+    ASSERT_APPROX(session.uhdr_record.impedance_right_kohm, 1.75f, 1e-6f);
+    ASSERT_EQ(session.uhdr_record.stim_freq_hz, 25U);
+    ASSERT_EQ(session.uhdr_record.stim_current_ua, 1500U);
+    ASSERT_EQ(session.uhdr_record.electrode_config, 1U);
+    ASSERT_EQ(session.uhdr_record.cutoff_occurred, 0U);
+    ASSERT_EQ(session.uhdr_record.fault_reason, (uint8_t)NP_CVNS_FAULT_NONE);
+    printf("  kΩ, frequency, current, pads, cutoff and fault reason are in the UHDR record\n");
+}
 
 int main(void)
 {
@@ -636,6 +685,7 @@ int main(void)
     fai_cv03_procedure_doc();
     fai_stim_validation();
     fai_ramp_arithmetic();
+    test_cvns_session_facts_stay_in_uhdr();
 
     printf("=== Results: %d total failure(s) ===\n", g_fail_count);
 

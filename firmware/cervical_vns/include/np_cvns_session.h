@@ -4,7 +4,7 @@
  *
  * Orchestrates the full cervical VNS session workflow:
  * impedance check → cardiac baseline → ramp-up → active → ramp-down → complete.
- * Composes np_cvns_interlock and np_cvns_stim, owns UHDR/SHDR record writing.
+ * Composes np_cvns_interlock and np_cvns_stim, owns UHDR record writing (it writes nothing to SHDR, REQ-CVNS-15).
  */
 
 #ifndef NP_CVNS_SESSION_H
