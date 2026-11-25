@@ -287,6 +287,11 @@ class AppServices(
 
     val scheduledBackup = life.neurone.shared.migration.ScheduledBackup(
         { backupPlace.value }, keyValueStore, migrationItems, waveforms = waveformBackup, onChange = { syncBackgroundSchedule(); syncLoginItem() },
+        // The kept code or passphrase only where it is sealed at rest (`SWR-MG-13` (e), `OI-PRIV-61`): never in an unsealed run's plain store.
+        secretKeptSealed = {
+            storageProtection == StorageProtection.SEALED &&
+                protectedStorage.keepsFromTheClear(life.neurone.shared.migration.ScheduledBackup.SECRET_KEY)
+        },
         // The kept backup key is sealed under the key of the tier `np.backup.auto-secret` is in (`OI-PRIV-65` (2)); a run whose
         // storage is not sealed has no sealer and keeps nothing.
         sealer = encrypted,

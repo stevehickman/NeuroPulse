@@ -20,7 +20,8 @@ import life.neurone.core.platform.secureRandomBytes
 // holds either (CLAUDE.md §5.1). **The secret is never stored.** To make a backup without asking again, the automatic backup keeps a
 // key derived from it under one salt, sealed by the core under the data key of the store that holds it ([KeptKeySealer],
 // `keySeal`; `SWR-MG-32` (i)), so a passphrase a person may reuse elsewhere is not on the phone (the principal, 2026-11-24,
-// `OI-PRIV-65` (2)). It was the secret itself, as hex, until then.
+// `OI-PRIV-65` (2)). It was the secret itself, as hex, until then. A run whose storage is not
+// sealed keeps nothing (`SWR-MG-13` (e), `OI-PRIV-61`).
 
 enum class BundleKeyMethod(val wire: String) {
     RECOVERY_CODE("recoveryCode"),

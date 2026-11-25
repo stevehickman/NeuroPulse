@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-11-25  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -336,9 +336,12 @@ F-12 to F-16 follow these.
 > **Rev 2 (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
 > requirement row and tests. The SwiftUI parts were not changed: that app was removed by pull request #946, which closes F-01, F-02,
 > F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
+>
+> **Rev 4.** F-05 repaired in the Compose app, which closes `OI-PRIV-61`.
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
+| F-05 | `ScheduledBackup.turnOn` keeps the code or passphrase only on a run whose storage is sealed (`AppServices` passes `StorageProtection.SEALED` and the protected list), and refuses with nothing written otherwise; a copy in the clear left by an earlier unsealed run is removed at start (a sealed one is left alone); the backup screen says why the automatic backup is not offered (`MIGRATION_BACKUP_AUTO_UNAVAILABLE_UNSEALED`), and the backup itself is still made under what the person types. The unsealed notice is shown on every host that keeps state on disk, phones included: the `reportsUnsealedStorage` switch, which only the desktop apps set, is removed | `SWR-MG-13` (c), (e) | `ScheduledBackupTest`, `AutomaticBackupSealingTest`, `StorageNoticeTest` | The new string is English in every locale until translated. Not run on a device: no Android SDK or Mac in the session |
 | F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | Sets saved earlier keep their name until saved again |
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
@@ -370,3 +373,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 2 | 2026-11-25 | NeurOne Software Engineering | **§8 added: F-07, F-09, F-10 and F-11 repaired in the Compose app and the React web app, with their requirements, tests and what remains; `OI-PRIV-77` raised from F-09.** |
 | 3 | 2026-11-25 | NeurOne Software Engineering | **New §8.1: where F-08 and F-13 are now tracked, each checked against `main`. F-08 is point (6) of `OI-CONSENT-08`, with a proposed minimum per use case (Q6 of its brief, register row `UC-212`). F-13 is new `OI-PRIV-78` (GitHub #1060, brief `oi-priv-78-phone-erase.md`). The iOS Keychain residue on the shared host is the data key and the gated key only, and the analytics ID and the cloud grant are left behind on both phones. §1, §3 and the header point to them.** |
+| 4 | 2026-11-25 | NeurOne Software Engineering | **§8: F-05 repaired in the Compose app (`SWR-MG-13` (c), (e)), with its tests and what remains; closes `OI-PRIV-61`.** |

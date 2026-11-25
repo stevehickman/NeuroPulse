@@ -46,12 +46,13 @@ class ScheduledBackupTest {
     /** The data key the kept backup key is sealed under: the sealed tier's, as `AppServices` passes it (`OI-PRIV-65` (2)). */
     private val dataKey = InMemorySecretKeyStore()
 
-    private fun fixture(placeOn: Boolean = true, sealed: Boolean = true): Fixture {
-        val kv = filled()
+    private fun fixture(placeOn: Boolean = true, sealed: Boolean = true, kv: InMemoryKeyValueStore = filled()): Fixture {
         val store = MemoryObjectStore()
         lateinit var f: Fixture
         val sealer = if (sealed) EncryptedKeyValueStore(kv, dataKey, emptySet()) else null
-        val backup = ScheduledBackup({ if (placeOn) MigrationPlace("test", store, route) else null }, kv, nowSeconds = { f.now }, sealer = sealer)
+        val backup = ScheduledBackup(
+            { if (placeOn) MigrationPlace("test", store, route) else null }, kv, nowSeconds = { f.now }, secretKeptSealed = { sealed }, sealer = sealer,
+        )
         f = Fixture(kv, store, 1_000_000L, backup)
         return f
     }
@@ -169,7 +170,7 @@ class ScheduledBackupTest {
         val f = fixture()
         assertTrue(f.backup.turnOn(BundleKeyMethod.RECOVERY_CODE, newSecret()))
         // A later run whose keystore no longer has that data key (it was destroyed and a new one made): the kept key does not open.
-        val later = ScheduledBackup({ MigrationPlace("test", f.store, route) }, f.kv, nowSeconds = { f.now },
+        val later = ScheduledBackup({ MigrationPlace("test", f.store, route) }, f.kv, nowSeconds = { f.now }, secretKeptSealed = { true },
             sealer = EncryptedKeyValueStore(f.kv, InMemorySecretKeyStore(), emptySet()))
         assertEquals(ScheduledBackup.Outcome.Failed("secret_unreadable"), later.runIfDue())
         assertTrue(f.store.list("").isEmpty())
@@ -213,5 +214,46 @@ class ScheduledBackupTest {
             assertIs<BackupStep.Done>(m.step.value)
             assertFalse(f.backup.isOn)
         }
+    }
+
+    // @verifies SWR-MG-13#e
+    @Test fun a_run_that_does_not_keep_the_secret_sealed_refuses_to_turn_it_on_and_writes_nothing() = runTest {
+        val f = fixture(sealed = false)
+        assertFalse(f.backup.isAvailable)
+        assertFalse(f.backup.turnOn(BundleKeyMethod.PASSPHRASE, newSecret()), "the answer says it was not turned on")
+        assertNull(f.kv.getString(ScheduledBackup.SECRET_KEY), "no code or passphrase lands in the plain store")
+        assertFalse(f.backup.isOn)
+        assertEquals(ScheduledBackup.Outcome.Off, f.backup.runIfDue())
+        assertTrue(f.store.list("").isEmpty())
+    }
+
+    // @verifies SWR-MG-13#e
+    @Test fun a_secret_an_earlier_run_left_in_the_clear_is_removed_and_a_sealed_one_is_left_for_a_run_that_can_open_it() = runTest {
+        val plain = filled().also { it.putString(ScheduledBackup.SECRET_KEY, "recoveryCode:00ff") }
+        val f = fixture(sealed = false, kv = plain)
+        assertNull(plain.getString(ScheduledBackup.SECRET_KEY), "the key no longer sits beside the backups it opens")
+        assertFalse(f.backup.isOn)
+
+        val sealedValue = EncryptedKeyValueStore.PREFIX + "opaque"
+        val kept = filled().also { it.putString(ScheduledBackup.SECRET_KEY, sealedValue) }
+        fixture(sealed = false, kv = kept)
+        assertEquals(sealedValue, kept.getString(ScheduledBackup.SECRET_KEY), "a value sealed by an earlier run is not this run's to erase")
+
+        val sealedRun = filled().also { it.putString(ScheduledBackup.SECRET_KEY, "recoveryCode:00ff") }
+        assertTrue(fixture(sealed = true, kv = sealedRun).backup.isOn, "a sealed run keeps what it holds")
+    }
+
+    // @verifies SWR-MG-13#e
+    @Test fun the_backup_screen_model_still_makes_the_backup_on_an_unsealed_run_and_keeps_nothing() = runTest {
+        val f = fixture(sealed = false)
+        val m = MigrationBackupModel(MigrationPlace("test", f.store, route), f.kv, scheduled = f.backup)
+        assertFalse(m.automaticAvailable, "the screen is told not to offer it")
+        m.keepAutomatic = true
+        m.chooseKind(BackupKind.UHDR); m.continueToMethod(); m.useRecoveryCode(); m.confirmCodeSaved()
+        assertIs<BackupStep.Done>(m.step.value)
+        assertTrue(f.store.list("").isNotEmpty(), "the backup is made under the code the person holds")
+        assertFalse(f.backup.isOn)
+        assertNull(f.kv.getString(ScheduledBackup.SECRET_KEY))
+        assertEquals(f.now, f.backup.lastBackupSeconds, "the backup is still recorded")
     }
 }
