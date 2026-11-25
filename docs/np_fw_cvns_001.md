@@ -641,6 +641,7 @@ STAGE_FAULT                       STAGE_RAMP_DOWN → STAGE_COMPLETE
 | Session duration (s) | UHDR | User biology |
 | Stimulation parameters (freq, current, pulse width) | UHDR | Linked to a specific user session |
 | Cutoff occurred flag (0/1 only, no HR values) | **UHDR** (Rev 24) | The wearer's heart rate tripped the interlock: a fact about the person (the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004)). SHDR sees only the hub's cause-free `stopped_early` bit |
+| The accessory's wear: sessions present and used, their time, faults per code | SHDR **as per-module running totals** (`NP-FW-HUB-001` §6.11, `REQ-FWHUB-93`; the principal, 2026-11-24) | Totals of exposure and use, never a per-session record and never why a session stopped |
 | Electrode impedance pass/fail (boolean) | **UHDR** (Rev 24) | A skin-contact check is an interlock that reads the wearer, and the in-session check measures through the wearer (the principal, 2026-11-23, `OI-PRIV-22` and `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)). Device condition comes from a device-only test (`NP-FW-HUB-001` `OI-FWHUB-36`) |
 | Safety MCU fault log (session ordinal + reason; **no offset**, no HR) | **Retired** (Rev 24; its reason names `HR_CHANGE`) | Was: SHDR, device event log. **Rev 3:** the `cutoff_offset_ms` field was removed — it duplicated the *Time-of-cutoff offset* row above, which this same table already classifies UHDR, at finer resolution. Fault event timing is UHDR (§5.6). |
 | Session count increment | SHDR | Unsigned integer |

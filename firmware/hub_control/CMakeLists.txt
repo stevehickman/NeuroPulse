@@ -713,6 +713,20 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_consumables_tests PRIVATE np_crypto m)
 
+    # REQ-FWHUB-93: the per-module running totals — presence and use with their
+    # time, faults per code, the upserted record, never over an unreadable one.
+    add_executable(np_module_usage_tests
+        tests/np_module_usage_tests.c
+        src/np_module_usage.c
+    )
+    target_include_directories(np_module_usage_tests PRIVATE
+        include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+        $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+    target_compile_options(np_module_usage_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-NVRAM-08: the Map 3 journal record and its version-tolerant scan.
     # The CI check that a journal written under version n loses no record
     # under n+1 (NP-FW-NVRAM-001 Rev 3 §7.2), run against the production
@@ -778,6 +792,7 @@ set(HUB_SOURCES
     src/np_session_pause.c        # SWR-SS-05: paused session clock + slot tracker
     src/np_warranty_token.c       # OI-WA-03: NP-FW-EMMC-002 §A warranty token
     src/np_consumables.c          # OI-ACC-08: CONSUMABLE_STATUS session counts
+    src/np_module_usage.c         # REQ-FWHUB-93: per-module running totals
     src/np_pause_limit.c          # SWR-SS-05: the owner's pause time limit
     src/np_status_led.c           # REQ-FWHUB-85/-85: the status indicators and stealth mode (OI-PRIV-37)
     src/np_ppx_config.c           # REQ-FWHUB-71: the detector's clinician switches
