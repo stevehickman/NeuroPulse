@@ -186,6 +186,12 @@ enum class HelmetRefusalCause(val rule: String) {
      * `REQ-FWHUB-78` (k)). A structural check, not a limit.
      */
     CERVICAL_BLOCK_TOO_LONG("cervical_block_too_long"),
+
+    /**
+     * The helmet cannot read its own device serial, or reads it as all zero, so it cannot show the protocol was made for it
+     * (`NP_HUB_ERR_SERIAL_UNKNOWN`, reason 44; `REQ-FWHUB-90` (b), (c)). Not [WRONG_DEVICE]: sending again does not help.
+     */
+    SERIAL_UNKNOWN("serial_unknown"),
     OTHER("other"),
 
     /** Not a refusal: the helmet's final answer is for other bytes than the ones just sent (`UploadVerdict.causeFor`). */
