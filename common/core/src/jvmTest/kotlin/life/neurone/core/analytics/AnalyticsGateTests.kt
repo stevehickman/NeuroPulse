@@ -300,10 +300,41 @@ class WarrantyOwnerConsentTests {
         warranty.grant(HELMET_A)
         assertTrue(warranty.isOpen(HELMET_A))
         val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
-        for (bad in listOf("v1,2,0,0,0", "v2,1,0,0,0", "v1,1,0,-1,0", "v1,1,0,0", "true")) {
-            store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace("v1,1,0,0,0", bad))
+        for (bad in listOf(
+            "v2,2,0,0,0,0", "v3,1,0,0,0,0", "v2,1,0,-1,0,0", "v2,1,0,0,0", "v2,1,0,0,0,2", "v1,1,0,0,0,0", "v1,2,0,0,0",
+            "v1,1,0,-1,0", "v1,1,0,0", "true",
+        )) {
+            store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace("v2,1,0,0,0,0", bad))
             assertFalse(warranty.isOpen(HELMET_A), bad)
         }
+    }
+
+    // The owner's stealth lock is per helmet, kept across a restart, and changes nothing else the owner decided.
+    // @verifies SWR-IND-02#b
+    @Test
+    fun theStealthLockIsPerHelmetAndLeavesTheOtherChoicesAlone() {
+        val store = InMemoryKeyValueStore()
+        val warranty = gate(store)
+        warranty.grant(HELMET_A)
+        WarrantyOwnerStore(store).update(HELMET_A) { it.copy(stealthForbidden = true) }
+        val reread = WarrantyOwnerStore(store)
+        assertTrue(reread.record(HELMET_A)!!.stealthForbidden)
+        assertTrue(reread.record(HELMET_A)!!.fleetConsent, "the lock does not touch the reports choice")
+        assertFalse(reread.record(HELMET_B)?.stealthForbidden ?: false, "a lock on one helmet locks no other")
+    }
+
+    // A record written before the stealth lock existed (v1, five fields) still says what it said, and forbids no stealth.
+    // @verifies REQ-SHDR-10#a
+    @Test
+    fun aRecordWrittenBeforeTheStealthLockStillReads() {
+        val store = InMemoryKeyValueStore()
+        val warranty = gate(store)
+        warranty.grant(HELMET_A)
+        val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
+        assertTrue("v2,1,0,0,0,0" in value)
+        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace("v2,1,0,0,0,0", "v1,1,0,0,0"))
+        assertTrue(warranty.isOpen(HELMET_A))
+        assertFalse(WarrantyOwnerStore(store).record(HELMET_A)!!.stealthForbidden)
     }
 }
 
@@ -435,10 +466,10 @@ class CharacterisationEnrolmentGateTests {
     // @verifies REQ-SW02-04
     @Test
     fun enrolmentDoesNotSurviveDeviceTransfer() {
-        val (_, _, char) = gates()
+        val (_, warranty, char) = gates()
         char.grant(HELMET_A)
         assertTrue(char.isOpen(HELMET_A))
-        char.clearForDeviceTransfer(HELMET_A)
+        warranty.endCustody(HELMET_A)
         assertFalse(char.isOpen(HELMET_A), "a previous registrant's consent must not bind a new owner")
         assertEquals(0, char.consentEpoch(HELMET_A), "the new owner's first enrolment is genuinely their first")
     }
@@ -451,9 +482,9 @@ class CharacterisationEnrolmentGateTests {
         assertTrue(char.isOpen(HELMET_A))
         // The record as a later programme's enrolment would be written: the last field is the programme.
         val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
-        val enrolled = "v1,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID}"
+        val enrolled = "v2,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID},0"
         assertTrue(enrolled in value)
-        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(enrolled, "v1,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID + 1}"))
+        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(enrolled, "v2,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID + 1},0"))
         assertFalse(char.isOpen(HELMET_A), "enrolment in programme N must not carry into N+1")
     }
 
