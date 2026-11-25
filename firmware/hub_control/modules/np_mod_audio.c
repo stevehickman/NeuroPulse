@@ -122,6 +122,13 @@ np_hub_status_t np_mod_audio_control(uint8_t slot, const void *params, uint16_t 
         return NP_HUB_ERR_INVALID_ARG;
     }
 
+    /* An isochronic command with a rate of 0 is no pulse at all, so it is refused as the validator and the compiler
+     * refuse it (the principal, 2026-11-24, OI-NPPS-AUDIO-01; REQ-AUDIO-27), before any state changes or output.  A
+     * binaural beat of 0 is a steady tone and plays. */
+    if (p->mode == 1U && p->beat_mhz == 0U) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
     s_state.mode         = p->mode;
     s_state.carrier_hz   = p->carrier_hz;
     s_state.beat_mhz     = p->beat_mhz;

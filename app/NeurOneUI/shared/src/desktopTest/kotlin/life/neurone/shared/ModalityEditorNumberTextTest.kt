@@ -1,11 +1,14 @@
 package life.neurone.shared
 
+import life.neurone.shared.ui.notAboveZero
 import life.neurone.shared.ui.numberText
 import life.neurone.shared.ui.typedDouble
 import life.neurone.shared.ui.typedInt
 import life.neurone.shared.ui.wholeNumberText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 /**
@@ -50,5 +53,17 @@ class ModalityEditorNumberTextTest {
         assertEquals("1.", numberText("1", "1."))
         assertEquals("", wholeNumberText("5", ""))
         assertEquals("12", numberText("1", "1a2"))                 // characters that are not digits or a point are dropped
+    }
+
+    // @verifies SWR-UI-01#f
+    @Test
+    fun aTypedRateAtOrBelowZero_isNotAboveZero_butUnreadTextAndPositiveRatesAreNot() {
+        assertTrue(notAboveZero("0"))
+        assertTrue(notAboveZero("0.0"))
+        assertTrue(notAboveZero("0."))
+        assertFalse(notAboveZero("0.001"))
+        assertFalse(notAboveZero("40"))
+        assertFalse(notAboveZero(""))                              // blank is the unread case, marked separately
+        assertFalse(notAboveZero("."))
     }
 }
