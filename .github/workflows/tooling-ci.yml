@@ -675,9 +675,9 @@ jobs:
           assert scope.sharedplace.paths false docs/np_art_001.md
 
           # The migration key gate. A key can be added in any app, so every app's tree reaches it; the list is the other half.
-          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/MigrationFlow.cs
+          assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationFlow.kt
           assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/consent/ConsentStore.kt
-          assert scope.migrationkeys.paths true  app/windows/NeurOne/Protocol/NppsCore.cs
+          assert scope.migrationkeys.paths true  common/core/src/commonMain/kotlin/life/neurone/core/migration/MigrationItems.kt
           assert scope.migrationkeys.paths true  common/npps/migration-keys.json
           assert scope.migrationkeys.paths true  common/npps-core/src/migration_flow.rs
           assert scope.migrationkeys.paths false docs/np_art_001.md

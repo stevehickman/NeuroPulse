@@ -122,7 +122,7 @@ suites, not two:
 | Web | `app/web/src/lib/conditionLink.test.ts` |
 | Apple | retired with the SwiftUI app (`app/ios`, OI-UI-KMP-05); the Kotlin suite covers iOS |
 | Android | `common/core/src/jvmTest/kotlin/life/neurone/core/protocol/ConditionLinkPolicyTests.kt` |
-| Windows | `app/windows/NeurOne/Protocol/NPConditionLinkPolicy.cs` (see §3 of the spec for the harness) |
+| Windows | retired with the Windows project (`app/windows`, OI-UI-KMP-05); the Kotlin suite covers the shared desktop app |
 
 Each vector is `{ name, url, verdict, reason, host? }` where `verdict` is
 `allow` or `block` and `reason` is one of the seven values listed in the file's

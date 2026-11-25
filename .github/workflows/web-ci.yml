@@ -79,7 +79,6 @@ jobs:
         # trees by the same script, and the same check fails if any output is stale or hand-edited.
         common/lib/bounds.generated.ts
         common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsBounds.generated.kt
-        app/windows/NeurOne/Protocol/NppsConstants.generated.cs
         firmware/common/include/np_app_wire_constants.h
         # The clinician use-case library is generated from app/NeurOneShared/Resources into Android and checked here.
         scripts/sync-use-cases.ts

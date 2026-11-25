@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import life.neurone.shared.resources.Res
@@ -43,6 +46,8 @@ fun ProfilesScreen(
     store: NPLimitsStore,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The warranty owner forbids stealth on the helmet connected now (SWR-IND-02): the switch is shown, held off, and says why. */
+    stealthLockedByOwner: Boolean = false,
 ) {
     // NPLimitsStore is not observable; mirror what this screen shows and refresh after each change.
     var profiles by remember { mutableStateOf(store.profiles) }
@@ -87,7 +92,9 @@ fun ProfilesScreen(
                 ProfileRow(
                     profile = active,
                     isActive = true,
+                    stealthLockedByOwner = stealthLockedByOwner,
                     onToggleActive = { store.setActiveProfile(null); refresh() },
+                    onStealth = { on -> store.saveProfile(active.copy(stealth = on)); refresh() },
                     onDelete = { store.deleteProfile(active.id); refresh() },
                 )
             } else {
@@ -103,7 +110,9 @@ fun ProfilesScreen(
                     ProfileRow(
                         profile = profile,
                         isActive = false,
+                        stealthLockedByOwner = stealthLockedByOwner,
                         onToggleActive = { store.setActiveProfile(profile.id); refresh() },
+                        onStealth = { on -> store.saveProfile(profile.copy(stealth = on)); refresh() },
                         onDelete = { store.deleteProfile(profile.id); refresh() },
                     )
                 }
@@ -151,7 +160,9 @@ fun ProfilesScreen(
 private fun ProfileRow(
     profile: NPIndividualProfile,
     isActive: Boolean,
+    stealthLockedByOwner: Boolean,
     onToggleActive: () -> Unit,
+    onStealth: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
@@ -171,6 +182,22 @@ private fun ProfileRow(
                 if (profile.notes.isNotEmpty()) {
                     Text(profile.notes, style = MaterialTheme.typography.bodySmall)
                 }
+                // SWR-IND-01: the person's own choice to keep the helmet's lights dark while this profile is active. A fault always
+                // shows red, and the text says so (CLAUDE.md §4.7, NP-IFU-001 IFU-10).
+                val stealthLabel = stringResource(Res.string.profile_stealth_label)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stealthLabel, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(
+                        modifier = Modifier.semantics { contentDescription = "$stealthLabel: ${profile.name}" },
+                        checked = profile.stealth && !stealthLockedByOwner,
+                        enabled = !stealthLockedByOwner,
+                        onCheckedChange = onStealth,
+                    )
+                }
+                Text(
+                    stringResource(if (stealthLockedByOwner) Res.string.profile_stealth_locked else Res.string.profile_stealth_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 OutlinedButton(onClick = onToggleActive) {
