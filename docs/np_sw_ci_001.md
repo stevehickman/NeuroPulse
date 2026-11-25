@@ -4249,7 +4249,8 @@ after it merges, so its self-test runs on the pull request that changes it (`too
 | 4. Ruleset | The principal added `main is green, or this PR is up to date with main` to the required status checks and unticked *Require branches to be up to date before merging* |
 | 5. `--live` | One violation, `L5: strict_required_status_checks_policy is false, expected true`. **No `L2`**, so GitHub requires the new status, and **no `L3`**, so GitHub binds it to the App the other contexts are bound to: the status posted with `GITHUB_TOKEN` is attributed to GitHub Actions, which closes §6.20.4 item 5. This revision sets `status_checks.strict` to `false` in `ci/main-ruleset.json`, so the next run is expected to print `OK` |
 | 2. The sending account | **Done (the principal, reported 2026-11-25):** the mail secrets are set on the repository. ~~The sending account's secrets and the mail rule are the principal's, outside the repository~~ |
-| 3, 6 | The mail rule is the principal's, outside the repository, and is not reported; the first red run on `main` (one email, the status turning `failure` on pull requests behind `main`) is not yet observed |
+| 3. A mail rule | **Done (the principal, reported 2026-11-25):** a rule in Apple Mail and the iPhone set-up (the sending address as a VIP, or the equivalent). ~~The mail rule is the principal's, outside the repository, and is not reported~~ |
+| 6. Observe | The first red run on `main` (one email, the status turning `failure` on pull requests behind `main`) is not yet observed |
 
 ### 6.21 The five ruleset questions are answered (2026-11-24, `OI-SWCI-54`)
 
@@ -4319,7 +4320,7 @@ Tree first, as `docs/human-input/oi-swci-54-main-ruleset.md` §5 orders for an a
 | 2. The contexts report | On #1050 both reported `success` |
 | 3. Ruleset | In force when read. `check-main-ruleset.ts --live` found no `L1` (nothing GitHub requires that the manifest lacks) and no `L2` (nothing in the manifest that GitHub does not require), so GitHub requires both contexts. Who applied it, and when, is not recorded: only that it was in force on 2026-11-25 |
 | 4. `--live` | `bun scripts/check-main-ruleset.ts --live --require-bypass` printed `OK` on 2026-11-25, run from `main` at `fb9137f`: "GitHub requires the 14 manifest contexts on main, and the ruleset matches `ci/main-ruleset.json`". The token could see the bypass list, so the bypass entries were compared too |
-| 5. The audit | Not yet read: `main-pushes-audit` has not run on GitHub as far as this record knows |
+| 5. The audit | **First run failed, on a defect in the script (2026-11-25).** The principal ran *Build All / Test All* by hand: `main-pushes-audit` stopped with `TypeError: null is not an object (evaluating 'p.startsWith')` in `outsideDocs`. `live()` asks `gh` for `{filename, previous_filename}`, and `jq` writes `previous_filename: null` for every file that was not renamed; `outsideDocs` skipped only an absent key. No commit was judged: the crash came before any verdict. Fixed by treating `null` as absent, with two self-test cases in the shape `gh` returns (both fail on the old code, with the same `TypeError`). The audit's result is not yet read: it is the next run after the fix merges. ~~Not yet read: `main-pushes-audit` has not run on GitHub as far as this record knows~~ |
 
 **The App id.** The principal confirmed on 2026-11-25 that `Integration 5585393` is the App `RevNumberFixer`. `ci/main-ruleset.json` and the brief (`docs/human-input/oi-swci-54-main-ruleset.md`) say so now, which settles the second item §6.17 listed as not established.
 

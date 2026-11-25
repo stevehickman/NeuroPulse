@@ -48,7 +48,9 @@ export const ALLOWED_PREFIX = "docs/";
 export const WINDOW_DAYS = 14;
 
 export type Pull = { number: number; merged_at: string | null };
-export type FileRef = { filename: string; previous_filename?: string };
+/** `previous_filename` is `null`, not absent, for a file that was not renamed: `jq` writes every key it is asked for
+ *  (`{filename, previous_filename}` in live()), so a missing key arrives as null. */
+export type FileRef = { filename: string; previous_filename?: string | null };
 /** `files` is absent when the commit arrived by a merged pull request: it is not read then. */
 export type CommitRecord = { sha: string; date: string; pulls: Pull[]; files?: FileRef[] };
 
@@ -59,7 +61,8 @@ export function outsideDocs(files: FileRef[]): string[] {
   const out: string[] = [];
   for (const f of files) {
     for (const p of [f.filename, f.previous_filename]) {
-      if (p !== undefined && !p.startsWith(ALLOWED_PREFIX) && !out.includes(p)) out.push(p);
+      if (p === undefined || p === null) continue;
+      if (!p.startsWith(ALLOWED_PREFIX) && !out.includes(p)) out.push(p);
     }
   }
   return out;
@@ -152,6 +155,10 @@ function selfTest(): never {
   expect("an open pull request is not a merge", audit([rec("2222222", [{ number: 9, merged_at: null }], f("firmware/a.c"))]), /2222222/);
   expect("no pull request and no file list fails closed", audit([rec("3333333", [])]), /files were not read/);
   expect("an empty window is clean", audit([]), null);
+  // The shape gh's --jq '{filename, previous_filename}' returns: the key is present and null when nothing was renamed.
+  // The first --live run on GitHub crashed on it (TypeError on null.startsWith), because every case above omits the key.
+  expect("a direct push under docs/ as gh returns it (previous_filename: null)", audit([rec("8888888", [], [{ filename: "docs/np_x_001.md", previous_filename: null }])]), null);
+  expect("a direct push outside docs/ as gh returns it (previous_filename: null)", audit([rec("9999999", [], [{ filename: "scripts/x.ts", previous_filename: null }])]), /9999999.*scripts\/x\.ts/);
   const three = audit([rec("4444444", merged), rec("5555555", [], f("ci/x.txt")), rec("6666666", [], f("docs/y.md"))]);
   expect("only the bad commit is named", three.filter((x) => /4444444|6666666/.test(x)), null);
   expect("and it is named", three, /5555555.*ci\/x\.txt/);
