@@ -45,7 +45,6 @@ on:
       - Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
       - Warranty No-Join CI Gate (OI-EMMC2-06)
       - Web App CI (TypeScript + Vitest)
-      - Windows CI (dotnet)
     types: [completed]
     branches: [main]
   pull_request_target:

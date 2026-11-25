@@ -2996,7 +2996,7 @@ The second was not in the phase-6 brief; it was found by reading the contexts of
 
 **`build-all.yml` can never be a required check.** It is `schedule` + `workflow_dispatch` only, by design (§5.5), with no `pull_request` trigger — so it never reports on any PR and requiring it would block every PR unconditionally and permanently. It is recorded here, next to the required-checks list, because "add build-all for completeness" is exactly the kind of well-meant later edit that would wedge the repository. Its job names also carry counts (`CMake host tests (27 targets, unfiltered)`); that is harmless precisely because it is not requirable, and it should stay that way.
 
-Workflows still `paths:`-filtered and therefore **still not requirable**: `android-ci.yml`, `ios-ci.yml`, `windows-ci.yml` (added 2026-10-05, OI-AND-WIRE-01: `dotnet test app/windows/NeurOne.Tests` on `windows-latest`, whose tests diff the compiler against Android's shared golden file), ~~`watchos-ci.yml`~~ (deleted, Rev 35), `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml`. Converting them is the same mechanical change if they are ever wanted as required checks.
+Workflows still `paths:`-filtered and therefore **still not requirable**: `android-ci.yml`, ~~`ios-ci.yml`~~ (deleted with the SwiftUI app, 2026-11-21, `OI-UI-KMP-05`), ~~`windows-ci.yml`~~ (deleted with the Windows project, 2026-11-24, `OI-UI-KMP-05`; it was added 2026-10-05, OI-AND-WIRE-01: `dotnet test app/windows/NeurOne.Tests` on `windows-latest`, whose tests diff the compiler against Android's shared golden file), ~~`watchos-ci.yml`~~ (deleted, Rev 35), `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml`. Converting them is the same mechanical change if they are ever wanted as required checks.
 
 #### 6.7.8 Applying it — the runbook Steve runs, not CI
 
@@ -3782,8 +3782,8 @@ oldest candidates, which are the furthest from the head, so the limit errs towar
    language gets no fresh analysis on the new head. What GitHub's code-scanning check does with a
    category that was not re-analysed is not established here, and a security scanner is the wrong place
    to guess. `OI-SWCI-51`.
-5. **The path-filtered workflows were converted at Rev 36.** `android-ci.yml`, `ios-ci.yml`, `kotlin-ios-ci.yml`,
-   `windows-ci.yml`, `desktop-package.yml`, `fleet-infra-ci.yml`, `posthog-infra-ci.yml`, `shdr-schema-ci.yml` and
+5. **The path-filtered workflows were converted at Rev 36.** `android-ci.yml`, ~~`ios-ci.yml`~~ (deleted 2026-11-21), `kotlin-ios-ci.yml`,
+   ~~`windows-ci.yml`~~ (deleted 2026-11-24), `desktop-package.yml`, `fleet-infra-ci.yml`, `posthog-infra-ci.yml`, `shdr-schema-ci.yml` and
    `warranty-nojoin-ci.yml` had a workflow-level `paths:` filter (~~`watchos-ci.yml`~~ deleted, Rev 35), which §6.7.1
    shows cannot be a required check and which GitHub applies to the whole pull request. They now have the §6.7
    `changes` shape. `dependency-scan.yml` keeps its filter, because its list uses `**/` and `*` shapes the matcher
@@ -3840,7 +3840,7 @@ JDK 17, Gradle 8.11.1 and Python 3.11 were each repeated six times, so a bump me
 
 | Piece | What it does |
 |---|---|
-| `.github/toolchain.json` | The one place. Holds `macos`, `java` and its distribution, `gradle`, `bun`, `rust`, `python`, `dotnet` and `armGcc`, each with a note where the reason is not obvious (AGP 8.9.3 needs JDK 17 and Gradle 8.11.1 or later) |
+| `.github/toolchain.json` | The one place. Holds `macos`, `java` and its distribution, `gradle`, `bun`, `rust`, `python` and `armGcc` (the `dotnet` pin went with the Windows project, `OI-UI-KMP-05`), each with a note where the reason is not obvious (AGP 8.9.3 needs JDK 17 and Gradle 8.11.1 or later) |
 | `.github/actions/setup-toolchain` | A composite action. A job asks for a toolchain by flag (`bun: 'true'`, `rust: 'true'`, `rust-targets: '…'`), and the action installs the version in the file. It reads the file from the checked-out workspace, so a checkout step comes first |
 | The Relevance job's `macos` output | `runs-on` cannot read a file, so `desktop-package`, `ios-ci`, `kotlin-ios-ci` and `codeql` read `macos` in their existing Relevance job and pass it on as `needs.changes.outputs.macos`. No extra job |
 | `scripts/check-toolchain-pins.ts` | A gate in `tooling-ci.yml` (`toolchain-pins`). Seven rules: no macOS image in `runs-on` or `os`, no direct setup action, no version key or `rustup` in a workflow, exact pins in the file, no literal version in the action, the `macos` output exists where it is read, and checkout before the action. Its self-test proves each rule can fail |

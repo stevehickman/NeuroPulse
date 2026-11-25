@@ -69,11 +69,11 @@ is not made here.
 
 ## 4. Where the lock file is used
 
-The WebAssembly (`scripts/build-npps-wasm.sh`), iOS (`scripts/build-npps-xcframework.sh`), Android host and device
+The WebAssembly (`scripts/build-npps-wasm.sh`), iOS (the Gradle cinterop build; `scripts/build-npps-xcframework.sh` was deleted with `app/ios`, `OI-UI-KMP-05`), Android host and device
 (`common/core/build.gradle.kts`, `app/android/app/build.gradle.kts`) builds and the Rust test job (`web-ci.yml`) all
 pass `--locked`, so the versions below are the versions shipped and a dependency moves only in a commit that changes
-`common/Cargo.lock`. The Windows project (`app/windows/NeurOne/NeurOne.csproj`) states the same in a comment but runs no
-cargo itself: it copies a library built beforehand, and whether that build passes `--locked` was not checked.
+`common/Cargo.lock`. The Windows project (`app/windows/NeurOne/NeurOne.csproj`), which stated the same in a comment but ran no
+cargo itself, is deleted (`OI-UI-KMP-05`, 2026-11-24): the Windows app is the shared desktop app, whose JNI library the Gradle build makes.
 
 ## 5. Transitive inventory
 
