@@ -208,7 +208,7 @@ Layer 1 — UHDR Master Key (UKMD):
   - Stored in Config partition encrypted under the Layer 2 wrapper key
 
 Layer 2 — Master Key Wrapper Key (WKMD):
-  - Derived from user's biometric/PIN using Argon2id (same parameters as NP-FW-EMMC-001 Rev 1 §6)
+  - Derived from user's biometric/PIN using Argon2id in two stages: the NP-FW-EMMC-001 Rev 1 §6 parameters on the phone, then a 256 KiB stage on the hub (§C.4, Rev {NP-FW-EMMC-002 to})
   - Used only to encrypt/decrypt the 64-byte UKMD stored in Config
   - Held in on-chip SRAM only during the unlock window (app foreground session)
   - Zeroed from SRAM using memset_explicit when app moves to background
@@ -252,9 +252,27 @@ Layer 2 — Master Key Wrapper Key (WKMD):
 > AES-256 (the CAAM's, or the vetted software library EMMC-UHDR-06 allows). That document is a `.docx` and is not
 > edited here (`OI-CONV-04`).
 
+> **Rev {NP-FW-EMMC-002 to} (2026-11-24): the Argon2id question of the Rev 12 note is settled; the credential is stretched
+> twice (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004) Finding M10; settled in the `OI-PRIV-35` working session that day).**
+> The memory-hard stage keeps the written figure, 64 MiB, `t = 4`, `p = 1`, and runs on the phone, which has the memory
+> and which §C.8 already makes the place the credential is derived (`REQ-EMMC2-08`). The hub then runs Argon2id at
+> `m = 256` KiB, `t = 4`, `p = 1` over the phone's output, and binds the result to the fused key as before. These hub
+> figures are what §C.3 stores and its floor enforces. 256 KiB is sized from the image: on `main` at 468484e
+> (2026-11-24) the established 512 KiB DTCM had about 450,000 B free and the OCRAM2 staging region 187,300 B, so the
+> work area fits DTCM and not staging. **What changes for an attacker.** Offline, an attacker who has the eMMC image
+> needs the fused key (F1); one who also has the fused key pays the 64 MiB stage and the hub stage for every guess, which
+> is more than the written design asked. Online, on the helmet, an attacker skips nothing: the phone stage costs them
+> the same 64 MiB per guess on their own hardware, and the helmet's share of each attempt is the 256 KiB stage instead
+> of a 64 MiB one that never ran. After five failures the §C.7 back-off (30 s, doubling) sets the online rate, not the
+> KDF. **Still provisional (UC-206):** the hub figures are sized from memory, not from a measured time per attempt;
+> that time is measured on the target and written here before any device is provisioned, and `t` may then rise, never
+> fall. The phone stage is not built, and its parameters reach the phone with the salt over the §23 channel
+> (`OI-SIMFW-71`).
+
 | ID | Requirement | Traced to |
 |---|---|---|
 | `REQ-EMMC2-06` | The UHDR partition key is a full XTS-AES-256 key: (a) the UKMD is 64 bytes, K1 ‖ K2, all 64 drawn from the TRNG, wrapped and authenticated whole in the §C.3 record, recovered whole at unlock and handed whole to the mount; (b) a UKMD whose two halves are equal is never minted (provisioning refuses it) and never mounted (unlock refuses it and scrubs it). *Fails without it:* the partition is encrypted with XTS-AES-128, below the AES-256 that CLAUDE.md §5.1 states, or with the degenerate K1 = K2 construction. | `NP-FW-EMMC-001` §6.2 EMMC-UHDR-04, EMMC-UHDR-07; IEEE Std 1619; NIST SP 800-38E; FIPS 140-3 Implementation Guidance (XTS-AES requires Key1 ≠ Key2); CLAUDE.md §5.1 |
+| `REQ-EMMC2-08` | The memory-hard stretch of the UHDR credential runs on the phone: every credential (C1 or C2, §C.8) is put through Argon2id at 64 MiB, `t = 4`, `p = 1` with the record's salt before it leaves the phone, and the hub applies its own §C.3 stage and the fused-key bind to what it receives. Not built. *Fails without it:* an attacker who has read the fused key and the eMMC image tests guesses at the 256 KiB hub cost instead of 64 MiB | `NP-FW-EMMC-001` Rev 1 §6 (the 64 MiB figure); RFC 9106 §4; CLAUDE.md §5.1 (protection only goes up); `OI-PRIV-35` (NP-PRIV-ANALYSIS-004) |
 
 ### C.3 Config partition UKMD record
 
@@ -266,7 +284,7 @@ typedef struct {
     uint8_t  ukmd_tag[16];          /* AES-GCM authentication tag */
     uint8_t  argon2id_salt[32];     /* Salt for WKMD derivation — device-unique, TRNG */
     uint32_t argon2id_version;      /* 0x13 = Argon2id version 1.3 */
-    uint32_t argon2id_m_cost;       /* Memory: 65536 KiB (64 MiB) */
+    uint32_t argon2id_m_cost;       /* Memory: 256 KiB, the hub stage (§C.4) */
     uint32_t argon2id_t_cost;       /* Iterations: 4 */
     uint32_t argon2id_parallelism;  /* p = 1 */
     uint8_t  reserved[52];          /* Pad to 192 bytes — future use (Rev 15: was 44, see below) */
@@ -305,8 +323,8 @@ typedef struct {
 ```
 0. Attempt limit (§C.7): refuse with LOCKOUT if the back-off has not elapsed; else charge the attempt
 1. App prompts biometric / PIN
-2. App sends biometric-derived input to i.MX RT1062 via secure USB-C protocol
-3. i.MX RT1062 runs Argon2id(input, argon2id_salt, m=65536, t=4, p=1) → WKMD (32 bytes, in SRAM)
+2. App stretches the credential: Argon2id(credential, argon2id_salt, m=65536, t=4, p=1) → 32 bytes, on the phone (REQ-EMMC2-08), and sends them to i.MX RT1062 via secure USB-C protocol
+3. i.MX RT1062 runs Argon2id(input, argon2id_salt, m=256, t=4, p=1), then hw_bind with the fused key → WKMD (32 bytes, in SRAM)
 4. AES-256-GCM decrypt(ukmd_ciphertext, WKMD, ukmd_nonce) → authenticate tag → extract UKMD (64 bytes, in SRAM)
 5. Refuse the key if K1 = K2 (REQ-EMMC2-06); else mount UHDR partition with K1 ‖ K2 as the AES-256-XTS key
 6. Zero WKMD from SRAM (it is not needed after UKMD is derived)
@@ -320,7 +338,7 @@ When the user changes their biometric enrollment or PIN:
 ```
 1. User authenticates with the current biometric/PIN (UKMD is in SRAM after unlock, step C.4)
 2. User provides new biometric/PIN
-3. New WKMD = Argon2id(new_input, argon2id_salt, same cost parameters)
+3. New WKMD = the §C.4 steps 2 and 3 over new_input (the phone stage, then the hub stage and the bind, same cost parameters)
 4. New nonce generated via TRNG
 5. new_ukmd_ciphertext = AES-256-GCM encrypt(UKMD, new_WKMD, new_nonce)
 6. Config partition UKMD record atomically updated (LittleFS transaction)
@@ -403,7 +421,8 @@ that; it is in the reviewer's scope (brief §3).
   AES-128 and above, so the code is never the weakest key. Checking that citation against the source belongs to the
   cryptography review (`OI-EMMC2-02`).
 - **The unlock credential (C1, C2) is derived on the phone or tablet, not on the hub.** The hub's RAM cannot hold the
-  64 MiB Argon2id (`OI-PRIV-35` (NP-PRIV-ANALYSIS-004)), so where the KDF runs and at what cost is decided there. Wrap 1
+  64 MiB Argon2id, so the phone runs it and the hub runs a 256 KiB stage and the fused-key bind over the result, as
+  §C.4 does for the device-wide key (`REQ-EMMC2-08`; settled 2026-11-24, `OI-PRIV-35` (NP-PRIV-ANALYSIS-004)). Wrap 1
   keeps the fused-key binding whatever the KDF.
 - **The profile record names its person by an opaque profile identifier, never a name.** The app's active-user tag
   (`NP-SW-FAULTMSG-001` §9.2) may **select** a profile record, but it never **opens** one: only the credential does
