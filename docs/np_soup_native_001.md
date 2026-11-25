@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SOUP-NATIVE-001
-**Revision:** 4
-**Date:** 2026-10-21
+**Revision:** 5
+**Date:** 2026-11-24
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -18,9 +18,11 @@
 
 ---
 
+> **The Windows (.NET) half is RETIRED in place (2026-11-24, `OI-UI-KMP-05`):** `app/windows` is deleted, and with it every `PackageReference` below that names Windows. Its rows stay for the record, marked retired, and are no longer SOUP of any build (the Windows app people run is the shared Compose desktop app, `NP-SOUP-KOTLIN-001`). **The Swift half has the same standing** since `app/ios` was deleted (2026-11-21, `OI-UI-KMP-05`, #946), and this record now lists no dependency of a build that exists; it is kept as the record of what was checked and not checked.
+
 ## 1. What this record is, and is not
 
-The iOS app is Swift; the Windows app is C# on .NET 8. They are the native apps that predate the shared Compose UI (`CLAUDE.md` §20) and are still built. Everything they link that NeurOne did not write is SOUP. This record **lists** it and says what has and has not been checked. The shared Rust core they all link is `NP-SOUP-RUST-001`; the shared Kotlin app is `NP-SOUP-KOTLIN-001`. The operating-system frameworks (Foundation, CryptoKit, Security, CoreBluetooth, the .NET 8 runtime) are platform, not SOUP, and are not listed. Build tools (Xcode, XcodeGen, the .NET SDK) are not in the shipped product.
+The iOS app was Swift; the Windows app was C# on .NET 8. They were the native apps that predated the shared Compose UI (`CLAUDE.md` §20); both are now deleted (see the note above). Everything they link that NeurOne did not write is SOUP. This record **lists** it and says what has and has not been checked. The shared Rust core they all link is `NP-SOUP-RUST-001`; the shared Kotlin app is `NP-SOUP-KOTLIN-001`. The operating-system frameworks (Foundation, CryptoKit, Security, CoreBluetooth, the .NET 8 runtime) are platform, not SOUP, and are not listed. Build tools (Xcode, XcodeGen, the .NET SDK) are not in the shipped product.
 
 ## 2. Inventory
 
@@ -31,10 +33,10 @@ The iOS app is Swift; the Windows app is C# on .NET 8. They are the native apps 
 | PLCrashReporter, vendored in PostHog as `PHPLCrashReporter` | with PostHog | iOS | Yes | MIT (the vendored `LICENSE`, with the notices of the upstream project and its dependencies) | Crash capture inside the SDK |
 | protobuf-c, vendored in `PHPLCrashReporter` | with PostHog | iOS | Yes | BSD-2-Clause (its own header notice; not checked against the file) | PLCrashReporter's report encoding |
 | ViewInspector (`nalexn/ViewInspector`) | **0.10.2, exact** (`exactVersion` in `app/ios/project.yml`) | iOS tests | No | MIT (the repository's `LICENSE` at 0.10.2) | Renders a SwiftUI view in a test and reads the view tree (`UploadBannersTests`), so what a banner shows is tested without a device. A dependency of the `NeurOneTests` target alone; its `Package.swift` at 0.10.2 names no dependency of its own and requires iOS 12 or later (the app targets 17). **Not 0.10.5:** 0.10.4 and 0.10.5 name iOS 26 types (`GlassEffectTransition`) that the Xcode 16.4 SDK of the iOS CI does not have, and the build of the test target failed on them; 0.10.2 names none (0.10.3 only tests `#available(iOS 26)`). The pin moves up with the CI's Xcode |
-| System.Security.Cryptography.ProtectedData | 8.0.0 | Windows | Yes | MIT | DPAPI wrapping of the signing seed in `SessionProtocol.cs`. It is a platform key-protection wrapper, which §22 leaves to the platform. It has no dependency on .NET 8 (the nuspec lists `System.Memory` only for .NET Standard 2.0) |
-| Microsoft.NET.Test.Sdk | 17.11.1 | Windows tests | No | MIT | Test host |
-| xunit | 2.9.2 | Windows tests | No | Apache-2.0 | Test framework |
-| xunit.runner.visualstudio | 2.8.2 | Windows tests | No | Apache-2.0 | Test adapter |
+| System.Security.Cryptography.ProtectedData | 8.0.0 | Windows | Yes | MIT | DPAPI wrapping of the signing seed in `SessionProtocol.cs`. It is a platform key-protection wrapper, which §22 leaves to the platform. It has no dependency on .NET 8 (the nuspec lists `System.Memory` only for .NET Standard 2.0) **RETIRED 2026-11-24: `app/windows` is deleted (`OI-UI-KMP-05`).** |
+| Microsoft.NET.Test.Sdk | 17.11.1 | Windows tests | No | MIT | Test host **RETIRED 2026-11-24: `app/windows` is deleted (`OI-UI-KMP-05`).** |
+| xunit | 2.9.2 | Windows tests | No | Apache-2.0 | Test framework **RETIRED 2026-11-24: `app/windows` is deleted (`OI-UI-KMP-05`).** |
+| xunit.runner.visualstudio | 2.8.2 | Windows tests | No | Apache-2.0 | Test adapter **RETIRED 2026-11-24: `app/windows` is deleted (`OI-UI-KMP-05`).** |
 
 Removed in this revision's change: **`NSec.Cryptography`**. It was declared at 24.10.0, a version nuget.org does not have (its releases run 24.4.0, 24.5.0-preview.1, 24.9.0-preview.2, 25.x), so the restore resolved the nearest stable higher one, 25.4.0 (MIT; it depends on `libsodium` [1.0.20.1, 1.0.21)). It signed the hub descriptor. `SessionProtocolSigner` now keeps the 32-byte seed under DPAPI as before, the file format unchanged so an existing key still works, and asks the core (`ed25519PublicKey`, `ed25519Sign`). No .NET cryptographic library other than the platform's remains in the app.
 
@@ -46,7 +48,7 @@ The licence entries were read from the packages' own nuspec files and repositori
 
 1. **No unused library.** None found: every item above is imported or linked.
 2. **No pre-release.** None declared, and PostHog is pinned exactly, so no later release (stable or not) enters a build without an edit to `project.yml`.
-3. **Cryptographic work is the core's.** Met on Windows (Ed25519 signing) and on iOS (the UHDR key, `deriveUhdrKey`; the vendored PHC Argon2 is deleted, Rev 2). The Swift app has no cryptographic library of its own; it uses CryptoKit and the Keychain, which are platform (the platform keeps key custody, `CLAUDE.md` §22).
+3. **Cryptographic work is the core's.** Met on Windows (Ed25519 signing; the Windows project is deleted) and on iOS (the UHDR key, `deriveUhdrKey`; the vendored PHC Argon2 is deleted, Rev 2). The Swift app has no cryptographic library of its own; it uses CryptoKit and the Keychain, which are platform (the platform keeps key custody, `CLAUDE.md` §22).
 4. **No managed-runtime code on the helmet.** These are phone and computer apps.
 5. **Copyleft only if it does not reach NeurOne's code.** None is copyleft.
 
@@ -56,7 +58,7 @@ The licence entries were read from the packages' own nuspec files and repositori
 - **No vulnerability scan** of PostHog or its vendored code. SwiftPM is not read by the scan job of `NP-SOUP-KOTLIN-001` §6.2, which reads Gradle and Cargo locks, and the NuGet references are not either.
 - **No anomaly list** for PostHog beyond its repository's public issues, which were not read.
 - **ViewInspector is read from its manifest and licence at tag 0.10.2, not from a resolved build,** and it has no vulnerability scan or anomaly list (SwiftPM is not read by the scan job). It reaches the test bundle only. It reads SwiftUI's private view-tree layout, so a new iOS release can break its tests without any product change; that fails the build, it cannot reach a user.
-- **No NuGet lock file.** The remaining references are fixed versions (ProtectedData is platform-adjacent and the others are test-only); `RestorePackagesWithLockFile` would add `packages.lock.json`, which needs a restore this environment cannot run. Not adopted: one shipped library does not earn a lock.
+- **No NuGet lock file (retired with the Windows project, 2026-11-24).** The references are fixed versions (ProtectedData is platform-adjacent and the others are test-only); `RestorePackagesWithLockFile` would add `packages.lock.json`, which needs a restore this environment cannot run. Not adopted: one shipped library does not earn a lock.
 
 ## 5. Hazard reading
 
@@ -74,3 +76,11 @@ The licence entries were read from the packages' own nuspec files and repositori
 - A change to a SwiftPM dependency or a `PackageReference` changes §2 in the same change, and §5 if the item could reach UHDR-class data. A PostHog version change is an edit to `exactVersion` and to §2 together.
 - The vendored Argon2 (`NeurOneArgon2`, 12 files, phc-winner-argon2 2021 release, CC0-1.0 OR Apache-2.0) was removed in Rev 2; its file hashes are in git history at `app/NeurOneShared/Sources/NeurOneArgon2/phc/VENDOR.md`.
 - This record does not extend `NP-SW-001` §9.4 (the firmware register).
+
+## Revision history
+
+Revisions before the first row below were not recorded in a table in this document.
+
+| Rev | Date | Author | Description |
+|---|---|---|---|
+| 5 | 2026-11-24 | NeurOne Software Engineering | **The .NET (Windows) half is retired in place: `app/windows` is deleted, its four NuGet rows are marked retired, and a note records that the Swift half has had the same standing since `app/ios` was deleted (`OI-UI-KMP-05`).** |

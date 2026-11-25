@@ -161,6 +161,12 @@ void np_pst_log_telemetry(uint32_t session_ms);
 void np_pst_get_counts(np_pst_counts_t *out);
 bool np_pst_get_record(uint16_t socket_id, np_pst_socket_record_t *out);
 
+/* The session's drive time per tracked socket, for the per-module running
+ * totals (np_module_usage.h, REQ-FWHUB-93): the `index`th pool entry's socket
+ * and the dose ticks it was driven for, as milliseconds.  False for an unused
+ * entry or an index past the pool.  Runner context, at session end. */
+bool np_pst_usage(uint32_t index, uint16_t *socket_id, uint32_t *on_ms);
+
 /* ── Idle side (task_module_detect, under the session lease) ─────────────── */
 
 /* Ask for a pass over every socket.  Pending from boot. */

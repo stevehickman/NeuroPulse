@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPAudioEntrainmentParams
@@ -72,6 +73,13 @@ private val LocalUnreadFields = compositionLocalOf<SnapshotStateMap<Any, Unit>?>
 
 /** What a number field holds: the number, or null when the text is not one (blank, a lone point) or is not finite. */
 internal fun typedDouble(text: String): Double? = text.toDoubleOrNull()?.takeIf { it.isFinite() }
+
+/**
+ * Whether a typed rate that must be above 0 is at or below it. An isochronic rate of 0 is refused by the validator and the
+ * compiler (`OI-NPPS-AUDIO-01`), so the field says so as soon as focus leaves it. Text that is not a number is the unread
+ * case, not this one.
+ */
+internal fun notAboveZero(text: String): Boolean = typedDouble(text)?.let { it <= 0.0 } == true
 
 /** What a whole-number field holds: the number, or null when the text is not one (blank) or is too large for an Int. */
 internal fun typedInt(text: String): Int? = text.toIntOrNull()
@@ -278,7 +286,7 @@ private fun Vns(p: NPVNSHRVParams, on: (NPVNSHRVParams) -> Unit) {
 @Composable
 private fun Audio(p: NPAudioEntrainmentParams, on: (NPAudioEntrainmentParams) -> Unit) {
     OptionalTone(stringResource(Res.string.modality_binaural_beats), stringResource(Res.string.and_modality_binaural_beat_hz), p.binauralBeatsHz, BINAURAL_START_HZ) { on(p.copy(binauralBeatsHz = it)) }
-    OptionalTone(stringResource(Res.string.modality_isochronic_tones), stringResource(Res.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz, ISOCHRONIC_START_HZ) { on(p.copy(isochronicTonesHz = it)) }
+    OptionalTone(stringResource(Res.string.modality_isochronic_tones), stringResource(Res.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz, ISOCHRONIC_START_HZ, mustExceedZero = true) { on(p.copy(isochronicTonesHz = it)) }
     NumField(stringResource(Res.string.and_modality_volume_db), p.volumeDb) { on(p.copy(volumeDb = it)) }
     ToggleRow(stringResource(Res.string.and_modality_eeg_adaptive), p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
     ToggleRow(stringResource(Res.string.and_modality_bone_conduction_pacer), p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
@@ -342,21 +350,33 @@ private fun ReportUnread(unread: Boolean) {
 }
 
 @Composable
-private fun NumField(label: String, value: Double, onChange: (Double) -> Unit) {
+private fun NumField(label: String, value: Double, mustExceedZero: Boolean = false, onChange: (Double) -> Unit) {
     var text by remember { mutableStateOf(fmt(value)) }
+    var focused by remember { mutableStateOf(false) }
+    var left by remember { mutableStateOf(false) }
     val unread = typedDouble(text) == null
-    ReportUnread(unread)
+    val refused = mustExceedZero && notAboveZero(text)
+    // A refused value blocks Save at once; the message waits for focus to leave the field, so typing "0." on the way to
+    // "0.5" is not flagged mid-edit.
+    ReportUnread(unread || refused)
     OutlinedTextField(
         value = text,
         onValueChange = { raw ->
             text = numberText(text, raw)
             typedDouble(text)?.let(onChange)
         },
-        isError = unread,
-        supportingText = if (unread) { { Text(stringResource(Res.string.validate_msg_general_required_parameter, label)) } } else null,
+        isError = unread || (refused && left),
+        supportingText = when {
+            unread -> { { Text(stringResource(Res.string.validate_msg_general_required_parameter, label)) } }
+            refused && left -> { { Text(stringResource(Res.string.validate_msg_audio_entrainment_isochronictoneshz_2, text, "0")) } }
+            else -> null
+        },
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp).onFocusChanged {
+            if (focused && !it.isFocused) left = true
+            focused = it.isFocused
+        },
     )
 }
 
@@ -390,9 +410,9 @@ private const val ISOCHRONIC_START_HZ = 40.0
  * not being below 0 (`NPBounds.Param.Audio.beatRate`), so it is a typed field.
  */
 @Composable
-private fun OptionalTone(toggleLabel: String, rateLabel: String, rateHz: Double?, startHz: Double, onChange: (Double?) -> Unit) {
+private fun OptionalTone(toggleLabel: String, rateLabel: String, rateHz: Double?, startHz: Double, mustExceedZero: Boolean = false, onChange: (Double?) -> Unit) {
     ToggleRow(toggleLabel, rateHz != null) { on -> onChange(if (on) startHz else null) }
-    if (rateHz != null) NumField(rateLabel, rateHz) { onChange(it) }
+    if (rateHz != null) NumField(rateLabel, rateHz, mustExceedZero) { onChange(it) }
 }
 
 @Composable

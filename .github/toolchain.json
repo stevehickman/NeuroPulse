@@ -12,8 +12,6 @@
   "rust": "1.97.0",
   "rustNote": "Exact, not stable: the toolchain is installed with rustup, which ships on every runner image, so a stale image cannot change what is built.",
   "python": "3.11",
-  "dotnet": "8.0.x",
-  "dotnetNote": "NeurOne.csproj targets net8.0-windows10.0.19041.0.",
   "armGcc": "13.2.Rel1",
   "armGccNote": "Pinned so a toolchain change is a reviewable commit. Must satisfy the NP_ARM_GCC_MIN_VERSION 12.3 gate in firmware/cmake/arm-none-eabi.cmake."
 }

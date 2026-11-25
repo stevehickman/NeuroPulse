@@ -194,6 +194,41 @@ static void test_a_frequency_update_after_a_stop_plays_nothing(void)
     check(g.binaural_calls == before, "no tone after a stop");
 }
 
+/* ── REQ-AUDIO-27: an isochronic rate of 0 ──────────────────────────────────────────────────── */
+
+/* @verifies REQ-AUDIO-27 */
+static void test_an_isochronic_rate_of_zero_is_refused_but_a_binaural_beat_of_zero_plays(void)
+{
+    np_mod_audio_params_t p;
+    memset(&p, 0, sizeof(p));
+    p.carrier_hz = 440U;
+    p.level_half_db = 40U;
+
+    reset();
+    p.mode = 1U;
+    p.beat_mhz = 0U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG,
+          "an isochronic command with a rate of 0 is refused");
+    check(g.binaural_calls + g.iso_calls + g.noise_calls + g.bone_set_calls == 0, "and reaches no driver");
+
+    reset();
+    check(cmd(0U, 40U, 0U, 0U) == NP_HUB_OK, "a running command starts");
+    p.mode = 1U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_ERR_INVALID_ARG && g.iso_calls == 0,
+          "a refused isochronic command leaves the running one as it was");
+
+    reset();
+    p.beat_mhz = 1U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g.iso_calls == 1,
+          "the smallest nonzero rate plays");
+
+    reset();
+    p.mode = 0U;
+    p.beat_mhz = 0U;
+    check(np_mod_audio_control(NP_HUB_SLOT_AUDIO, &p, (uint16_t)sizeof(p)) == NP_HUB_OK && g.binaural_calls == 1,
+          "a binaural beat of 0 plays");
+}
+
 int main(void)
 {
     test_a_level_above_the_ceiling_reaches_no_transducer();
@@ -202,6 +237,7 @@ int main(void)
     test_a_frequency_update_does_not_turn_another_mode_into_binaural();
     test_a_frequency_update_still_retunes_a_binaural_session();
     test_a_frequency_update_after_a_stop_plays_nothing();
+    test_an_isochronic_rate_of_zero_is_refused_but_a_binaural_beat_of_zero_plays();
     printf("%s (%d failures)\n", g_failures == 0 ? "ALL PASS" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;
 }
