@@ -17,6 +17,12 @@ data class WarrantyOwnerRecord(
     /** Zero means "never enrolled". It only increases, except at a change of custody. */
     val consentEpoch: Int = 0,
     val programmeId: Int = 0,
+    /**
+     * The owner forbids stealth mode on this helmet (`SWR-IND-02`, `OI-PRIV-37`): the app then asks the helmet for its indicators
+     * on, whatever the active profile chose. A choice about the owner's helmet, not about a person. False, the default, leaves
+     * the choice to the wearer. The app enforces it; the hub cannot tell who asks, so it does not.
+     */
+    val stealthForbidden: Boolean = false,
 )
 
 /**
@@ -112,16 +118,21 @@ class WarrantyOwnerStore(
     }
 
     private fun encode(r: WarrantyOwnerRecord): String =
-        listOf(FORMAT, if (r.fleetConsent) "1" else "0", if (r.enrolled) "1" else "0", r.consentEpoch, r.programmeId).joinToString(",")
+        listOf(
+            FORMAT, if (r.fleetConsent) "1" else "0", if (r.enrolled) "1" else "0", r.consentEpoch, r.programmeId,
+            if (r.stealthForbidden) "1" else "0",
+        ).joinToString(",")
 
+    // A v1 line (five fields, written before the stealth lock existed) reads with stealth not forbidden, which is what it meant.
     private fun decode(line: String): WarrantyOwnerRecord {
         val p = line.split(',')
         val epoch = p.getOrNull(3)?.toIntOrNull()
         val programme = p.getOrNull(4)?.toIntOrNull()
-        if (p.size != 5 || p[0] != FORMAT || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null) {
+        val shape = (p.size == 5 && p[0] == FORMAT_V1) || (p.size == 6 && p[0] == FORMAT && p[5] in FLAGS)
+        if (!shape || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null) {
             return WarrantyOwnerRecord()
         }
-        return WarrantyOwnerRecord(p[1] == "1", p[2] == "1", epoch, programme)
+        return WarrantyOwnerRecord(p[1] == "1", p[2] == "1", epoch, programme, stealthForbidden = p.getOrNull(5) == "1")
     }
 
     companion object {
@@ -136,7 +147,8 @@ class WarrantyOwnerStore(
             PersistedKeys.PROGRAMME_ID_KEY,
         )
 
-        private const val FORMAT = "v1"
+        private const val FORMAT = "v2"
+        private const val FORMAT_V1 = "v1"
         private val FLAGS = setOf("0", "1")
     }
 }

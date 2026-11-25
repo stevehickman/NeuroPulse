@@ -76,6 +76,8 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     // The helmet health reports choice is the connected helmet's, and each helmet has its own (`REQ-SHDR-08`).
     val hub by gatt.hubIdentifier.collectAsState()
     var fleetOn by remember(hub) { mutableStateOf(app.warrantyAnalyticsGate.isOpen(hub)) }
+    // SWR-IND-02: the owner's stealth lock, per helmet like the reports choice.
+    var stealthAllowed by remember(hub) { mutableStateOf(!app.stealthForbidden(hub)) }
 
     val offeredLabel = stringResource(Res.string.warranty_owner_offered_switch)
 
@@ -173,7 +175,40 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
         )
 
         Spacer(Modifier.height(24.dp))
+        StealthLockSection(
+            hub = hub,
+            allowed = stealthAllowed,
+            onChange = { allowed ->
+                hub?.let { app.setStealthForbidden(it, !allowed) }
+                stealthAllowed = !app.stealthForbidden(hub)
+            },
+        )
+
+        Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = onDone) { Text(stringResource(Res.string.common_back)) }
+    }
+}
+
+/**
+ * Whether the wearers of this helmet may turn its lights off (`SWR-IND-02`, `OI-PRIV-37`). Allowed by default: stealth is the
+ * wearer's choice, made with their profile. An owner who must see the helmet's state (a clinic supervising a session) turns it
+ * off, and the app then asks the helmet for its lights on, whatever a profile chose. The hub cannot tell who asks, so the app
+ * enforces this; a fault always shows red either way. Kept in the owner's store, per helmet, so with no helmet there is nothing
+ * to set.
+ */
+@Composable
+private fun StealthLockSection(hub: String?, allowed: Boolean, onChange: (Boolean) -> Unit) {
+    val label = stringResource(Res.string.warranty_owner_stealth_switch)
+    Text(stringResource(Res.string.warranty_owner_stealth_title), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(Res.string.warranty_owner_stealth_body), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(8.dp))
+    if (hub == null) {
+        Text(stringResource(Res.string.warranty_owner_stealth_no_helmet), style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(modifier = Modifier.semantics { contentDescription = label }, checked = allowed, onCheckedChange = onChange)
     }
 }
 
