@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PRIV-ANALYSIS-007
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-11-22
 **Status:** DRAFT
 **Effective Date:** —
@@ -272,3 +272,4 @@ About fifteen further Low items are in §3.3.
 |-----|------|--------|---------|
 | 1 | 2026-11-21 | NeurOne Software Engineering | New document. Second read-only privacy review of `common/` at `201b992`, compared with every privacy item already raised, including the firmware, CI and companion-app reviews of the same day: 2 High, 13 Medium, 22 Low; raises `OI-PRIV-62` to `OI-PRIV-66` and adds the rest to existing items. |
 | 2 | 2026-11-22 | NeurOne Software Engineering | **M5 marked fixed; M6 and M8 fixed in part, with what remains; L10, L11 and L15 marked fixed (`OI-PRIV-64`).** |
+| 3 | 2026-11-22 | NeurOne Software Engineering | **§3.2 M1 and M4 marked fixed with what remains; §3.3 L17 marked checked and not fixed (the clear destroys the key that seals the records first, and `SWR-MG-09`), both under `OI-PRIV-63`.** |
