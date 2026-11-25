@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-005  
-**Revision:** 3
-**Date:** 2026-11-21  
+**Revision:** 4
+**Date:** 2026-11-22  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -72,6 +72,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Reference:** Weak / Predictable IDs anti-pattern; LINDDUN Linkability and Detectability.
 - **Remediation:** Key rows by `gen_random_uuid()`, or by `(warranty_token, per-device counter)`. Keep `track_commit_timestamp` off on the fleet database. Have the ingest service batch rows and insert them in shuffled order. Add a static rule that no SHDR table has a `SERIAL` or `BIGSERIAL` column. Same freeze argument as F2.
 - **Existing coverage:** New.
+- **Status, 2026-11-22: fixed (`OI-PRIV-53` closed; SHDR schema Rev G; `REQ-SHDR-11` (c)).** Every row key is `UUID PRIMARY KEY DEFAULT gen_random_uuid()`. SEQ-01 forbids `SERIAL` types, identity columns, sequences, `nextval()` and time-based UUIDs, and the live harness checks the catalog holds none. `NP-INFRA-001` §3.4 records `track_commit_timestamp = off` and no longer tells the builder to key the store by `(device_token, session_timestamp)`, which it did. **What remains** is one level down: every row's `xmin` and `ctid` still record insert order, raised as `OI-PRIV-76` with the batched, shuffled ingest that removes it.
 
 ### F4. MEDIUM: the warranty registry schema has no minimisation, no retention and no gate on its content (`OI-PRIV-54`)
 
@@ -122,6 +123,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 - **Reference:** Aggregation Creep and Re-identification via Join anti-patterns; LINDDUN Identifiability.
 - **Remediation:** Define the serial format so that it carries no manufacture data, or record the limit beside the module-UID one in `OI-EMMC2-08` and coarsen `manufacture_date` in SHDR to a month.
 - **Existing coverage:** Partial. The same class as `OI-EMMC2-08` (GitHub #443), which says neither gate can see a self-join on module UID. The serial number is new.
+- **Status, 2026-11-22: closed by the second condition (`OI-PRIV-58`; SHDR schema Rev G).** The join is recorded beside `OI-EMMC2-08` in `NP-FW-EMMC-002`, and both `devices.manufacture_date` and `module_life.module_manufacture_date` are month-granular by CHECK (device age and module calendar age are counted in months, so nothing needed the day). TIME-02 now covers every `DATE` column with no exemption. The serial format is still undefined: a serial that encodes factory and month can still pick out the devices of one model, revision and factory made in one month, and the warranty schema says so beside `serial_number`.
 
 ## 4. Comparison with issues already identified
 
@@ -172,7 +174,7 @@ The highest-leverage change is F1: delete every request header from both Caddy e
 
 1. **F1** (done 2026-11-21), about an hour: delete the header map in both edges' logs, strip the full client-address set upstream, extend F2, F3, P6 and P8.
 2. **F2** (done 2026-11-21), about two hours: the CHECKs, the static rule, the integer and `INTERVAL` patterns, one live reject case per table.
-3. **F3**, about an hour, while the schema is still free to re-lay out: random keys or per-device keys, and the static rule.
+3. **F3** (done 2026-11-22; the residual is `OI-PRIV-76`), about an hour, while the schema is still free to re-lay out: random keys or per-device keys, and the static rule.
 4. **F4**: the contact default, enumerated claim types, `DATE` instead of `TIMESTAMPTZ` and a gate, about half a day; the retention periods are the principal's decision.
 5. **F6**, with `OI-ANALYTICS-01` (2): list every place the analytics ID lives and widen the erasure and TTL to it.
 
@@ -188,12 +190,12 @@ The owning entries are in `docs/status/pending-decisions.md`, under "Privacy rev
 |---|---|---|
 | `OI-PRIV-51` | F1 | Both edges delete all request headers from every log and strip the full client-address set upstream, and the gates require it. **Closed 2026-11-21.** |
 | `OI-PRIV-52` | F2 | Every SHDR month anchor has its CHECK, the static gate requires it and rejects integer and interval clocks, and each is probed live. **Closed 2026-11-21.** |
-| `OI-PRIV-53` | F3 | No SHDR table has a fleet-wide sequence, and the gate forbids one |
+| `OI-PRIV-53` | F3 | No SHDR table has a fleet-wide sequence, and the gate forbids one. **Closed 2026-11-22.** |
 | `OI-PRIV-54` | F4 | The warranty schema defaults contact off, holds no free-text claim beside identity, has decided retention and erasure, and a gate checks it |
 | `OI-PRIV-55` | F5 | The principal decides whether SHDR holds a keyed hash of the token, and the decision is recorded in `NP-FW-EMMC-002` §A |
 | `OI-PRIV-56` | F6 | The places the analytics ID lives are listed from a real stack, and erasure and TTL cover them |
 | `OI-PRIV-57` | F7 | The PostHog proxy's logs have a size and age bound and a check |
-| `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened |
+| `OI-PRIV-58` | F8 | The serial format is shown to carry no manufacture data, or the join is recorded and `manufacture_date` coarsened. **Closed 2026-11-22.** |
 
 ## Revision history
 
@@ -203,3 +205,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 2 | 2026-11-21 | NeurOne Quality | **§3, §4 and §8: open items renumbered OI-PRIV-21…28 → OI-PRIV-51…58 in the same order (F1 = OI-PRIV-51 … F8 = OI-PRIV-58), with a note in §8. NP-PRIV-ANALYSIS-004 merged first with those numbers and GitHub issues #949–#956. No finding, severity or closure condition changed.** |
 | 3 | 2026-11-21 | NeurOne Software Engineering | **F1 and F2 marked fixed with what remains; F2's count corrected from 12 of 21 to 13 of 22 (`emf_shielding_telemetry`, found by the new TIME-02 check); `OI-PRIV-51` and `-52` closed in §8.** |
+| 4 | 2026-11-22 | NeurOne Software Engineering | **F3 and F8 marked closed with what remains (`OI-PRIV-76`; the undefined serial format); `OI-PRIV-53` and `-58` closed in §8.** |

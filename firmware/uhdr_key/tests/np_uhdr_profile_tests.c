@@ -28,6 +28,8 @@ extern np_uhdr_profile_record_t *np_uhdr_host_profile_slot_mut(uint8_t slot);
 extern bool np_uhdr_host_profile_slot_used(uint8_t slot);
 extern void np_uhdr_host_profile_write_fail(bool fail);
 extern void np_uhdr_host_profile_reset(void);
+extern void np_uhdr_host_profile_reboot(void);
+extern void np_uhdr_host_reboot(void);
 
 static int g_fail_count = 0;
 
@@ -70,7 +72,7 @@ static void fresh(void)
 static void test_record_size(void)
 {
     ASSERT(sizeof(np_uhdr_profile_record_t) == NP_UHDR_PROFILE_RECORD_SIZE,
-           "profile record is 212 bytes");
+           "profile record is 216 bytes");
 }
 
 /* @verifies REQ-EMMC2-02#a */
@@ -350,46 +352,94 @@ static void test_wrong_recovery_code_opens_nothing(void)
            "wrap 2 is bound to its profile id");
 }
 
+/* Count held in the slot's own record. */
+static uint32_t slot_attempts(uint8_t slot)
+{
+    return np_uhdr_host_profile_slot_mut(slot)->failed_attempts;
+}
+
 /* @verifies REQ-EMMC2-05#a */
-static void test_profile_attempts_share_the_limit(void)
+static void test_attempts_are_counted_per_profile(void)
 {
     fresh();
-    np_uhdr_profile_ctx_t a, x;
-    uint8_t code[NP_UHDR_RECOVERY_CODE_LEN];
-    (void)np_uhdr_profile_create(0, CRED_ANA, sizeof(CRED_ANA), &a, code);
+    np_uhdr_profile_ctx_t a, b, x;
+    uint8_t code_a[NP_UHDR_RECOVERY_CODE_LEN], code_b[NP_UHDR_RECOVERY_CODE_LEN];
+    (void)np_uhdr_profile_create(0, CRED_ANA, sizeof(CRED_ANA), &a, code_a);
+    (void)np_uhdr_profile_create(1, CRED_BEN, sizeof(CRED_BEN), &b, code_b);
     np_uhdr_profile_close(&a);
+    np_uhdr_profile_close(&b);
 
     (void)np_uhdr_profile_unlock(0, CRED_BEN, sizeof(CRED_BEN), &x);
-    ASSERT(np_uhdr_host_attempts() == 1U, "a failed profile unlock is charged");
+    ASSERT(slot_attempts(0) == 1U, "a failed unlock is charged to that profile's record");
+    ASSERT(slot_attempts(1) == 0U, "and to no other profile");
+    ASSERT(np_uhdr_host_attempts() == 0U, "nor to the helmet-wide count (§C.7)");
     uint8_t wrong[NP_UHDR_RECOVERY_CODE_LEN] = { 0 };
     (void)np_uhdr_profile_rebind(0, wrong, CRED_NEW, sizeof(CRED_NEW), &x);
-    ASSERT(np_uhdr_host_attempts() == 2U, "a failed rebind is charged to the same count");
+    ASSERT(slot_attempts(0) == 2U, "a failed rebind is charged to the same profile");
     ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_OK, "success");
-    ASSERT(np_uhdr_host_attempts() == 0U, "a success clears the count");
-
-    /* Reach the back-off: a further attempt is refused without the KDF. */
+    ASSERT(slot_attempts(0) == 0U, "a success clears that profile's count");
     np_uhdr_profile_close(&x);
+
+    /* Drive Ana's profile into its back-off. */
     for (uint32_t i = 0; i < NP_UHDR_UNLOCK_FREE_ATTEMPTS; i++) {
         (void)np_uhdr_profile_unlock(0, CRED_BEN, sizeof(CRED_BEN), &x);
     }
-    const uint32_t charged = np_uhdr_host_attempts();
+    const uint32_t charged = slot_attempts(0);
     ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_ERR_LOCKOUT,
-           "during the back-off even the right credential is refused");
-    ASSERT(np_uhdr_profile_rebind(0, code, CRED_NEW, sizeof(CRED_NEW), &x) == NP_UHDR_ERR_LOCKOUT,
-           "and so is the recovery code");
-    ASSERT(np_uhdr_host_attempts() == charged && !x.open, "uncharged, nothing opened");
+           "during Ana's back-off even her right credential is refused");
+    ASSERT(np_uhdr_profile_rebind(0, code_a, CRED_NEW, sizeof(CRED_NEW), &x) == NP_UHDR_ERR_LOCKOUT,
+           "and so is her recovery code");
+    ASSERT(slot_attempts(0) == charged && !x.open, "uncharged, nothing opened");
+
+    ASSERT(np_uhdr_profile_unlock(1, CRED_BEN, sizeof(CRED_BEN), &x) == NP_UHDR_OK,
+           "Ben is not locked out by guesses at Ana's profile");
+    np_uhdr_profile_close(&x);
+
+    /* A reboot restarts the wait; it does not end it, and it keeps the count. */
+    np_uhdr_host_set_uptime_ms(NP_UHDR_UNLOCK_BACKOFF_BASE_MS / 2U);
+    np_uhdr_host_reboot();
+    np_uhdr_host_profile_reboot();
+    ASSERT(slot_attempts(0) == charged, "the count survives a reboot");
+    ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_ERR_LOCKOUT,
+           "right after a reboot the back-off still holds");
 
     np_uhdr_host_set_uptime_ms(NP_UHDR_UNLOCK_BACKOFF_MAX_MS + 1U);
     ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_OK,
            "after the wait it opens");
+    np_uhdr_profile_close(&x);
 
     /* A charge that cannot be persisted refuses the attempt untested. */
-    np_uhdr_profile_close(&x);
-    np_uhdr_host_attempts_write_fail(true);
+    np_uhdr_host_profile_write_fail(true);
     ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_ERR_CONFIG,
            "an unpersistable charge refuses even the right credential");
     ASSERT(!x.open, "nothing opened");
-    np_uhdr_host_attempts_write_fail(false);
+    np_uhdr_host_profile_write_fail(false);
+}
+
+/* @verifies REQ-EMMC2-05#c */
+static void test_export_and_import_reset_no_guessing(void)
+{
+    fresh();
+    np_uhdr_profile_ctx_t a, x;
+    uint8_t code[NP_UHDR_RECOVERY_CODE_LEN];
+    np_uhdr_profile_export_t ex;
+    (void)np_uhdr_profile_create(0, CRED_ANA, sizeof(CRED_ANA), &a, code);
+    np_uhdr_profile_close(&a);
+    for (uint32_t i = 0; i < 3U; i++) {
+        (void)np_uhdr_profile_unlock(0, CRED_BEN, sizeof(CRED_BEN), &x);
+    }
+    ASSERT(np_uhdr_profile_export(0, &ex) == NP_UHDR_OK && ex.failed_attempts == 0U,
+           "an export carries no attempt count");
+
+    /* Delete and re-import: the count is gone, but so is the unlock wrap. */
+    (void)np_uhdr_profile_delete(0, NULL);
+    (void)np_uhdr_profile_import(0, &ex);
+    ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_ERR_STATE,
+           "a re-imported profile takes no credential at all, so nothing is gained");
+    ex.failed_attempts = 7U;
+    (void)np_uhdr_profile_delete(0, NULL);
+    ASSERT(np_uhdr_profile_import(0, &ex) == NP_UHDR_OK && slot_attempts(0) == 0U,
+           "an import stores a zero count whatever it is given");
 }
 
 /* @verifies REQ-EMMC2-05#b */
@@ -406,7 +456,8 @@ static void test_dormant_refusal_is_not_charged(void)
 
     ASSERT(np_uhdr_profile_unlock(0, CRED_ANA, sizeof(CRED_ANA), &x) == NP_UHDR_ERR_STATE,
            "a dormant profile refuses an unlock");
-    ASSERT(np_uhdr_host_attempts() == 0U, "without running the KDF or charging");
+    ASSERT(slot_attempts(0) == 0U && np_uhdr_host_attempts() == 0U,
+           "without running the KDF or charging any count");
 }
 
 /* @verifies REQ-EMMC2-02#b */
@@ -449,7 +500,8 @@ int main(void)
     test_import_only_into_an_empty_slot_as_dormant();
     test_recovery_code_rebinds_to_this_helmet();
     test_wrong_recovery_code_opens_nothing();
-    test_profile_attempts_share_the_limit();
+    test_attempts_are_counted_per_profile();
+    test_export_and_import_reset_no_guessing();
     test_dormant_refusal_is_not_charged();
     test_change_credential_keeps_the_key();
 

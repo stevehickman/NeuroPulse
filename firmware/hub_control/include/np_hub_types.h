@@ -676,14 +676,18 @@ typedef struct {
                                   * uint32 required — NP_MOD_VIBROTACTILE = 0x10 */
 } np_session_uhdr_record_t;
 
-/* The SHDR session-end record: the device session count and the firmware
- * version, and nothing else (REQ-FWHUB-89, OI-PRIV-21 (NP-PRIV-ANALYSIS-004)).
- * Duration, abort reason and the modalities that ran describe the person's
+/* The SHDR session-end record: the device session count, the firmware version
+ * and whether the session stopped early, and nothing else (REQ-FWHUB-89,
+ * OI-PRIV-21 and OI-PRIV-22 (NP-PRIV-ANALYSIS-004)).  Duration, abort reason,
+ * the modalities that ran and the cause of any stop describe the person's
  * session and are UHDR only (np_session_uhdr_record_t above;
  * data-architecture-detail.md §5.1).  Add nothing here without a §5.1 ruling. */
 typedef struct {
     uint32_t device_session_count; /* unsigned; no timestamp (SHDR) */
     uint8_t  firmware_version[4];  /* semver packed */
+    uint8_t  stopped_early;        /* 1 if the session or any channel stopped before
+                                    * its scheduled end, for ANY cause; never the
+                                    * cause (REQ-FWHUB-89 (c)) */
 } np_session_shdr_record_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════

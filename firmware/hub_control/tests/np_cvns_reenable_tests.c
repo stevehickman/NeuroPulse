@@ -588,108 +588,6 @@ static void test_session_status_seq(void)
           "seq: an existing counter value is replaced, not OR-merged");
 }
 
-/* ── Tests: what reaches SHDR (OI-PRIV-28, NP-PRIV-ANALYSIS-004) ──────────────────────────────────── */
-
-/* @verifies REQ-FWHUB-91#a,b */
-static void test_shdr_code_cutoff_only(void)
-{
-    check(np_cvns_reenable_shdr_code(NP_CVNS_RN_EV_CUTOFF_DETECTED)
-              == NP_CVNS_SHDR_EV_CUTOFF,
-          "shdr: CUTOFF_DETECTED maps to the cutoff flag 0xC1");
-
-    static const np_cvns_reenable_event_t NOT_SHDR[] = {
-        NP_CVNS_RN_EV_NONE,
-        NP_CVNS_RN_EV_CONFIRM_OPEN,
-        NP_CVNS_RN_EV_IMPEDANCE_PASSED,
-        NP_CVNS_RN_EV_IMPEDANCE_FAILED,
-        NP_CVNS_RN_EV_IMPEDANCE_TIMEOUT,
-        NP_CVNS_RN_EV_REENABLE_COMPLETE,
-        NP_CVNS_RN_EV_ASSERT_TIMEOUT,
-        NP_CVNS_RN_EV_CARDIAC_CLEARED,
-        (np_cvns_reenable_event_t)9,     /* a value added later: UHDR by default */
-    };
-    int all_zero = 1;
-    for (size_t i = 0; i < sizeof(NOT_SHDR) / sizeof(NOT_SHDR[0]); i++) {
-        if (np_cvns_reenable_shdr_code(NOT_SHDR[i]) != 0U) {
-            all_zero = 0;
-        }
-    }
-    check(all_zero,
-          "shdr: every event but the cutoff (and any unknown value) maps to 0, not written");
-}
-
-/* Map one beat's event through the SHDR selector, recording any code written. */
-static uint8_t g_shdr_codes[16];
-static size_t  g_shdr_n;
-
-static void shdr_sink(np_cvns_reenable_event_t ev)
-{
-    uint8_t code = np_cvns_reenable_shdr_code(ev);
-    if (code != 0U && g_shdr_n < sizeof(g_shdr_codes)) {
-        g_shdr_codes[g_shdr_n++] = code;
-    }
-}
-
-/*
- * A whole re-enable episode in which the wearer resumes: cutoff, lockout,
- * confirm, contact fails, confirm again, contact times out, confirm again,
- * contact passes, the MCU does not clear in time, confirm again, pass, and the
- * re-enable completes.  Every lifecycle event fires at least once.  SHDR must
- * receive the cutoff flag and nothing else, so the record of a person who
- * resumed after three attempts is identical to one who never resumed.
- */
-/* @verifies REQ-FWHUB-91#a,b */
-static void test_shdr_episode_writes_cutoff_only(void)
-{
-    np_cvns_reenable_init();
-    hal_reset();
-    g_shdr_n = 0;
-    uint32_t t = 1000U;
-    int seen[10] = {0};
-    np_cvns_reenable_event_t ev;
-
-#define BEAT(st) do { ev = np_cvns_reenable_on_heartbeat((st), true, t); \
-                      seen[(int)ev]++; shdr_sink(ev); } while (0)
-
-    BEAT(ST_CARDIAC);                                  /* CUTOFF_DETECTED   */
-    t += NP_CARDIAC_LOCKOUT_MS;  BEAT(ST_CARDIAC);     /* CONFIRM_OPEN      */
-
-    (void)np_cvns_reenable_confirm();                  /* attempt 1: fails  */
-    t += 200U; BEAT(ST_CARDIAC);
-    g_imp_complete = true; g_imp_passed = false;
-    t += 200U; BEAT(ST_CARDIAC);                       /* IMPEDANCE_FAILED  */
-
-    g_imp_complete = false;                            /* attempt 2: hangs  */
-    (void)np_cvns_reenable_confirm();
-    t += 200U; BEAT(ST_CARDIAC);
-    t += NP_CVNS_REENABLE_IMP_TIMEOUT_MS; BEAT(ST_CARDIAC); /* IMPEDANCE_TIMEOUT */
-
-    (void)np_cvns_reenable_confirm();                  /* attempt 3: passes */
-    t += 200U; BEAT(ST_CARDIAC);
-    g_imp_complete = true; g_imp_passed = true;
-    t += 200U; BEAT(ST_CARDIAC);                       /* IMPEDANCE_PASSED  */
-    t += NP_CVNS_REENABLE_ASSERT_TIMEOUT_MS; BEAT(ST_CARDIAC); /* ASSERT_TIMEOUT */
-
-    g_imp_complete = false;                            /* attempt 4: resumes */
-    (void)np_cvns_reenable_confirm();
-    t += 200U; BEAT(ST_CARDIAC);
-    g_imp_complete = true; g_imp_passed = true;
-    t += 200U; BEAT(ST_CARDIAC);                       /* IMPEDANCE_PASSED  */
-    t += 200U; BEAT(ST_CLEAR);                         /* REENABLE_COMPLETE */
-#undef BEAT
-
-    check(seen[NP_CVNS_RN_EV_CUTOFF_DETECTED] == 1 &&
-          seen[NP_CVNS_RN_EV_CONFIRM_OPEN] == 1 &&
-          seen[NP_CVNS_RN_EV_IMPEDANCE_FAILED] == 1 &&
-          seen[NP_CVNS_RN_EV_IMPEDANCE_TIMEOUT] == 1 &&
-          seen[NP_CVNS_RN_EV_IMPEDANCE_PASSED] == 2 &&
-          seen[NP_CVNS_RN_EV_ASSERT_TIMEOUT] == 1 &&
-          seen[NP_CVNS_RN_EV_REENABLE_COMPLETE] == 1,
-          "shdr-episode: the episode raised every lifecycle event");
-    check(g_shdr_n == 1U && g_shdr_codes[0] == NP_CVNS_SHDR_EV_CUTOFF,
-          "shdr-episode: SHDR received exactly one code, the cutoff flag");
-}
-
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -716,8 +614,6 @@ int main(void)
     test_new_cutoff_during_impedance_restarts();
     test_session_status_bits();
     test_session_status_seq();
-    test_shdr_code_cutoff_only();
-    test_shdr_episode_writes_cutoff_only();
 
     if (g_failures == 0) {
         printf("ALL TESTS PASSED\n");

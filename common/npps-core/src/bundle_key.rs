@@ -21,7 +21,9 @@ use unicode_normalization::UnicodeNormalization;
 type R<T> = Result<T, String>;
 
 /// Argon2id cost for a bundle key. The same memory, passes and lanes as the UHDR key (`NP-FW-EMMC-001` §6, RFC 9106), so
-/// one Argon2 implementation (this one) serves both; only the output length differs (32 bytes, one AES-256 key).
+/// one Argon2 implementation (this one) serves both; only the output length differs (32 bytes, one AES-256 key). The
+/// helmet's own UHDR credential takes the same figures as its phone-side stage; the helmet's 256 KiB stage after it is
+/// firmware's (`NP-FW-EMMC-002` §C.4, `REQ-EMMC2-08`) and does not change these.
 pub const KDF_MEMORY_KIB: u64 = 65_536;
 pub const KDF_ITERATIONS: u64 = 4;
 pub const KDF_PARALLELISM: u64 = 1;
