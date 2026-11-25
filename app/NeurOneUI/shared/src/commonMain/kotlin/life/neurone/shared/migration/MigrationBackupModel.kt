@@ -121,6 +121,12 @@ class MigrationBackupModel(
     /** Whether a health-data backup made now should also turn the automatic backup on, under the same code or passphrase. */
     var keepAutomatic: Boolean = false
 
+    /**
+     * Whether the automatic backup can be offered here: the place allows one and this run keeps its secret sealed (`SWR-MG-13` (e)).
+     * Where the place allows one but the storage is not sealed, the screen says why it is not offered; the backup itself is still made.
+     */
+    val automaticAvailable: Boolean get() = scheduled?.isAvailable == true
+
     private val state = MutableStateFlow<BackupStep>(if (place == null) BackupStep.NoPlace else BackupStep.ChooseKind)
     val step: StateFlow<BackupStep> = state.asStateFlow()
 
@@ -209,7 +215,8 @@ class MigrationBackupModel(
         val outcome = try {
             runBackup(place, keys, items, preview.kind, method, secret, random, waveforms).also { done ->
                 // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
-                // (the automatic backup, `ScheduledBackup`), and is destroyed here either way.
+                // (the automatic backup, `ScheduledBackup`) and the run keeps it sealed (`turnOn` refuses otherwise), and is destroyed
+                // here either way.
                 if (done is BackupStep.Done && preview.kind == BackupKind.UHDR) {
                     // Every health-data backup is recorded, whatever the place (a file the person saves included): the presence gate is not
                     // turned on until one exists (`REQ-PRES-08`), and only the automatic place used to leave a mark.

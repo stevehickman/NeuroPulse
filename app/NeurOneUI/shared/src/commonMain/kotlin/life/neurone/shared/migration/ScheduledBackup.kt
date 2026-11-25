@@ -1,5 +1,6 @@
 package life.neurone.shared.migration
 
+import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
@@ -22,6 +23,12 @@ import life.neurone.shared.MigrationPlace
  * is destroyed by [turnOff] and by the clear. Restoring still needs the code or passphrase the person holds. A run only ever reads
  * the secret to seal the next bundle; no screen shows it.
  *
+ * **Only a run whose storage is sealed keeps it** (`SWR-MG-13` (e), `OI-PRIV-61`). On any other run ([secretKeptSealed] false: the host
+ * has no usable keystore and its store is plain, or the sealed data cannot be opened) [turnOn] keeps nothing and says so, and a secret an
+ * earlier run left in the clear is removed when this object is made: otherwise the key would sit beside the backups it opens, and anyone
+ * who copied the folder would hold both. Removing it is an erase, not a weakening: the backup made by hand still runs under what the
+ * person types, and a value sealed by an earlier run is left alone for a run that can open it.
+ *
  * Only a place the host can write without a dialog is used (a folder). A host whose only place is a file the person must save
  * ([PortableFilePlace]) cannot run unattended and has no automatic backup. The schedule is "when the app runs", one rule for every
  * platform; a host that has an operating-system scheduler also asks it to wake the app (`BackgroundBackupScheduler`), and the app
@@ -38,7 +45,16 @@ class ScheduledBackup(
     private val waveforms: WaveformBackup? = null,
     /** Called after the backup is turned on or off, so the host's scheduler can follow. */
     private val onChange: () -> Unit = {},
+    /**
+     * Whether a value written under [SECRET_KEY] through [keys] is sealed at rest on this run. False unless the caller knows it is (the app
+     * passes `StorageProtection.SEALED`), so a store nobody vouched for never receives the secret.
+     */
+    private val secretKeptSealed: () -> Boolean = { false },
 ) {
+    init {
+        if (!secretKeptSealed()) removePlainSecret()
+    }
+
     /** How a [runIfDue] ended. */
     sealed interface Outcome {
         data object Off : Outcome
@@ -49,8 +65,11 @@ class ScheduledBackup(
         data class Failed(val reason: String) : Outcome
     }
 
-    /** Whether the person has turned the automatic backup on. */
-    val isOn: Boolean get() = keys.getString(SECRET_KEY) != null
+    /** Whether the automatic backup can be turned on on this run: only where the secret it keeps would be sealed at rest. */
+    val isAvailable: Boolean get() = secretKeptSealed()
+
+    /** Whether the person has turned the automatic backup on. Never on a run that cannot keep its secret sealed. */
+    val isOn: Boolean get() = isAvailable && keys.getString(SECRET_KEY) != null
 
     /** When the last backup was made, in seconds since 1970, or null if none has been. */
     val lastBackupSeconds: Long? get() = keys.getString(LAST_KEY)?.toLongOrNull()
@@ -58,11 +77,16 @@ class ScheduledBackup(
     /** The core's reason code for the last automatic run if it failed, or null. */
     val lastFailure: String? get() = keys.getString(FAILURE_KEY)
 
-    /** Keep backing up under [secret], which the caller made for this backup. The secret is copied; the caller still destroys its own. */
-    fun turnOn(method: BundleKeyMethod, secret: BundleSecret) {
+    /**
+     * Keep backing up under [secret], which the caller made for this backup. The secret is copied; the caller still destroys its own.
+     * Refused, with nothing written, unless the run keeps it sealed ([isAvailable]); the answer says whether it was turned on.
+     */
+    fun turnOn(method: BundleKeyMethod, secret: BundleSecret): Boolean {
+        if (!isAvailable) return false
         keys.putString(SECRET_KEY, method.wire + ":" + secret.toStoredText())
         keys.remove(FAILURE_KEY)
         onChange()
+        return true
     }
 
     /** Stop, and destroy the kept secret. */
@@ -79,6 +103,7 @@ class ScheduledBackup(
 
     /** Make the backup if it is on, there is a folder, and the last one is over [INTERVAL_SECONDS] old. */
     suspend fun runIfDue(): Outcome {
+        if (!isAvailable) return Outcome.Off
         val stored = keys.getString(SECRET_KEY) ?: return Outcome.Off
         val place = place() ?: return Outcome.NoPlace
         val now = nowSeconds()
@@ -103,6 +128,12 @@ class ScheduledBackup(
             is BackupStep.Failed -> fail(outcome.reason)
             else -> fail("unknown")
         }
+    }
+
+    /** A secret in the clear, left by a run before this rule; one that carries the sealing prefix was sealed and is not this run's to touch. */
+    private fun removePlainSecret() {
+        val stored = try { keys.getString(SECRET_KEY) } catch (ignored: ClassCastException) { null } ?: return
+        if (!stored.startsWith(EncryptedKeyValueStore.PREFIX)) keys.remove(SECRET_KEY)
     }
 
     private fun fail(reason: String): Outcome {

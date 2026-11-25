@@ -517,6 +517,7 @@
   "MIGRATION_BACKUP_AUTO_ON_NEVER": "Automatic backup is on. No backup has been made yet.",
   "MIGRATION_BACKUP_AUTO_OPTION": "Also back up again automatically",
   "MIGRATION_BACKUP_AUTO_OPTION_NOTE": "Your code or passphrase is then kept on this phone, sealed like your other private data, so a backup can be made again without asking you. It never leaves this phone and is not in the backup. You still need your code or passphrase to restore.",
+  "MIGRATION_BACKUP_AUTO_UNAVAILABLE_UNSEALED": "Automatic backup is not available: this device's secure key store is not working, so your code or passphrase could only be kept unencrypted, next to the backups it opens. This backup is still made, and you enter your code or passphrase each time you back up.",
   "MIGRATION_BACKUP_AUTO_WAVEFORMS_FAILED": "The last automatic backup was made, but its recordings could not be backed up.",
   "MIGRATION_BACKUP_CARRIED_TITLE": "This backup will include",
   "MIGRATION_BACKUP_CODE_BODY": "Write this down and keep it somewhere safe. It is shown once. Without it, or your passphrase, nobody can open the backup, including NeurOne.",
