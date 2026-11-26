@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 89
+**Revision:** 90
 **Date:** 2026-11-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,7 +17,7 @@
 
 ---
 
-> **Rev {NP-FW-HUB-001 to} (2026-11-26) — the warranty owner's reset key is ruled (§4.7.3; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955; brief §13, the principal, 2026-11-26).** The warranty owner is the `OI-SIMFW-71` Q8 admin pairing (Q10), and that pairing carries an Ed25519 signing key, sent inside the SPAKE2-authenticated channel at pairing and stored in the admin's table entry (Q9 A). §4.7.4 step 4 checks `signer_key` against that entry. Nothing is built: the pairing table belongs to the `OI-SIMFW-71` secure channel.
+> **Rev 90 (2026-11-26) — the warranty owner's reset key is ruled (§4.7.3; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955; brief §13, the principal, 2026-11-26).** The warranty owner is the `OI-SIMFW-71` Q8 admin pairing (Q10), and that pairing carries an Ed25519 signing key, sent inside the SPAKE2-authenticated channel at pairing and stored in the admin's table entry (Q9 A). §4.7.4 step 4 checks `signer_key` against that entry. Nothing is built: the pairing table belongs to the `OI-SIMFW-71` secure channel.
 >
 > **Rev 89 (2026-11-25) — the per-module running totals are Map 3, with the rest of its row (`REQ-FWHUB-93` (f) to (i), §6.11; `NP-FW-NVRAM-001` `OI-NVRAM-20`).** Each row gains mate cycles, a tile's metered dose (`dose_accum`, mJ/cm² summed over its wavelengths), its throttle count, `fault_flags` and `detail_lost`, as running totals or sticky bits. An accessory whose port gets a new occupant while the hub runs counts one mate (the boot scan counts none); the tiles' mates wait for the inventory poll (`OI-HEXMAP-02`). The record keeps one length, 12,288 B, so a later firmware's longer row is still read and this firmware's rewrite carries its newer fields through. The snapshot reports an unreadable table as unknown. The retired per-session journal codec (`np_map3_record`) is removed. Who sees which field is `NP-FW-NVRAM-001` §8.5: dose and throttle reach the fleet only under `NP-MOD-ID-001` §7's opt-in, `fault_flags` bit 0 never leaves the app, and the hub side of the upload is still not built.
 
