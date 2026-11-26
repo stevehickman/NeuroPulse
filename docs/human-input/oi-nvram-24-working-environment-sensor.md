@@ -4,7 +4,7 @@
 **GitHub issue:** [#1086](https://github.com/stevehickman/NeuroPulse/issues/1086) (the cost of temperature and humidity sensing, which Q1 B waits on). This brief does not do that study.
 **Sender:** the session that worked on `OI-NVRAM-24` (a Claude agent), drafted 2026-11-26.
 **Addressee:** the Principal, with the Privacy Lead (Q1's demonstration) and Firmware.
-**Owning open item:** `OI-NVRAM-24` (`docs/status/pending-decisions.md`; `NP-FW-NVRAM-001` §13). Register rows UC-215, UC-216 and UC-217 (`docs/status/unjustified-choices.md`).
+**Owning open item:** `OI-NVRAM-24` (`docs/status/pending-decisions.md`; `NP-FW-NVRAM-001` §13). Register rows UC-215, UC-218 and UC-219 (`docs/status/unjustified-choices.md`).
 **Not a controlled document and not a design input** (`docs/human-input/README.md`): no serial, not in `NP-DHF-001`, and it writes no requirement (`CLAUDE.md` §18).
 
 **How to read it.** **[E]** is established, with the file that shows it. **[P]** is proposed here. The record is
@@ -130,7 +130,7 @@ This part does not depend on the sensor. It is written in full in `NP-FW-NVRAM-0
   count, so the record never needs to grow.
 - **A sample every second** into the band of the latest valid reading.
 - **Written to Config every hour of powered time and at each session end.** A power cut loses at most that much
-  (UC-217).
+  (UC-219).
 - **The fleet columns** are specified in the open item and not added to the schema. They reach the fleet only on
   D-39's terms.
 
@@ -142,6 +142,6 @@ This part does not depend on the sensor. It is written in full in `NP-FW-NVRAM-0
   MCU report (with the Safety MCU owner) and the extended table. The record is then built and named as the hub
   temperature.
 - **Q1 C:** as A now, with a second record added under B later.
-- **Q2 and Q3:** recorded in §8.5.1. UC-216 records Q2's answer either way, because neither choice is derived.
+- **Q2 and Q3:** recorded in §8.5.1. UC-218 records Q2's answer either way, because neither choice is derived.
 
 **Humidity** is not asked here. No sensor exists, and #1086 is costing one.
