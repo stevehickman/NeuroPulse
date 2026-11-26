@@ -38,6 +38,7 @@ import life.neurone.core.models.ResearchContact
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
 import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 
@@ -65,6 +66,8 @@ fun ConsentOnboardingScreen(
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     var step by remember { mutableIntStateOf(0) }
     // Seed from committed state: this screen is re-entrant as Research Preferences, so
     // starting blank would silently clear every prior consent decision on Finish.
