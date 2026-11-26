@@ -1,5 +1,5 @@
 /*
- * NeurOne SW-02 — littlefs power-loss injection tests (claims L-1…L-4)
+ * NeurOne SW-02 — littlefs power-loss injection tests (claims L-1…L-3)
  * Document: NP-SOUP-LFS-001 Rev 3 §7.2, §12 — the NeurOne half of OI-LFS-02
  *
  * ── What this suite is for ───────────────────────────────────────────────────
@@ -15,7 +15,11 @@
  *        committed byte
  *   L-3  a write never destroys the live inventory record before its
  *        replacement is durable
- *   L-4  a torn Map 3 write costs one record, not all of them
+ *   L-4  a torn Map 3 write costs one record, not all of them — RETIRED
+ *        (OI-NVRAM-21): Map 3 is no longer a journal, the store has no
+ *        tail-additive file, and the L-4 scenario and its truncate-and-
+ *        rebuild falsification were removed with the journal.  §12 keeps its
+ *        L-4 result as the record of what was swept.
  *
  * The old SOUP verification cell for this component read "Power-loss testing per
  * LittleFS test suite", which records that an upstream project tests its own
@@ -46,12 +50,11 @@
  *
  *   DIRECTION 1 — the checks can SEE a violation.  Cases 4 and 5 re-run the same
  *   sweeps against deliberately unsafe commit orderings — a log rewritten in
- *   place instead of appended, a blob removed before its replacement is durable,
- *   a journal truncated and rebuilt instead of extended — and REQUIRE the
- *   verifiers to catch them.  If an unsafe ordering survives a sweep, the
- *   corresponding safe result is vacuous and the suite fails.  The third of
- *   these is REQ-LFS-01's subject matter: it is discard-and-rebuild applied to a
- *   record store, which NP-SOUP-LFS-001 §6.2 says is data loss.
+ *   place instead of appended, and a blob removed before its replacement is
+ *   durable — and REQUIRE the verifiers to catch them.  If an unsafe ordering
+ *   survives a sweep, the corresponding safe result is vacuous and the suite
+ *   fails.  (A third, a journal truncated and rebuilt instead of extended, went
+ *   with the journal, OI-NVRAM-21.)
  *
  *   DIRECTION 2 — the injector really cuts.  Case 6 asserts a non-zero cut count
  *   for every sweep, that every armed index fired, and that the uncut baseline
@@ -61,7 +64,7 @@
  *
  * That the eMMC honours the contract.  This device models struct lfs_config's
  * read/prog/erase/sync contract at prog_size granularity, which is the contract
- * L-1…L-4 are stated against.  NeurOne's medium is an eMMC behind an XTS layer,
+ * L-1…L-3 are stated against.  NeurOne's medium is an eMMC behind an XTS layer,
  * whose FTL may tear inside a 512 B sector, may reorder, and whose erase
  * semantics are not the raw-flash semantics littlefs was written for (upstream
  * #1083 is exactly this question, unanswered).  No host test can reach that.
@@ -349,16 +352,14 @@ static const char LOG_MAGIC[4] = { 'N', 'P', 'L', 'R' };
 /*
  * What the mutation had been TOLD was durable when the cut fired (OI-LFS-14).
  * Each counts calls that returned success in the current attempt: log flushes,
- * journal appends, and whether the blob replacement completed.  L-1 says a
- * flush is durable and L-4 bounds the loss to the record in flight, so the
- * verifiers require at least this much to survive — a check that "some flush
+ * and whether the blob replacement completed.  L-1 says a flush is durable, so
+ * the verifiers require at least this much to survive — a check that "some flush
  * boundary survived" passes a rollback past a flush that had already returned.
  * Globals, not locals: the cut longjmps out of the mutation, and an
  * interrupted call never reaches its increment.  Every mutation resets the one
  * its verifier reads, falsifications included.
  */
 static volatile uint32_t g_log_acked;
-static volatile uint32_t g_jrn_acked;
 static volatile bool     g_blob_acked;
 
 static void log_baseline(void)
@@ -623,141 +624,6 @@ static int blob_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
     return 0;
 }
 
-/* ── Scenario 3 — the Map 3 journal (L-4) ─────────────────────────────────── */
-
-#define JRN_PATH       "map3.jrn"
-#define JRN_BASE_RECS  200U        /* 6,400 B — more than one block */
-#define JRN_APPENDS    4U
-
-static const char JRN_MAGIC[4] = { 'N', 'P', 'M', '3' };
-
-static void jrn_baseline(void)
-{
-    lfs_file_t file;
-    uint8_t    rec[REC_SIZE];
-
-    if (lfs_format(&g_lfs, &g_cfg) != 0 || mount_fresh() != 0) {
-        printf("FAIL [jrn_baseline] format/mount\n");
-        g_fail_count++;
-        return;
-    }
-    if (open_file(&file, JRN_PATH, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND) != 0) {
-        printf("FAIL [jrn_baseline] open\n");
-        g_fail_count++;
-        return;
-    }
-    for (uint32_t i = 0U; i < JRN_BASE_RECS; i++) {
-        record_build(rec, JRN_MAGIC, i, 1U);
-        lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
-    }
-    lfs_file_sync(&g_lfs, &file);
-    lfs_file_close(&g_lfs, &file);
-    lfs_unmount(&g_lfs);
-}
-
-/* Tail-additive, one flush per record — NP-FW-NVRAM-001 §4.2 D-5. */
-static void jrn_append(void)
-{
-    lfs_file_t file;
-    uint8_t    rec[REC_SIZE];
-
-    g_jrn_acked = 0U;
-    if (mount_fresh() != 0) { return; }
-    if (open_file(&file, JRN_PATH, LFS_O_WRONLY | LFS_O_APPEND) != 0) {
-        lfs_unmount(&g_lfs);
-        return;
-    }
-    for (uint32_t i = 0U; i < JRN_APPENDS; i++) {
-        record_build(rec, JRN_MAGIC, JRN_BASE_RECS + i, 1U);
-        lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
-        if (lfs_file_sync(&g_lfs, &file) == 0) {
-            g_jrn_acked++;
-        }
-    }
-    lfs_file_close(&g_lfs, &file);
-    lfs_unmount(&g_lfs);
-}
-
-/*
- * FALSIFICATION (direction 1) for L-4, and it is REQ-LFS-01's own subject:
- * discard-and-rebuild applied to a record store.  np_module_map may do this to
- * the "NPMP" blob because the sockets will re-answer; nothing will re-answer
- * Map 3 (NP-SOUP-LFS-001 §6.2).  Truncating and rebuilding opens a window in
- * which most of the journal is simply gone, and jrn_verify() must see it.
- */
-static void jrn_truncate_and_rebuild(void)
-{
-    lfs_file_t file;
-    uint8_t    rec[REC_SIZE];
-
-    g_jrn_acked = 0U;       /* judged against the baseline, as before */
-    if (mount_fresh() != 0) { return; }
-    if (open_file(&file, JRN_PATH, LFS_O_WRONLY | LFS_O_TRUNC) != 0) {
-        lfs_unmount(&g_lfs);
-        return;
-    }
-    lfs_file_sync(&g_lfs, &file);                 /* the truncation is committed */
-    for (uint32_t i = 0U; i < JRN_BASE_RECS + JRN_APPENDS; i++) {
-        record_build(rec, JRN_MAGIC, i, 1U);
-        lfs_file_write(&g_lfs, &file, rec, REC_SIZE);
-    }
-    lfs_file_sync(&g_lfs, &file);
-    lfs_file_close(&g_lfs, &file);
-    lfs_unmount(&g_lfs);
-}
-
-static uint8_t g_jrn_readback[REC_SIZE * (JRN_BASE_RECS + JRN_APPENDS)];
-
-static int jrn_verify(const char *what, long cut_at, np_powerbd_tear_t tear)
-{
-    lfs_file_t file;
-    int        violations = 0;
-
-    np_powerbd_power_cycle(&g_bd);
-
-    if (mount_fresh() != 0) {
-        finding(what, cut_at, tear, "MOUNT FAILED after the cut");
-        return 1;
-    }
-    if (open_file(&file, JRN_PATH, LFS_O_RDONLY) != 0) {
-        finding(what, cut_at, tear, "the journal is GONE — a torn write cost "
-                "ALL the records (L-4)");
-        lfs_unmount(&g_lfs);
-        return 1;
-    }
-
-    lfs_ssize_t got = lfs_file_read(&g_lfs, &file, g_jrn_readback,
-                                    sizeof(g_jrn_readback));
-    lfs_file_close(&g_lfs, &file);
-    lfs_unmount(&g_lfs);
-
-    if (got < 0) {
-        finding(what, cut_at, tear, "read returned %d", (int)got);
-        return 1;
-    }
-
-    size_t recs = (size_t)got / REC_SIZE;
-
-    /* L-4: the loss is bounded to the record in flight.  Every record that was
-     * already durable must still be there, intact and in order. */
-    const size_t durable = JRN_BASE_RECS + (size_t)g_jrn_acked;
-    if (recs < durable) {
-        finding(what, cut_at, tear, "%zu of %zu durable records survived — a "
-                "torn write cost more than the record in flight (L-4)", recs,
-                durable);
-        violations++;
-    }
-    for (size_t i = 0U; i < recs; i++) {
-        if (!record_valid(g_jrn_readback + (i * REC_SIZE), JRN_MAGIC, (uint32_t)i)) {
-            finding(what, cut_at, tear, "journal record %zu is torn or out of "
-                    "order (L-4)", i);
-            violations++;
-            break;
-        }
-    }
-    return violations;
-}
-
 /* ── The sweep ────────────────────────────────────────────────────────────── */
 
 typedef int (*verify_fn)(const char *what, long cut_at, np_powerbd_tear_t tear);
@@ -859,29 +725,9 @@ static void test_blob_replace_is_atomic(void)
            "not hold as written");
 }
 
-/* ── 3. L-4 — the Map 3 journal ───────────────────────────────────────────── */
-
-static sweep_result_t g_jrn_safe;
-
-/* @verifies REQ-FWHUB-53 */
-static void test_journal_torn_write_costs_one_record(void)
-{
-    g_jrn_safe = sweep("L-4 journal", jrn_baseline, jrn_append, jrn_verify, false);
-
-    printf("  L-4      %ld ops swept x 3 tear models = %ld attempts, "
-           "%ld cuts, %ld violations\n",
-           g_jrn_safe.ops, g_jrn_safe.attempts, g_jrn_safe.cuts,
-           g_jrn_safe.violations);
-
-    ASSERT(g_jrn_safe.ops > 0, "the journal append touched the medium zero times");
-    ASSERT(g_jrn_safe.violations == 0,
-           "L-4: a power loss during a tail-additive journal append cost more "
-           "than the record in flight");
-}
-
 /* ── 4. Falsification, direction 1 — the verifiers can see a violation ────── */
 
-/* @verifies REQ-LFS-01 */
+/* @verifies REQ-FWHUB-53 */
 static void test_falsification_unsafe_orderings_are_caught(void)
 {
     sweep_result_t rewrite = sweep("FALSIFY L-2 in-place rewrite", log_baseline,
@@ -904,16 +750,6 @@ static void test_falsification_unsafe_orderings_are_caught(void)
            "L-3's check did not notice the live blob being destroyed before its "
            "replacement was durable. The L-3 result above is vacuous");
 
-    sweep_result_t rebuild = sweep("FALSIFY L-4 truncate-and-rebuild",
-                                   jrn_baseline, jrn_truncate_and_rebuild,
-                                   jrn_verify, true);
-    printf("  falsify  truncate-and-rebuild journal: %ld attempts, %ld cuts, "
-           "%ld violations seen\n",
-           rebuild.attempts, rebuild.cuts, rebuild.violations);
-    ASSERT(rebuild.violations > 0,
-           "L-4's check did not notice discard-and-rebuild applied to a record "
-           "store — which is exactly what REQ-LFS-01 exists to forbid. The L-4 "
-           "result above is vacuous");
 }
 
 /* ── 5. Falsification, direction 2 — the injector really cuts ─────────────── */
@@ -926,8 +762,7 @@ static void test_falsification_the_injector_fires(void)
            "completion and proved nothing");
 
     ASSERT(g_log_safe.cuts == g_log_safe.attempts &&
-           g_blob_safe.cuts == g_blob_safe.attempts &&
-           g_jrn_safe.cuts == g_jrn_safe.attempts,
+           g_blob_safe.cuts == g_blob_safe.attempts,
            "an armed cut index did not fire. The sweep does not cover every "
            "medium-touching op, so its coverage claim is false");
 
@@ -991,14 +826,13 @@ static void test_instance_is_the_emmc_fs_01_instance(void)
 
 int main(void)
 {
-    printf("── littlefs power-loss injection tests, claims L-1…L-4 "
+    printf("── littlefs power-loss injection tests, claims L-1…L-3 "
            "(NP-SOUP-LFS-001 §12) ──\n");
 
     build_config();
 
     test_log_append_is_power_safe();
     test_blob_replace_is_atomic();
-    test_journal_torn_write_costs_one_record();
     test_falsification_unsafe_orderings_are_caught();
     test_falsification_the_injector_fires();
     test_instance_is_the_emmc_fs_01_instance();

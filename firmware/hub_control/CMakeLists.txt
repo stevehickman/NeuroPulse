@@ -577,8 +577,9 @@ if(NP_BUILD_TESTS)
     # NP-SOUP-LFS-001 Rev 4 §13 (OI-LFS-06/-08/-09): the Config store — the
     # caller rules §11 found the applicable anomalies depend on.  Reproduces
     # upstream #1205 through raw littlefs and shows it not reaching a store
-    # caller; sweeps the store's own orderings (in-place O_TRUNC replace,
-    # journal append, two-copy write) under a power cut at every op.
+    # caller; sweeps the store's own orderings (in-place O_TRUNC replace and
+    # two-copy write; the journal append went with the journal, OI-NVRAM-21)
+    # under a power cut at every op.
     add_executable(np_cfg_store_tests
         tests/np_cfg_store_tests.c
         tests/np_lfs_powerbd.c

@@ -18,6 +18,22 @@
 
 ---
 
+> **Rev {NP-SOUP-LFS-001 to} (2026-11-26) — `OI-NVRAM-21`: the Config store has no tail-additive file. `L-4` is retired, R4
+> narrowed, R5 and R6 retired, and `OI-LFS-15` raised.**
+>
+> The store's one tail-additive file was the per-session Map 3 journal `map3.jrn`. It was never written: Map 3 has
+> been one upserted, `REPLICATED` record since `NP-FW-NVRAM-001` Rev 18 (`OI-NVRAM-20`). `NP_CFG_FILE_MAP3`, the
+> `TAIL_ADDITIVE` policy and the journal API (`np_cfg_store_journal_append()`, `_read()`, `_read_rows()`) are
+> removed, with the tests that existed only for them. **`L-4` is retired in place (§3):** nothing requires a torn
+> journal write to cost one record when there is no journal. **`REQ-LFS-01` is unchanged and now holds by
+> construction:** no Config file is kept under the policy it forbids a limit in. `check-lfs-caller-rules.ts` R4
+> admits only `REBUILD` and `REPLICATED`, so a tail-additive file cannot return without a decision recorded here
+> first; R5 (who may read a journal) and R6 (no limit consumer names the journal) had nothing left to check and are
+> retired (§13.5). The two Config sweeps that used the journal only as a workload, the 512-byte RMW case behind
+> `OI-LFS-10` and the no-op erase, keep their coverage through the store's replicated write (§13.8, §13.11).
+> **What this leaves open:** R6 never named Map 3's record after it became `REPLICATED`, and nothing forbids a limit
+> consumer to read it. Whether `REQ-LFS-01`'s guard should reach it is **`OI-LFS-15`** (§9).
+
 > **⚠ REV 15 (2026-09-28) — `REQ-LFS-02` met (§13.18.4).** `OI-HEXMAP-01` is closed
 > (`NP-FW-NVRAM-001` Rev 11). `npmp.bin`'s writer is `np_hexmap_nvram.c` over `np_cfg_store`, and the
 > rule this document asked its boot integration to keep is kept by `np_module_map` itself. A restored
@@ -314,7 +330,7 @@ the abstract.
 | L-1 | A flush commits the exact buffered tail and issues a block-device sync; at most the records appended since the last flush are lost on power loss | `NP-FW-HUB-001` §6.5 | `lfs_file_sync` is durable, and a torn append does not damage previously synced bytes |
 | L-2 | The log file is append-mode, so a flush never rewrites a previously committed byte | `NP-FW-HUB-001` §6.5 | append does not rewrite earlier file content |
 | L-3 | A write never destroys the live inventory record before its replacement is durable | `NP-FW-NVRAM-001` §4.2, §14 | atomic file replace, or copy-on-write commit ordering |
-| L-4 | A torn Map 3 write costs one record, not all of them | `NP-FW-NVRAM-001` §4.2, §14 | per-record self-checking survives a partial program; the filesystem does not lose the whole file |
+| ~~L-4~~ | ~~A torn Map 3 write costs one record, not all of them~~ **Retired (Rev {NP-SOUP-LFS-001 to}, `OI-NVRAM-21`).** It was required by the per-session Map 3 journal (`NP-FW-NVRAM-001` §4.2(b), D-5), which was never written and is removed. Map 3 is a `REPLICATED` record, replaced whole (`L-3`) in two enveloped copies, and no Config file is tail-additive | `NP-FW-NVRAM-001` §4.2, §14 | per-record self-checking survives a partial program; the filesystem does not lose the whole file |
 | L-5 | Config's instance is `block_size` 4,096, `block_count` 4,096, `prog_size` 256, `file_max` 65,536 | `NP-FW-EMMC-001` `EMMC-FS-01` | configurability, and that these are the operative bounds |
 | L-6 | Wear is levelled across the partition within the 30,000 P/E budget | `EMMC-HW-01`, `NP-FW-NVRAM-001` §3.5 | dynamic wear levelling |
 | L-7 | Bytes are encrypted at rest without the filesystem seeing keys | `NP-FW-EMMC-002` §C, `NP-FW-HUB-001` §6.5 | operates over a block device; is agnostic to XTS below it |
@@ -329,7 +345,7 @@ what has been *shown*:
 |---|---|---|
 | `L-1`, `L-2` | **Exercised.** 90 interrupted runs, 0 violations, against the `lfs_config` contract | §12.2, §12.3 |
 | `L-3` | **Exercised.** 198 interrupted runs, 0 violations — and the safe ordering is a *caller* obligation, not a property of the component | §12.2 |
-| `L-4` | **Exercised.** 168 interrupted runs, 0 violations | §12.2 |
+| ~~`L-4`~~ | **Exercised.** 168 interrupted runs, 0 violations. *Retired Rev {NP-SOUP-LFS-001 to} (`OI-NVRAM-21`); the sweep was removed with the journal, and §12.2 keeps its result as the record* | §12.2 |
 | `L-5` | Enforced at mount and tested | §7.4, `np_lfs_config_validate()` |
 | `L-6` | Configuration only — `block_cycles` 500 is set and checked by value. **Wear levelling itself is not measured by anything**, and on a managed-flash medium it may not mean what the claim assumes (`OI-LFS-07`) | §7.4 |
 | `L-7` | Unexercised. The XTS layer is `NP-FW-EMMC-002` §C's and nothing joins the two yet | — |
@@ -472,6 +488,12 @@ file is which.** The rule that falls out is a requirement, not an observation:
 > bound rather than the third of three.
 
 `OI-LFS-03` asks for the CI check that makes `REQ-LFS-01` observable rather than remembered.
+
+> **Rev {NP-SOUP-LFS-001 to} (`OI-NVRAM-21`).** The Map 3 journal this section reasons from was never written. Map 3 is one
+> upserted record of running totals, kept `REPLICATED` (`NP-FW-NVRAM-001` §3.3.1.6, D-35), and the store has no
+> tail-additive policy left. `REQ-LFS-01` stands as written and holds by construction: `check-lfs-caller-rules.ts`
+> R4 admits only `REBUILD` and `REPLICATED`. The sentence above, that Map 3 "must never become the source of a
+> limit", is still true of Map 3, but no gate enforces it for the record Map 3 now is: **`OI-LFS-15`**.
 
 ### 6.3 What the old verification cell was worth
 
@@ -660,6 +682,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | ~~`OI-LFS-11`~~ | **✅ CLOSED 2026-09-24 (Rev 7, §13.10).** The log backend's one append file per partition could not pass littlefs's 2 GiB `file_max` on the 6,903 MiB UHDR partition. **Decided:** the layout `NP-FW-EMMC-001` already specified — UHDR one file per session (`EMMC-UHDR-12`/`-13`, `/uhdr/sessions/<count>`), created exclusively, opened at session start and closed at session end; SHDR one file, which cannot reach `file_max` because its partition is 512 MiB. A single session file is capped at `file_max` (≈49 h at 12 kB/s) and fails that session closed. New seam `np_log_hal_part_close()` | — (closed) | — |
 | ~~`OI-LFS-12`~~ | **✅ CLOSED 2026-09-24 (Rev 9, §13.13).** The device session count was incremented at session start but never persisted. **Done:** it is a Config file kept `REPLICATED` by `np_cfg_store` (`np_session_count`), committed at session start before the session's UHDR file is created, and loaded at boot. `np_hal_get_device_session_count()` retired (census 99 → 98); the cervical fault summary now records the current session's count | — (closed) | — |
 | ~~`OI-LFS-13`~~ | **✅ CLOSED 2026-09-27 (Rev 14, §13.18). A caller broke littlefs's file-config lifetime rule** (raised Rev 11, §13.15): `cfg_open()` passed `lfs_file_opencfg()` a stack config, read at every close and dirty sync. Code fixed #472; (2) prevention: R7 and a sanitized CI leg (Rev 13, §13.17); (3) evidence re-run under ASan + UBSan (Rev 12, §13.16). **(1) consequence, answered in §13.18:** the forged tags can reach only USERATTR, GLOBALS and CRC-class types, never name, struct, splice or tail. The new failure class is **E4, rollback of an acknowledged write** to that file's previous valid content, which no integrity check sees. §6.1's Class B stands: the emission-path file (`npmp.bin`) has no writer yet, and once written, E4 gives only the same module's earlier record, given the power-on poll, now **`REQ-LFS-02`**. §5.3 amended. Non-emission instances (reset marker half-reset, warranty token re-provisioned, counts regressing) raised as **`RISK-LFS-09`**. Exposure: none — no target build ran the store | — (closed) | — |
+| **`OI-LFS-15`** | **Does `REQ-LFS-01`'s guard reach Map 3's record?** (raised 2026-11-26, Rev {NP-SOUP-LFS-001 to}, from `OI-NVRAM-21`.) `REQ-LFS-01` forbids a limit under a *tail-additive* policy, and R6 of `check-lfs-caller-rules.ts` kept every emission-limit consumer from naming the journal. Map 3 has been the `REPLICATED` record `NP_CFG_FILE_MODULE_USAGE` since `OI-NVRAM-20`, R6 never named it, and with the journal removed R6 is retired. Every `REPLICATED` row in `np_cfg_store.c` says in a comment that it bounds no emission (`REQ-LFS-01`), but only a comment says so. §6.2's argument needs every emission-bounding value to be in the `REBUILD` cache, whatever the other policy is called. Decide: widen `REQ-LFS-01` to "no value that bounds an emission is stored under any policy but `REBUILD`" and give it a gate that does not fail on a writer (`np_session_runner.c`, a listed limit consumer, commits the totals at session end), or record why the comments are enough. **Closes when** `REQ-LFS-01`'s scope is decided and the gate matches it | Firmware (this document's owner) | Nothing today: no limit consumer reads a `REPLICATED` record as a limit |
 | ~~`OI-LFS-14`~~ | **✅ RAISED AND CLOSED 2026-09-27 (Rev 12, §13.16).** Every sweep verifier checked atomicity, never durability: a cut had to leave *a* consistent state, not the one already acknowledged, so a rollback past a flush that had returned passed, and `L-1`'s durable half was never asserted. **Done:** a durability floor in every verifier in §12, §13.1 and the store suite (flushes, appends, rename, replace, replicated write, count commit, reset marker); 16 flushes instead of 4 in the §13.1 log workload; `rmw_exposed` in the tear model, required > 0 before a loss is required. RMW sweeps: 8 caught of 8 exposed (was 1 of 2); every control 0 under the floor. Falsified both ways | — (closed) | — |
 
 ---
@@ -893,7 +916,7 @@ byte-identical pre-state, and each attempt is followed by a remount and a full v
 |---|---|---|---|---|
 | `L-1`, `L-2` | A 160-record session log (5,120 B — it spans blocks, so the append goes through the ctz skip list rather than living inline in one metadata pair), extended by two flushed batches of 32 | 30 | **90** | **0** |
 | `L-3` | The 14,012-byte `"NPMP"` blob — §5.3's own arithmetic, `HDR(8) + 80 × 175 + CRC(4)` — replaced by write-temp, sync, close, rename | 66 | **198** | **0** |
-| `L-4` | A 200-record Map 3 journal extended tail-additively, one flush per record (`NP-FW-NVRAM-001` §4.2 D-5) | 56 | **168** | **0** |
+| `L-4` | A 200-record Map 3 journal extended tail-additively, one flush per record (`NP-FW-NVRAM-001` §4.2 D-5). *Removed from `np_lfs_powerloss_tests` at Rev {NP-SOUP-LFS-001 to} with the journal and its truncate-and-rebuild falsification (`OI-NVRAM-21`); the row is the record of what was swept* | 56 | **168** | **0** |
 
 Aggregate across the whole suite, falsification runs included: **74,333 programs, 6,870 erases,
 5,946 syncs, 232,921 reads, 1,377 cuts**, in 1.3 s.
@@ -1193,7 +1216,9 @@ unrecoverable file no longer resting on one entry. A later reproduction belongs 
 Two halves. **In the API:** every Config file has one row in `s_files[]` with a policy
 (`REBUILD`, `TAIL_ADDITIVE`, `REPLICATED`), and the policy decides which call may touch it — the
 rebuild-cache reader refuses the journal, the journal reader refuses a rebuild cache, and nothing
-appends to a rebuild cache. **In CI:** `scripts/check-lfs-caller-rules.ts`, on the
+appends to a rebuild cache. *(Rev {NP-SOUP-LFS-001 to}, `OI-NVRAM-21`: `TAIL_ADDITIVE`, its one file and the journal API
+are removed. Two policies remain, and `np_cfg_store_tests` case 1 requires every file to be under one of
+them.)* **In CI:** `scripts/check-lfs-caller-rules.ts`, on the
 `warranty-nojoin-ci.yml` pattern — its self-test runs before it, proving each rule rejects and each
 vacuity path refuses (21 cases):
 
@@ -1202,13 +1227,16 @@ vacuity path refuses (21 cases):
 | R1 | only listed files call littlefs; everything else goes through the store | `OI-LFS-06`, `-09` |
 | R2 | no `lfs_file_open()`; `lfs_file_opencfg()` exactly once, inside `cfg_open()` | `OI-LFS-06` |
 | R3 | no `lfs_remove` / `lfs_rename` / `lfs_stat` in the Config store | `OI-LFS-08`, `-09` |
-| R4 | the `TAIL_ADDITIVE` rows are exactly `NP_CFG_FILE_MAP3`; every file has a row | `REQ-LFS-01` |
-| R5 | `np_cfg_store_journal_read()` is called only from `JOURNAL_READERS`, each with why it reads history (none yet — Map 3 has no consumer) | `REQ-LFS-01` |
-| R6 | no emission-limit consumer names the journal — its id, its API or its path — and every listed consumer exists | `REQ-LFS-01` |
+| R4 | every file has a row, and every row's policy is `REBUILD` or `REPLICATED`: no Config file is tail-additive. *Narrowed at Rev {NP-SOUP-LFS-001 to} (`OI-NVRAM-21`); was: the `TAIL_ADDITIVE` rows are exactly `NP_CFG_FILE_MAP3`* | `REQ-LFS-01` |
+| ~~R5~~ | ~~`np_cfg_store_journal_read()` is called only from `JOURNAL_READERS`, each with why it reads history (none yet — Map 3 has no consumer)~~ **Retired Rev {NP-SOUP-LFS-001 to} (`OI-NVRAM-21`):** both journal readers are removed, and R4 admits no policy a reader could read | `REQ-LFS-01` |
+| ~~R6~~ | ~~no emission-limit consumer names the journal — its id, its API or its path — and every listed consumer exists~~ **Retired Rev {NP-SOUP-LFS-001 to} (`OI-NVRAM-21`):** the journal's id, API and path no longer exist, and R4 forbids its policy. Whether Map 3's `REPLICATED` record needs such a guard is `OI-LFS-15` | `REQ-LFS-01` |
 
 **Its reach, stated narrowly:** textual, like its siblings. It sees a direct call and a direct name,
 not a value handed through a helper — which is why a `JOURNAL_READERS` entry must carry its reason:
 the gate forces the question where a reader is added, the one place a text check can ask it.
+*(Rev {NP-SOUP-LFS-001 to}: with R5 and R6 retired, R4 reads the policy each row names and nothing else. Its self-test
+proves it refuses a tail-additive row, the removed `map3.jrn` coming back, and a policy nobody admitted
+under any name, and accepts a new `REPLICATED` file: 28 cases in all.)*
 
 ### 13.6 Falsification record — `NP-CONV-001` §8
 
@@ -1225,7 +1253,7 @@ pass again after each:
 | S5 | Replica repair disabled | **Caught** — six assertions |
 | S6 | Only copy A ever written | **Caught** — the suite aborts on a littlefs assertion |
 | S7 | Replica generation ignored (always A) | **Caught** |
-| S8 | Journal appended with `O_TRUNC` | **Caught** — `L-4` sweep fails at every cut |
+| S8 | Journal appended with `O_TRUNC` | **Caught** — `L-4` sweep fails at every cut. *(Rev {NP-SOUP-LFS-001 to}: the journal and its sweep are removed, `OI-NVRAM-21`)* |
 | S9 | A failed remount left unmounted (the defect §13.2 found) | **Caught** |
 | Q1 | RMW tear model disabled in the block device | **Caught** — both "256 must fail" cases fail |
 | Q2 | Log validator skips the limits | **Caught** |
@@ -1282,7 +1310,7 @@ not edited):
 |---|---|---|
 | §12 `np_lfs_powerloss_tests` — `L-1`/`L-2`, `L-3`, `L-4` | 60 + 117 + 108 = **285** interrupted runs | **0 violations**; all three unsafe orderings still caught (343, 111, 54 violations) |
 | §13 `np_cfg_store_tests` — in-place replace, journal, replicated write | 105 + 111 + 12 = **228** | **0 violations**; both falsifications still caught |
-| Config journal through the store under a **512-byte RMW unit** | 87 | **0** — this case expected a loss at Rev 4, and found one |
+| Config journal through the store under a **512-byte RMW unit** | 87 | **0** — this case expected a loss at Rev 4, and found one. *(Rev {NP-SOUP-LFS-001 to}, `OI-NVRAM-21`: the journal is removed, and the case now sweeps the store's replicated write of a small inline record, 102 runs, 0 violations; the 256-byte evidence case beside it is unchanged)* |
 | Config geometry at **256** under the same RMW unit (raw littlefs — the store now refuses 256) | 123 | **1** — required; keeps the evidence for the decision live |
 
 Op counts fell by roughly a third at 512 — fewer, larger programs — which is why the attempt counts
@@ -1397,7 +1425,7 @@ fails when the mode is switched off. With it set:
 | Sweep | Runs | Violations |
 |---|---|---|
 | SHDR `L-1`/`L-2`, real geometry, no-op erase | 66 | **0** |
-| Config `L-4` through `np_cfg_store`, no-op erase | 84 | **0** |
+| Config `L-4` through `np_cfg_store`, no-op erase | 84 | **0** *(Rev {NP-SOUP-LFS-001 to}: now the store's replicated write, 102 runs, 0, `OI-NVRAM-21`)* |
 
 So NeurOne's block-device glue implements `erase()` as `return 0;` — no `CMD35/36/38`, which also
 removes upstream #1083's erase-group question (384 KiB groups against 4 KiB blocks) entirely. A
@@ -1416,7 +1444,7 @@ need silicon.** The bring-up protocol:
 | ID | Test | Method | Pass criterion |
 |---|---|---|---|
 | **HW-LFS-01** | **Tear granularity** | Write known patterns to consecutive 512-byte units (XTS on, and once with XTS bypassed to separate the layers); cut eMMC `VCC` with a GPIO-driven load switch at random offsets inside `CMD24`/`CMD25`; after power-up classify every unit as old / new / mixed / damaged-but-not-in-flight. ≥ 1,000 cuts | **No unit other than the one in flight is ever damaged.** If one is, §13.1.3's RMW model is optimistic for this part: enable eMMC reliable write (`EXT_CSD` `WR_REL_SET`) and repeat |
-| **HW-LFS-02** | **Power-loss sweeps on the real stack** | The §12/§13 scenarios — log append (`L-1`/`L-2`), in-place replace (`L-3`), journal (`L-4`), replicated `ukmd.rec`, per-session file open/close — run on target over the real XTS block device with `erase()` a no-op, power cut at random times by the same load switch. The host verifiers, compiled for target. ≥ 1,000 cuts per scenario | **0 violations, 0 mount failures, 0 hangs** (a hang = no SPI heartbeat within 5 s of power-up — upstream #1211's symptom, which only hardware can observe). With 0 failures in 1,000 cuts the per-cut failure probability is below 0.3 % at 95 % confidence (rule of three); a failure anywhere is a finding, not a retry |
+| **HW-LFS-02** | **Power-loss sweeps on the real stack** | The §12/§13 scenarios — log append (`L-1`/`L-2`), in-place replace (`L-3`), ~~journal (`L-4`)~~ (retired Rev {NP-SOUP-LFS-001 to}, `OI-NVRAM-21`), replicated `ukmd.rec`, per-session file open/close — run on target over the real XTS block device with `erase()` a no-op, power cut at random times by the same load switch. The host verifiers, compiled for target. ≥ 1,000 cuts per scenario | **0 violations, 0 mount failures, 0 hangs** (a hang = no SPI heartbeat within 5 s of power-up — upstream #1211's symptom, which only hardware can observe). With 0 failures in 1,000 cuts the per-cut failure probability is below 0.3 % at 95 % confidence (rule of three); a failure anywhere is a finding, not a retry |
 | **HW-LFS-03** | **Mount after interrupted format and interrupted repair** | Cut during `np_cfg_store_format()` and during a replicated-record repair | Mount succeeds or reports cleanly; `ukmd.rec` never lost while one copy was valid before the cut |
 | **HW-LFS-04** | **Allocator traversal time** | UHDR filled to 25 %, 50 % and 90 %; time `np_lfs_log_prime_allocator()` at mount and one traversal forced mid-session (§13.1.4 measured ≈ 0.5 reads per block in use) | A mid-session traversal completes inside the session logger's buffering headroom at the EEG rate; if not, `lookahead_size` (§13.1.4) or the logger's buffering is revisited **with this measurement** |
 | **HW-LFS-05** | **Write amplification** | `EMMC-WE-03`'s WAF over a 100-session endurance run, with `EXT_CSD` life estimates before and after | WAF ≤ 3× (`EMMC-WE-03`'s fault threshold); the expected 1.1–1.5× is recorded against it |
@@ -1813,7 +1841,7 @@ acknowledgement. The analysis is per file, and is against the writers that exist
 | File | Writer in the tree | E4 gives | Emission path? | Result |
 |---|---|---|---|---|
 | `npmp.bin` (REBUILD) | **none** — `np_hexmap_nvram_write()` is an unimplemented extern (`OI-HEXMAP-01`) | when written: the same device's earlier blob | **yes — the only one** | bounded by the power-on poll, **`REQ-LFS-02`** below |
-| `map3.jrn` (TAIL_ADDITIVE) | none | acknowledged records lost | no — `REQ-LFS-01`, enforced by R4–R6 | history loss. `L-4`'s bound is broken from above, not below. `RISK-LFS-09` |
+| `map3.jrn` (TAIL_ADDITIVE) | none | acknowledged records lost | no — `REQ-LFS-01`, enforced by R4–R6 | history loss. `L-4`'s bound is broken from above, not below. `RISK-LFS-09`. *(Rev {NP-SOUP-LFS-001 to}: the file is removed, never written, `OI-NVRAM-21`. Map 3 is `modusage.rec`, `REPLICATED`, so E4 gives the previous session end's totals, like the other replicated rows; whether it is guarded from limit consumers is `OI-LFS-15`)* |
 | `ukmd.rec` (REPLICATED) | none in `firmware/` yet | two pairs, and the newer generation wins (`np_cfg_store.c:681`). One pair rolled back is **repaired** from the other; both rolled back gives the old envelope | no | the same as a power loss before the write. §5.1's `RISK-LFS-07` covers its absence |
 | `sesscnt.rec` (REPLICATED) | `np_session_count.c` | the count repeats | no (`REQ-LFS-01`, §13.13) | the logger steps past an existing session file (§13.10). **SHDR's only time-like reference can repeat**: `RISK-LFS-09` |
 | consumables (REPLICATED) | `np_consumables.c` | per-kind session counts go back | no | exposure-count prompts (CLAUDE.md §2.3) are **delayed**, by up to every increment since the last durable write. Under systematic E4 they never fire. `RISK-LFS-09` |

@@ -19,7 +19,8 @@ in this directory: it is closed by `NP-SOUP-LFS-001` §11 and §12 and by
   fails CI if anything else does, and all of it is tested over a **test** block
   device — but no code path in the image reaches them.
 - **`L-1…L-4` hold against the `struct lfs_config` contract, not against the
-  eMMC.** 456 interrupted runs, 0 violations (`NP-SOUP-LFS-001` §12) — but the
+  eMMC.** (`L-4`, the Map 3 journal's claim, is retired: the journal was never
+  written and is removed, `OI-NVRAM-21`.) 456 interrupted runs, 0 violations (`NP-SOUP-LFS-001` §12) — but the
   injector interrupts the contract at `prog_size` granularity, and the medium is
   managed flash behind an XTS layer whose tear and erase semantics are not the
   raw-flash semantics littlefs is written against. `OI-LFS-07` needs hardware.
