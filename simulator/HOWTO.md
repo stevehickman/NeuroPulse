@@ -666,6 +666,8 @@ Then open `simulator/index.html`. The **API** badge in the header turns green: *
 
 If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
 
+**Who can connect** (NP-SIM-FW-001 `REQ-SIMFW-27`). The server listens on `127.0.0.1` only, so no other machine can reach it. A browser page may connect only if it was served from `http://localhost`, `http://127.0.0.1` or `http://[::1]` (any port, so the file servers of §2 work); a page from any other origin, or a `file://` page, is refused with HTTP 403. A native client that sends no `Origin` header, such as Node's `ws` in the examples below, connects as before. Set `NP_SIM_PORT` to run it on a port other than 9000.
+
 ### 17.2 Client roles
 
 Two types of client connect to the same server:

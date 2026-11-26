@@ -4,7 +4,7 @@
  * Exposes the same wire protocol the NeurOne hub uses over USB-C/BLE so
  * macOS/iOS/Windows apps can target this server instead of real hardware.
  *
- * Two client roles connect to ws://localhost:9000:
+ * Two client roles connect to ws://127.0.0.1:9000 (loopback only, Origin-checked: origin.js, OI-SIMFW-07):
  *   controller — external apps (send SESSION_START / ZONE_CONFIG, receive TELEMETRY)
  *   display    — browser simulator tab (receives commands, sends TELEMETRY back)
  *
@@ -20,11 +20,20 @@ const { verify }          = require('crypto');
 const fs                  = require('fs');
 const path                = require('path');
 
-const PORT           = 9000;
+// NP_SIM_PORT exists so a test can run the server beside a developer's own on 9000.
+const PORT = process.env.NP_SIM_PORT === undefined ? 9000 : Number(process.env.NP_SIM_PORT);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error(`[NP-SIM] NP_SIM_PORT must be an integer 1-65535, not ${JSON.stringify(process.env.NP_SIM_PORT)}`);
+  process.exit(2);
+}
+
+// NP-SIM-FW-001 REQ-SIMFW-27 (OI-SIMFW-07): loopback only, in every mode, and a browser page may join only
+// from a loopback origin. A client that can reach the server receives every TELEMETRY and, with the
+// firmware bridge, can inject faults into a process running the hub's logic.
+const { BIND_HOST, verifyClient } = require('./origin');
 
 // NP-SIM-FW-001: the firmware-in-the-loop bridge is opt-in.  Set NP_SIM_FW_BIN to the
-// np_sim_pbm_spike binary; the server then also binds to 127.0.0.1 only, because a
-// client that can reach it can inject faults into a process running the hub's logic.
+// np_sim_pbm_spike binary.
 const { FwBridge, BridgeError } = require('./fw-bridge');
 const FW_BIN = process.env.NP_SIM_FW_BIN || null;
 const SERVER_VERSION = require('../version.json').version;
@@ -35,16 +44,19 @@ const TEST_PUBLIC_KEY = fs.readFileSync(
 
 // ─── server setup ─────────────────────────────────────────────────────────────
 
-const wss = new WebSocketServer(FW_BIN ? { port: PORT, host: '127.0.0.1' } : { port: PORT });
+const wss = new WebSocketServer({ port: PORT, host: BIND_HOST, verifyClient });
 const clients = new Set();
 
-console.log(`[NP-SIM] WebSocket server listening on ws://localhost:${PORT}`);
+wss.on('listening', () => {
+  const a = wss.address();
+  console.log(`[NP-SIM] WebSocket server listening on ws://${a.address}:${a.port}  (loopback only)`);
+});
 let fw = null;
 if (FW_BIN) {
   fw = new FwBridge({ bin: FW_BIN, autoStatus: 40 }).start();
   fw.on('message', (m) => broadcast(m));
   fw.on('exit', (code) => console.log(`[NP-SIM] firmware process exited (${code})`));
-  console.log(`[NP-SIM] Firmware bridge started: ${FW_BIN}  (bound to 127.0.0.1)`);
+  console.log(`[NP-SIM] Firmware bridge started: ${FW_BIN}`);
 }
 console.log(`[NP-SIM] Serve the repo root and open /simulator/ — badge should turn green.`);
 
