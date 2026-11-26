@@ -26,7 +26,10 @@
 //!    value, and a data key cannot seal a bundle. The two channel keys of a direct link are kept under a purpose of their
 //!    own (`link`) that no request can ask for: the link's flow makes them, names them in its state by handle, and
 //!    releases them when it ends (`link.rs`).
-//! 3. **No export.** No operation gives a kept key back, as bytes or as hex.
+//! 3. **No export.** No operation gives a kept key back, as bytes or as hex. The one way a kept key leaves the core is sealed:
+//!    `keySeal` seals a `bundle` key under a `data` key, and `keyUnseal` brings it back as a new handle, for the automatic
+//!    backup, which keeps a derived key in place of the person's secret (`at_rest.rs`; `SWR-MG-32` (i), the principal,
+//!    2026-11-24, `OI-PRIV-65`).
 //! 4. **Bounded.** At most [`MAX_KEYS`] at once (`UC-197`); the next is refused, so a host that forgets to release cannot
 //!    grow the table without end.
 //! 5. **Wiped** when released (`keyRelease`), all at once (`keyReleaseAll`: on lock, and when the data key is destroyed),

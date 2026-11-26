@@ -292,6 +292,9 @@ class AppServices(
             storageProtection == StorageProtection.SEALED &&
                 protectedStorage.keepsFromTheClear(life.neurone.shared.migration.ScheduledBackup.SECRET_KEY)
         },
+        // The kept backup key is sealed under the key of the tier `np.backup.auto-secret` is in (`OI-PRIV-65` (2)); a run whose
+        // storage is not sealed has no sealer and keeps nothing.
+        sealer = encrypted,
     )
 
     /**

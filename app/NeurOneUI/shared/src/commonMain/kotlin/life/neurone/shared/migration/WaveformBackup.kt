@@ -71,13 +71,20 @@ class WaveformBackup(
      * from the last starts a new set, because the old files cannot be opened with the new secret; the old ones are removed. The secret is
      * the caller's to destroy.
      */
-    suspend fun backUp(place: MigrationPlace, method: BundleKeyMethod, secret: BundleSecret): WaveformBackupResult = try {
+    suspend fun backUp(place: MigrationPlace, method: BundleKeyMethod, secret: BundleSecret): WaveformBackupResult =
+        backUp(place, SecretBackupKey(method, secret))
+
+    /**
+     * As above, under [key]: the person's secret, or the key the automatic backup keeps sealed (`OI-PRIV-65` (2)). A kept key opens
+     * only a set made under its own salt, so a set made under another starts again under that salt.
+     */
+    suspend fun backUp(place: MigrationPlace, key: BackupKey): WaveformBackupResult = try {
         val sources = folder.store.list(SOURCE_PREFIX).filter { it.endsWith(SOURCE_SUFFIX) }
-        val earlier = openIndex(place, secret)
+        val earlier = openIndex(place, key)
         if (earlier == null && sources.isEmpty()) {
             WaveformBackupResult.NothingToBackUp
         } else {
-            val set = earlier ?: newSet(method, secret)
+            val set = earlier ?: newSet(key) ?: return WaveformBackupResult.Failed
             try {
                 val held = place.store.list(ARCHIVE_PREFIX).toSet()
                 var written = 0
@@ -151,18 +158,18 @@ class WaveformBackup(
         return WaveformRestoreResult.Done(restored, here, unreadable)
     }
 
-    private suspend fun openIndex(place: MigrationPlace, secret: BundleSecret): Opened? {
+    private suspend fun openIndex(place: MigrationPlace, source: BackupKey): Opened? {
         val bytes = place.store.get(INDEX_NAME) ?: return null
         val kdf = RecordingArchive.readKdf(bytes) ?: return null
-        val key = runCatching { BundleKeyDerivation.deriveKey(secret, kdf) }.getOrNull() ?: return null
+        val key = source.keyFor(kdf) ?: return null
         val opened = RecordingArchive.open(bytes, key, INDEX_ID)
         if (opened !is ArchiveOpened.Ok) { key.destroy(); return null }
         return Opened(kdf, key, entriesOf(opened.data).toMutableMap())
     }
 
-    private fun newSet(method: BundleKeyMethod, secret: BundleSecret): Opened {
-        val kdf = BundleKeyDerivation.newKdf(method, random)
-        return Opened(kdf, BundleKeyDerivation.deriveKey(secret, kdf), mutableMapOf())
+    private fun newSet(source: BackupKey): Opened? {
+        val kdf = source.newKdf(random)
+        return source.keyFor(kdf)?.let { Opened(kdf, it, mutableMapOf()) }
     }
 
     private suspend fun writeIndex(place: MigrationPlace, set: Opened) {
