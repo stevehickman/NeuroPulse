@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 53
-**Date:** 2026-11-24
+**Revision:** 54
+**Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1231,3 +1231,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 51 | 2026-11-24 | NeurOne Software Engineering | **§22: the warm-reset model keeps the fault latch's bytes through host-only save and restore, since the fault-latch report no longer carries the slot or the raw count (OI-PRIV-40 (NP-PRIV-ANALYSIS-004), UC-132).** |
 | 52 | 2026-11-24 | NeurOne Software Engineering | **§26: the twin's TEST device serial is 0x5a in every byte, no longer all zero, because the hub's guard now fails closed (`REQ-FWHUB-90`). The bridge and scenario tests stamp it into the golden descriptors as the app stamps `DEVICE_SERIAL` (`UC-137`).** |
 | 53 | 2026-11-24 | NeurOne Software Engineering | **`OI-SIMFW-73`: the principal's ruling of 2026-11-23 recorded (stop and panic stay open; pause needs an encrypted link).** |
+| 54 | 2026-11-26 | NeurOne Software Engineering | **REQ-SIMFW-25 (e) and OI-SIMFW-51: np_map3_record.c is removed with the retired Map 3 journal; the scenario now checks Map 3's per-module record (np_module_usage.c).** |
