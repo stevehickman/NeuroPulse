@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-MOD-ID-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** TBD — pending principal approval and the two BLOCKING open items in §9
@@ -406,7 +406,7 @@ Because collection is opt-in (§7.5), the relaxation is **cohort-scoped**:
 opted in, which will be the large majority of the fleet. The narrowed invariant
 describes what the schema *may* carry, not what any given device *does* carry.
 
-> **Rev {NP-MOD-ID-001 to} (2026-11-26), the principal's ruling on the Map 3 row (`NP-FW-NVRAM-001` §8.5, D-38).**
+> **Rev 4 (2026-11-26), the principal's ruling on the Map 3 row (`NP-FW-NVRAM-001` §8.5, D-38).**
 > Delivered dose does not matter for SHDR: the helmet's dose totals never reach the fleet, opted in or not, so this
 > section and `DOSE-01` stand unchanged. Dose is kept per wavelength for the person's own app, as UHDR. The principal
 > asked SHDR instead for how much each emitter is used, as totals per emitter, and for session counts per emitter as a
@@ -435,7 +435,7 @@ asking for it.
 asymmetry is the reason the window is bounded at adoption rather than reviewed
 "when convenient".
 
-> **Rev {NP-MOD-ID-001 to} (2026-11-26), the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The characterisation opt-in is
+> **Rev 4 (2026-11-26), the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The characterisation opt-in is
 > "just a time limited version of consent that, once the characterisation period ends, changes consent from 'yes' to
 > 'no'". The window's end is therefore a transition from yes to no, and it prompts the warranty owner for general SHDR
 > consent, because they may have changed their mind (`REQ-SHDR-12`, `docs/reference/data-architecture-detail.md` §5.4;
@@ -497,7 +497,7 @@ would have been bundled consent for a purpose the registrant never contemplated.
 A separate, affirmative, granular, revocable opt-in with a stated benefit is what
 the same reasoning asks for.
 
-> **Rev {NP-MOD-ID-001 to} (2026-11-26) — superseded in part by the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The
+> **Rev 4 (2026-11-26) — superseded in part by the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The
 > argument above is kept. For Map 3's per-emitter-channel totals, temperature bands and `throttle_count`, the principal
 > ruled that both of the warranty owner's consents admit them, so they flow under the general SHDR consent given at
 > warranty registration as well as under this opt-in. Those totals are per module and running, not a per-socket,
@@ -921,3 +921,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 2 | 2026-11-22 | NeurOne Software Engineering | **The date-typed columns row: `manufacture_date` and `module_manufacture_date` are month-truncated since SHDR schema Rev G (`OI-PRIV-58`).** |
 | 3 | 2026-11-26 | NeurOne Firmware Engineering | **§5.3.1 item 5: a note that the principal's ruling in NP-FW-NVRAM-001 §8.5 puts a mate-cycle running total in the helmet's Map 3 row and in the fleet upload; the total, not an event, so D-20 holds.** |
+| 4 | 2026-11-26 | NeurOne Firmware Engineering | **§7.2: a note recording the principal's 2026-11-26 ruling: the dose never reaches the fleet, so §7.2 and DOSE-01 stand; SHDR consent is the warranty owner's, as §7.5.1 already binds this opt-in; the per-emitter-channel totals of NP-FW-NVRAM-001 §8.5 are drive time, and whether they ride on this time-boxed opt-in or on the warranty owner's SHDR consent at registration is put to the principal (OI-NVRAM-25 (b)); no field added to the list §7.2 note updated: the totals ride on either consent (OI-NVRAM-25 (b)). §7.3: the window's end is a transition from yes to no that prompts for general SHDR consent, and the stop is superseded in part for Map 3's totals. §7.5: the bundled-consent argument kept, superseded in part for those totals (OI-NVRAM-27 (a)).** |
