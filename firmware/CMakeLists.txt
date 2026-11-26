@@ -106,7 +106,6 @@
 #                             → np_gatt_server_tests      (OI-WA-03 GATT server + warranty token)
 #                             → np_consumables_tests      (OI-ACC-08 CONSUMABLE_STATUS producer)
 #                             → np_module_usage_tests     (REQ-FWHUB-93 per-module running totals)
-#                             → np_map3_record_tests      (OI-NVRAM-08 Map 3 journal version rule)
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_socket_layouts_tests   (REQ-FWHUB-64: socket table by hardware version)
 #                             → np_hexmap_inventory_tests (OI-HEXMAP-02 tile UID + inventory)
@@ -591,12 +590,6 @@ if(NP_BUILD_TESTS)
     # REQ-FWHUB-93: the per-module running totals.
     add_test(NAME np_module_usage_tests
         COMMAND np_module_usage_tests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
-    # OI-NVRAM-08 (#444): a Map 3 journal written under version n loses no
-    # record when read under n+1, falsified against four rule-breaking readers.
-    add_test(NAME np_map3_record_tests
-        COMMAND np_map3_record_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_zone_notify_tests

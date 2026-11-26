@@ -213,15 +213,19 @@ class MigrationBackupModel(
             }
         }
         val outcome = try {
-            runBackup(place, keys, items, preview.kind, method, secret, random, waveforms).also { done ->
-                // A health-data backup that worked starts the 20 hours; the secret is kept for later runs only when the person asked
-                // (the automatic backup, `ScheduledBackup`) and the run keeps it sealed (`turnOn` refuses otherwise), and is destroyed
-                // here either way.
+            // When the person asks to keep backing up, the key the automatic backup will keep is derived first and this backup is made
+            // under it too, so the bundle and the recordings already use its salt and the first automatic run seals nothing again. The
+            // secret itself is never kept (`OI-PRIV-65` (2)); it is destroyed here either way.
+            val kept = if (scheduled != null && keepAutomatic && preview.kind == BackupKind.UHDR) scheduled.prepare(method, secret) else null
+            val key: BackupKey = kept?.let { scheduled?.backupKey(it) } ?: SecretBackupKey(method, secret)
+            runBackup(place, keys, items, preview.kind, key, random, waveforms).also { done ->
+                // A health-data backup that worked starts the 20 hours. The key is kept only when the person asked and the run keeps
+                // it sealed (`prepare` refuses otherwise, `OI-PRIV-61`).
                 if (done is BackupStep.Done && preview.kind == BackupKind.UHDR) {
                     // Every health-data backup is recorded, whatever the place (a file the person saves included): the presence gate is not
                     // turned on until one exists (`REQ-PRES-08`), and only the automatic place used to leave a mark.
                     if (scheduled != null) scheduled.noteMade() else keys.putString(ScheduledBackup.LAST_KEY, epochSeconds().toString())
-                    if (scheduled != null && keepAutomatic) scheduled.turnOn(method, secret)
+                    if (kept != null) scheduled?.turnOn(kept)
                 }
             }
         } finally {
@@ -251,21 +255,36 @@ internal suspend fun runBackup(
     random: RandomSource = SystemRandomSource,
     /** A health-data backup also seals the recordings (SWR-MG-03); a migration never does. */
     waveforms: WaveformBackup? = null,
+): BackupStep = runBackup(place, keys, items, kind, SecretBackupKey(method, secret), random, waveforms)
+
+/**
+ * As above, under [key]. A kept key ([KeptBackupKey]) starts the flow with its `kdf`, so the bundle is sealed under that salt and the
+ * key is unsealed for the turn that seals it (`OI-PRIV-65` (2)).
+ */
+internal suspend fun runBackup(
+    place: MigrationPlace,
+    keys: KeyValueStore,
+    items: List<MigrationItemStore>,
+    kind: BackupKind,
+    key: BackupKey,
+    random: RandomSource = SystemRandomSource,
+    waveforms: WaveformBackup? = null,
 ): BackupStep {
     val host = StandardMigrationHost(items)
     val params = buildJsonObject {
         put("route", place.route.toJson())
         put("hostItems", JsonArray(host.hostItems.map { JsonPrimitive(it) }))
         put("kind", kind.wire)
-        put("method", method.wire)
+        put("method", key.method.wire)
+        key.fixedKdf?.let { put("kdf", it) }
     }
-    val done = MigrationFlow.run("backup", params, host, secret, keys, place.store, random = random)
+    val done = MigrationFlow.run("backup", params, host, null, keys, place.store, random = random, keyFor = key::keyFor)
     return if (done["ok"]!!.jsonPrimitive.boolean) {
         BackupStep.Done(
             done["bundleHash"]!!.jsonPrimitive.content,
             done["written"]!!.jsonArray.map { it.jsonPrimitive.content },
             done["omitted"]!!.jsonArray.map { it.jsonPrimitive.content },
-            if (kind == BackupKind.UHDR && place.carriesRecordings) waveforms?.backUp(place, method, secret) else null,
+            if (kind == BackupKind.UHDR && place.carriesRecordings) waveforms?.backUp(place, key) else null,
         )
     } else {
         BackupStep.Failed(done["reason"]!!.jsonPrimitive.content)

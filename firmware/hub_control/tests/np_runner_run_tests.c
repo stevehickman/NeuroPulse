@@ -212,6 +212,8 @@ typedef enum {
     RUN_EV_MU_ON,           /* a = slot, b = mod type */
     RUN_EV_MU_OFF,          /* a = slot */
     RUN_EV_MU_END,          /* a = session_ms */
+    RUN_EV_MU_DOSE,         /* a = id[0], b = mJ/cm² */
+    RUN_EV_MU_THROTTLE,     /* a = id[0] */
 } run_ev_kind_t;
 
 typedef struct {
@@ -448,6 +450,8 @@ void np_cons_on_session_end(uint32_t mods_active_mask)
 static uint8_t  g_fit_uid0[4];   /* first UID byte of each fitted tile; 0 = empty socket */
 static uint16_t g_fit_n;
 static uint32_t g_pst_on_ms[4];  /* drive time the dose meter reports per fitted tile */
+static float    g_pst_dose[4][3]; /* the session's dose per tile, J/cm² per wavelength */
+static uint8_t  g_pst_flags[4];   /* NP_PST_FLAG_* per tile */
 
 uint16_t np_module_map_socket_count(void) { return g_fit_n; }
 np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out)
@@ -483,6 +487,23 @@ void np_mu_mark_present(const np_mu_key_t *key)
     note(RUN_EV_MU_PRESENT, key->kind, (uint32_t)key->id[0] | ((uint32_t)key->id[1] << 8));
 }
 void np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms) { note(RUN_EV_MU_USED, key->id[0], on_ms); }
+void np_mu_add_dose(const np_mu_key_t *key, uint32_t mj) { note(RUN_EV_MU_DOSE, key->id[0], mj); }
+void np_mu_note_throttle(const np_mu_key_t *key) { note(RUN_EV_MU_THROTTLE, key->id[0], 0U); }
+uint32_t np_mu_dose_mJ_cm2(const float *d, size_t n)
+{
+    float s = 0.0f;
+    for (size_t i = 0U; i < n; i++) { s += d[i]; }
+    return (uint32_t)(s * 1000.0f + 0.5f);
+}
+bool np_pst_get_record(uint16_t socket_id, np_pst_socket_record_t *out)
+{
+    if (socket_id >= g_fit_n) { return false; }
+    memset(out, 0, sizeof *out);
+    out->socket_id = socket_id;
+    out->flags = g_pst_flags[socket_id];
+    memcpy(out->dose_J_cm2, g_pst_dose[socket_id], sizeof out->dose_J_cm2);
+    return true;
+}
 void np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint32_t now_ms) { (void)now_ms; note(RUN_EV_MU_ON, slot, (uint32_t)type); }
 void np_mu_slot_off(uint8_t slot, uint32_t now_ms) { (void)now_ms; note(RUN_EV_MU_OFF, slot, 0U); }
 np_hub_status_t np_mu_session_end(uint32_t session_ms) { note(RUN_EV_MU_END, session_ms, 0U); return NP_HUB_OK; }
@@ -641,6 +662,8 @@ static void fresh(void)
 {
     memset(g_fit_uid0, 0, sizeof g_fit_uid0);
     memset(g_pst_on_ms, 0, sizeof g_pst_on_ms);
+    memset(g_pst_dose, 0, sizeof g_pst_dose);
+    memset(g_pst_flags, 0, sizeof g_pst_flags);
     g_fit_n = 0U;
     memset(g_fitting_stamp, 0xEE, sizeof g_fitting_stamp);
     g_fitting_stamp_calls = 0U;
@@ -807,6 +830,36 @@ static void test_the_module_totals_open_with_what_is_fitted_and_follow_each_driv
     check(count_of(RUN_EV_MU_END) == 1U && end > first_of(RUN_EV_CONS_END) && used < end,
           "totals: they are committed once, at session end, after the tiles' time is added");
     check(within(g_log[end].a, 6000U, RUN_SLACK_MS), "totals: with the length the session ran");
+}
+
+/* @verifies REQ-FWHUB-93#f */
+static void test_a_driven_tile_adds_its_metered_dose_and_its_throttle(void)
+{
+    fresh();
+    blob_t b;
+    two_command_session(&b);
+    g_fit_n = 3U;
+    g_fit_uid0[0] = 0xA1U;
+    g_fit_uid0[1] = 0xA2U;
+    g_fit_uid0[2] = 0xA3U;
+    g_pst_on_ms[1] = 1000U;
+    g_pst_dose[1][0] = 2.0f; g_pst_dose[1][1] = 0.5f;   /* 2.5 J/cm² over two wavelengths */
+    g_pst_on_ms[2] = 2500U;
+    g_pst_dose[2][0] = 1.25f;
+    g_pst_flags[2] = NP_PST_FLAG_THROTTLED;
+    (void)load_and_run(&b);
+
+    const int d1 = find_a(RUN_EV_MU_DOSE, 0xA2U, 0);
+    const int d2 = find_a(RUN_EV_MU_DOSE, 0xA3U, 0);
+    check(d1 >= 0 && g_log[d1].b == 2500U && d2 >= 0 && g_log[d2].b == 1250U,
+          "dose: each driven tile adds its session dose, mJ/cm² summed over its wavelengths");
+    check(find_a(RUN_EV_MU_DOSE, 0xA1U, 0) < 0, "dose: a tile the dose meter did not track adds none");
+    check(find_a(RUN_EV_MU_THROTTLE, 0xA3U, 0) >= 0 && find_a(RUN_EV_MU_THROTTLE, 0xA3U, 1) < 0
+          && find_a(RUN_EV_MU_THROTTLE, 0xA2U, 0) < 0,
+          "throttle: the tile whose throttle tripped adds one; the other adds none");
+    const int end = first_of(RUN_EV_MU_END);
+    check(d1 < end && d2 < end && find_a(RUN_EV_MU_THROTTLE, 0xA3U, 0) < end,
+          "dose and throttle are added before the one commit at session end");
 }
 
 /* @verifies REQ-FWHUB-93#b */
@@ -1670,6 +1723,7 @@ int main(void)
 {
     test_a_session_runs_to_its_duration_and_completes();
     test_the_module_totals_open_with_what_is_fitted_and_follow_each_drive();
+    test_a_driven_tile_adds_its_metered_dose_and_its_throttle();
     test_a_pause_stops_a_module_drive_time();
     test_session_end_wipes_the_protocol_and_the_records();
     test_the_session_start_record_and_the_fitting_come_before_any_command();

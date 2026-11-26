@@ -18,6 +18,31 @@
  *   faults                        how many times each fault code was logged
  *                                 against the module (four codes, then a count
  *                                 of any other).
+ *   mate_cycles                   insertions the hub saw (a hot-plugged
+ *                                 accessory; a tile, once the inventory poll
+ *                                 decides mates under NP-MOD-ID-001 MODID-4a).
+ *   dose_accum                    the metered optical dose of a tile, mJ/cm²,
+ *                                 summed over its wavelengths.
+ *   throttle_count                sessions in which a tile's thermal throttle
+ *                                 tripped (the dose meter latches it once per
+ *                                 socket per session).
+ *   fault_flags                   sticky bits; bit 0 = closed at least once
+ *                                 with the module no longer seated
+ *                                 (NP-FW-NVRAM-001 §6.5.1, D-29).
+ *   detail_lost                   1 when this row is known to fall short: it
+ *                                 was created by giving up another module's
+ *                                 row, or a commit that should have added to
+ *                                 it was dropped (NP-FW-NVRAM-001 §6.3).
+ *
+ * This table IS Map 3 (NP-FW-NVRAM-001 §8.5, OI-NVRAM-20): one running-total row
+ * per module, upserted.  The per-session journal (map3.jrn, np_map3_record) it
+ * replaced was retired before a row was written, and its codec is removed.
+ *
+ * Who may see which field (§8.5, §8.1): the person's app reads every field at
+ * a download and keeps the previous snapshot in Map 2.  The fleet gets the
+ * totals under the upload's month anchor, and of those dose_accum and
+ * throttle_count only under NP-MOD-ID-001 §7's opt-in; fault_flags bit 0
+ * never leaves the app (§6.5.1).  The hub side of that upload is not built.
  *
  * ── Totals, never sessions (CLAUDE.md §5.1; NP-FW-NVRAM-001 §8.5) ──────────
  * One fixed-size record of every module's totals, upserted at session end
@@ -69,10 +94,22 @@
  * row of the least-present module with nothing pending is given up (its totals
  * are already in the fleet's snapshots and the app's Map 2). */
 #define NP_MU_MAX_ROWS      (NP_HEXMAP_MAX_SOCKETS + NP_HUB_SLOT_MAX)
-#define NP_MU_ROW_BYTES     52U
+/* The row this firmware writes: 64 bytes, version 1 (NP-FW-NVRAM-001 §3.3.1.6).
+ * No record has been written by any helmet, so this is the first layout. */
+#define NP_MU_ROW_BYTES     64U
 #define NP_MU_HDR_BYTES     4U
-#define NP_MU_TABLE_BYTES   (NP_MU_HDR_BYTES + NP_MU_MAX_ROWS * NP_MU_ROW_BYTES)
 #define NP_MU_VERSION       1U
+/* The stored record has ONE length whatever the row length, so a later version
+ * that grows the row is still read by this firmware (the store reads a fixed
+ * length) and this firmware's rewrite carries the newer fields through
+ * (§7.2, version rule for the record).  12,288 B holds every row at up to
+ * NP_MU_ROW_MAX_BYTES; at 64 B the rows take 9,412 B of it.  How much room to
+ * leave is not derived (UC-213, OI-NVRAM-22). */
+#define NP_MU_TABLE_BYTES   12288U
+#define NP_MU_ROW_MAX_BYTES ((NP_MU_TABLE_BYTES - NP_MU_HDR_BYTES) / NP_MU_MAX_ROWS)   /* 83 at 147 rows */
+
+/* fault_flags bits.  Bit 0 is the only one defined (NP-FW-NVRAM-001 D-29). */
+#define NP_MU_FAULT_UNSEATED_AT_CLOSE  0x01U
 
 typedef enum {
     NP_MU_KEY_EMPTY = 0,
@@ -94,6 +131,11 @@ typedef struct {
     uint8_t     fault_code[NP_MU_FAULT_CODES];   /* 0 = unused entry */
     uint32_t    fault_count[NP_MU_FAULT_CODES];
     uint32_t    faults_other;                    /* faults whose code found no entry */
+    uint32_t    mate_cycles;
+    uint32_t    dose_accum;                      /* mJ/cm², summed over wavelengths */
+    uint32_t    throttle_count;
+    uint8_t     fault_flags;                     /* NP_MU_FAULT_* */
+    uint8_t     detail_lost;                     /* 0 or 1 */
 } np_mu_row_t;
 
 np_mu_key_t np_mu_key_uid(const uint8_t uid[NP_MU_ID_LEN]);
@@ -129,22 +171,53 @@ void np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms);
  * belongs to no module and is not counted here — it is in the fault log. */
 void np_mu_note_fault(uint8_t slot, uint8_t mod_type, uint8_t code);
 
+/* A mate: the module was inserted, as the caller decided (an accessory slot
+ * whose occupant changed while the hub ran; a tile under MODID-4a, once the
+ * inventory poll has a caller).  Added at the next commit; a mate noted and
+ * never committed before power is lost is not counted (a lower bound). */
+void np_mu_note_mate(const np_mu_key_t *key);
+
+/* A tile's metered dose this session, mJ/cm² summed over wavelengths, and
+ * whether its thermal throttle tripped this session (one count per call). */
+void np_mu_add_dose(const np_mu_key_t *key, uint32_t dose_mJ_cm2);
+void np_mu_note_throttle(const np_mu_key_t *key);
+
+/* The module was no longer seated when its session closed (D-29).  Sets
+ * fault_flags bit 0 for good. */
+void np_mu_note_unseated_at_close(const np_mu_key_t *key);
+
+/* Σ dose_J_cm2[i] over `n` wavelengths, in whole mJ/cm² (rounded half up).
+ * One sum, because NP-FW-NVRAM-001 §8.5 names one dose_accum (UC-214).  A
+ * negative or non-finite entry adds nothing; a sum past UINT32_MAX is
+ * UINT32_MAX. */
+uint32_t np_mu_dose_mJ_cm2(const float *dose_J_cm2, size_t n);
+
 /* The session ends after `session_ms` of session time: close every open slot
  * interval, add this session to every present and used module's totals and to
  * the faults since the last commit, and write the table.  If the table is
  * not loaded and still cannot be read, nothing is written and this session's
  * totals are dropped (counted by np_mu_sessions_dropped()); a write never
- * overwrites a record it could not read. */
+ * overwrites a record it could not read.  Every module whose contribution was
+ * dropped gets detail_lost on its row at the next commit that succeeds. */
 np_hub_status_t np_mu_session_end(uint32_t session_ms);
 
 uint32_t np_mu_sessions_dropped(void);
 
-/* Copy up to `cap` rows of the loaded table into `out` (the upload's snapshot
- * reads it; nothing else does).  Returns the number of rows. */
-size_t np_mu_snapshot(np_mu_row_t *out, size_t cap);
+/* The download's snapshot (NP-FW-NVRAM-001 §6): copy up to `cap` rows of the
+ * stored table into `out` and their number into *n_out.  NP_HUB_ERR_STORE_IO,
+ * with *n_out = 0, when the table is not loaded: unknown is reported as
+ * unknown, never as an empty table (D-7).  A read changes nothing on the
+ * helmet: no watermark, no acknowledgement, no row retired. */
+np_hub_status_t np_mu_snapshot(np_mu_row_t *out, size_t cap, size_t *n_out);
 
-/* Encode and decode the stored record (NP_MU_TABLE_BYTES).  Little-endian;
- * the version byte and row length make it self-describing. */
+/* Encode and decode the stored record (NP_MU_TABLE_BYTES).  Little-endian.
+ * The header (version, row length, row count) makes it self-describing.
+ * np_mu_encode writes a fresh version-1 record.  np_mu_decode accepts any
+ * version >= 1 and any row length from NP_MU_ROW_BYTES to NP_MU_ROW_MAX_BYTES,
+ * decodes the version-1 fields at their fixed offsets and ignores the rest of
+ * each row; it refuses the record whole (leaving `rows` untouched) on version
+ * 0, a row length out of that range, more rows than `cap` or NP_MU_MAX_ROWS,
+ * or a row whose key kind is unknown. */
 void np_mu_encode(const np_mu_row_t *rows, size_t n, uint8_t out[NP_MU_TABLE_BYTES]);
 bool np_mu_decode(const uint8_t in[NP_MU_TABLE_BYTES], np_mu_row_t *rows, size_t cap, size_t *n_out);
 
