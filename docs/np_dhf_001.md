@@ -330,6 +330,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 19 | 2026-11-26 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 10 | 2026-11-11 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 5 | 2026-11-24 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
+| NP-SOUP-SIM-001 | Simulator Page SOUP Inventory — Three.js and Fonts (Helmet Simulator) | 1 | 2026-11-26 | [np_soup_sim_001.md](./np_soup_sim_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 18 | 2026-11-24 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
 | NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 52 | 2026-11-26 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-CLOUDSTORE-001 | Common Cloud Storage API — Provider Findings (Draft) | 36 | 2026-11-20 | [np_sw_cloudstore_001.md](./np_sw_cloudstore_001.md) | DRAFT | APP |

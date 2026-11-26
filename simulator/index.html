@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NeurOne — Helmet Simulator</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Nothing on this page comes from a third party (OI-PRIV-44, REQ-SIMFW-27, NP-SIM-FW-001 §35).
+       The fonts and Three.js are vendored in simulator/vendor/ (VENDOR.md holds each file's hash).
+       The CSP below allows same-origin scripts, styles and fonts, the WebAssembly NPPS core, and the
+       device API WebSocket (js/api.js) only. 'sha256-…' is the hash of the importmap's text, exactly as
+       written between its tags: edit the importmap and the hash must change with it (js/page-policy.test.mjs). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-2AbxRykwjJP44Ip0Mht2kJXjjAjfV8fAL/c1WuWrM/4=' 'wasm-unsafe-eval'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' ws://localhost:9000; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -41,7 +46,7 @@
 
       <div class="panel-section">
         <h3 class="section-title">Zone Modules</h3>
-        <p style="font-size:10px;color:var(--text-faint);margin-bottom:10px;">
+        <p class="panel-note panel-note-10">
           Install hex-tile PBM modules across the ~80-socket helmet lattice (NP-HEX-ZM-001),
           grouped by named zone (protocols/predefined/00-zones.npps). Frequency applies per
           zone; select wavelengths to mix multi-channel sessions.
@@ -51,13 +56,13 @@
 
       <div class="panel-section">
         <h3 class="section-title">Demo accessory</h3>
-        <p class="accessory-sub" style="margin-bottom:6px">Accessories appear only while in use, driven by the protocol or by the firmware. No shipped protocol drives the haptic pad; switch it on to see it in use.</p>
+        <p class="accessory-sub accessory-sub-gap">Accessories appear only while in use, driven by the protocol or by the firmware. No shipped protocol drives the haptic pad; switch it on to see it in use.</p>
         <div id="accessory-config"></div>
       </div>
 
       <div class="panel-section">
         <h3 class="section-title">Wavelength Key</h3>
-        <p style="font-size:10px;color:var(--text-faint);margin-bottom:8px;">
+        <p class="panel-note panel-note-8">
           Invisible NIR shown as false color. Longer wavelength → warmer false color.
         </p>
         <div id="wavelength-legend"></div>
@@ -117,7 +122,7 @@
           <button class="btn" id="btn-stop"  disabled>■ Stop</button>
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" id="session-progress" style="width:0%"></div>
+          <div class="progress-fill" id="session-progress"></div>
         </div>
       </div>
 
@@ -144,12 +149,12 @@
     <div class="timeline-track" id="timeline-track"></div>
   </div>
 
-  <!-- ── Three.js via importmap (ES modules) ──────────────────────────────── -->
+  <!-- ── Three.js via importmap (ES modules), vendored copy ──────────────── -->
   <script type="importmap">
   {
     "imports": {
-      "three":          "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
-      "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+      "three":          "./vendor/three/build/three.module.js",
+      "three/addons/":  "./vendor/three/examples/jsm/"
     }
   }
   </script>
