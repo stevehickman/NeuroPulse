@@ -1,10 +1,10 @@
 # Question for the principal: OI-PRIV-27 (NP-PRIV-ANALYSIS-004), who starts a factory reset, and how
 
-**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). The wire format is specified, not built (2026-11-25, `NP-FW-HUB-001` §4.7, §13 below), and asks Q9 and Q10 (§13). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#955](https://github.com/stevehickman/NeuroPulse/issues/955)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding H7)
 **To:** the principal (a wire and design change); Firmware and Software to implement
-**Response needed:** answers to Q7 and Q8 (§12). Everything else is answered (§8, §11).
+**Response needed:** answers to Q7 and Q8 (§12), and Q9 and Q10 (§13). Everything else is answered (§8, §11).
 
 ## 1. The question
 
@@ -153,4 +153,49 @@ Recommendation: **A**, because it reuses a mechanism already decided and fails t
 **Q8. How the owner's app learns the label for each profile without seeing any data.** Option A of Q4 needs the owner's app to hold a label per profile identifier. The natural moment is when the profile is created on the helmet, in the clinic, with both the person and the owner present: the owner's app records its own label for the new identifier. The helmet never stores it. A profile created without the owner present, or imported (§C.8.4), shows as an unlabelled profile with its identifier and size bucket until the owner labels it. Recommendation: **label at profile creation, in the owner's app only.**
 
 Both points are recorded under `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) and are settled with the build of §C.8, which the reset command waits on anyway (Q6).
+
+## 13. The wire format, specified (2026-11-25)
+
+Q1's answer is now a specification: `NP-FW-HUB-001` §4.7. Nothing is built. In short:
+
+- **A second blob kind on 0x0008**, with its own magic (`"NPHR"`) and version, the device serial, a 16-byte challenge,
+  the signer's Ed25519 public key and one entry per profile on the helmet (the opaque identifier, exported or destroy,
+  and for an exported profile the SHA-256 of the export the app holds), Ed25519-signed.
+- **It reuses the one-time upload challenge decided under `OI-PRIV-31` (NP-PRIV-ANALYSIS-004)**, merged in PR #993
+  (option A, `docs/human-input/oi-priv-31-protocol-freshness.md` §5; `NP-FW-HUB-001` §4.2; `REQ-FWHUB-90` covers the
+  serial half). §3 of this brief asked for "a hub-issued nonce"; that nonce is the same challenge a descriptor
+  carries, read from the same place and consumed the same way, not a second mechanism. Taking any blob from the
+  mailbox consumes it, so a refused reset cannot be retried with the same challenge. The reset therefore also waits
+  for the challenge to be built, which is sequenced with §23's payload encryption (`OI-SIMFW-62`).
+- **Type confusion is impossible by construction:** distinct magics, each refused by the other verifier first; and
+  distinct keys (a descriptor verifies only under the protocol key, a reset only under the warranty owner's key, and
+  a reset signed by the protocol key is refused).
+- **Refused, in this order, before anything is dispatched:** a malformed blob; not BLE (until USB-C carries payload
+  encryption); an unknown signer; a bad signature; a wrong or unknown serial; a stale or replayed challenge; a session
+  active (the dispatcher claims the session lease and holds it to the reboot); a profile list that is no longer the
+  helmet's; an exported profile whose digest does not match an export the hub sent on the same link.
+- **How §11's consequence 1 is enforced.** The last check puts "a failed export erases nothing" in the hub, not only
+  in the owner's app: the hub keeps, in RAM for the link, the SHA-256 of each export it sent, and refuses the blob
+  unless every exported entry matches one. Listing every profile, destroyed ones included, in the signed blob is the
+  wire form of the confirmation step that names every deselected person (consequence 2), and it stops the wipe of a
+  profile added after the owner's list was read.
+- **No requirement row and no test** are written: nothing that meets the specification exists (`CLAUDE.md` §18, §21).
+  They are written with the code, with or after per-person profiles (Q6).
+
+**Q9. How does the warranty owner's signing key reach the hub?** The secure channel (`OI-SIMFW-71`, ruled 2026-11-13)
+pairs apps by X25519 keys, used for the session handshake; it has no signing key, and the reset blob must carry a
+signature the hub can check on its own (the blob is verified before dispatch, whatever channel carried it).
+
+| Option | What it is | Cost |
+|---|---|---|
+| **A. A signing key in the pairing (recommended)** | At pairing, the owner's app also makes an Ed25519 key pair and sends the public key inside the SPAKE2-authenticated channel, with its X25519 key. The hub stores it in that pairing's table entry. The reset's `signer_key` must match it | One more key per pairing entry (32 bytes). The blob stays verifiable on its own, and the same check works over USB-C once its payload is encrypted |
+| B. No separate signature: the channel is the proof | The reset is accepted only on the owner's live channel session, and the blob's signature field is dropped | Ties the reset to the channel's build; the "signed" command of `NP-FW-EMMC-002` §B.3 R-1 becomes "authenticated by the session", which is a change to R-1 and R-2 as written |
+| C. The protocol signing key | Sign the reset as a descriptor is signed | Any app that can sign a protocol can then reset the helmet: no owner role at all. Contradicts §8. Not recommended |
+
+**Q10. Is the warranty owner the admin pairing of `OI-SIMFW-71` Q8?** Q8 gave a clinic hub one admin pairing and did
+not say who holds it; `OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks the same question for the warranty token. The
+recommendation is **yes**: the warranty owner registers the helmet (`CLAUDE.md` §6.0) and is the one paired app that
+may remove the others, so the owner's role on the helmet and the admin role are the same thing. If the answer is no,
+the hub needs a separate owner mark on one pairing entry, and a rule for who sets it. Either answer fixes the
+`UNKNOWN_SIGNER` check (`NP-FW-HUB-001` §4.7.4 step 4); until one is given, no hub accepts a reset.
 

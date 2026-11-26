@@ -287,6 +287,14 @@ class AppServices(
 
     val scheduledBackup = life.neurone.shared.migration.ScheduledBackup(
         { backupPlace.value }, keyValueStore, migrationItems, waveforms = waveformBackup, onChange = { syncBackgroundSchedule(); syncLoginItem() },
+        // The kept code or passphrase only where it is sealed at rest (`SWR-MG-13` (e), `OI-PRIV-61`): never in an unsealed run's plain store.
+        secretKeptSealed = {
+            storageProtection == StorageProtection.SEALED &&
+                protectedStorage.keepsFromTheClear(life.neurone.shared.migration.ScheduledBackup.SECRET_KEY)
+        },
+        // The kept backup key is sealed under the key of the tier `np.backup.auto-secret` is in (`OI-PRIV-65` (2)); a run whose
+        // storage is not sealed has no sealer and keeps nothing.
+        sealer = encrypted,
     )
 
     /**
@@ -467,7 +475,10 @@ class AppServices(
      * target without that binding wired yet (OI-UI-KMP-01) cannot do. Screens that do not list
      * protocols never pay for it, or fail on it.
      */
-    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore, lock = presenceLock) }
+    val protocolLibrary: NPProtocolLibrary by lazy {
+        // The owner's offered set is the owner's, per helmet, and the library asks for it (SWR-WO-01, OI-PRIV-60); it stores none of it.
+        NPProtocolLibrary(keyValueStore, lock = presenceLock, ownerWithdrawn = { warrantyOwnerStore.withdrawnFamilies(gattManager.hubIdentifier.value) })
+    }
 
     /**
      * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm

@@ -2,14 +2,14 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 2
-**Date:** 2026-11-25  
+**Revision:** 5
+**Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
 **Approved By:** — (new document)  
 **References:** NP-PRIV-AUDIT-001, NP-PRIV-ANALYSIS-002, NP-PRIV-ANALYSIS-003, NP-PRIV-REM-001, NP-APP-PRESENCE-001, NP-APP-TELEMETRY-001, NP-SW-001, CLAUDE.md §5, §6, §23  
-**Related Issues:** GitHub #889, #935, #936  
+**Related Issues:** GitHub #727, #889, #935, #936, #1060  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR, HIPAA for T2); US state (BIPA IL, MHMD WA, CCPA/CPRA CA); EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA. Taken from the scope of NP-PRIV-AUDIT-001 and NP-PRIV-ANALYSIS-002; not re-confirmed with the principal.  
@@ -31,7 +31,7 @@ Each finding says whether the existing record already holds it (**New**, **Parti
 §4 lists what the passes found again that the record already holds, so that it is not raised twice.
 
 **Open items raised:** F-03, F-04 and F-05 are `OI-PRIV-59`, `OI-PRIV-60` and `OI-PRIV-61` in
-`docs/status/pending-decisions.md` §13.2. The other findings are fixes or extensions of existing items (§6).
+`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). The other findings are fixes or extensions of existing items (§6).
 
 ## 2. Summary
 
@@ -56,12 +56,12 @@ and saves toggled consents on Skip (F-10). Both should be fixed before any TestF
 | F-05 | Medium | Security | Unsealed run stores the automatic-backup secret in the clear | Partial (`SWR-MG-13` (b)): `OI-PRIV-61` |
 | F-06 | Medium | Pure privacy | Recording filenames carry the session time to the millisecond | New |
 | F-07 | Medium | Pure privacy | Web: helmet serial survives into the shared limits file | Gap in closed `OI-PRIV-11` |
-| F-08 | Medium | Pure privacy | Clinician use cases derive tier sets, not each one's minimum | Partial (`OI-CONSENT-08`) |
+| F-08 | Medium | Pure privacy | Clinician use cases derive tier sets, not each one's minimum | Partial: now `OI-CONSENT-08` (6) (§8.1) |
 | F-09 | Medium | Pure privacy | Compose analytics switch sits outside the consent model | New |
 | F-10 | Medium | Pure privacy | Skip on research consent saves what was toggled | New |
 | F-11 | Medium | Security | Firmware, EDF-request and calibration writes skip the encrypted-link check | Not in `OI-PRIV-17` (4) |
 | F-12 | Low | Both | Recovery code can be copied; no screen-capture protection | New |
-| F-13 | Low | Pure privacy | Phones have no erase, on a premise false for iOS | Challenges `SWR-MG-17`; related to #935, #936, `OI-ANALYTICS-01` |
+| F-13 | Low | Pure privacy | Phones have no erase, on a premise false for iOS | Challenges `SWR-MG-17`: `OI-PRIV-78` (§8.1); related to #935, #936, `OI-ANALYTICS-01` |
 | F-14 | Low | Both | React app: no CSP; plaintext backup and individual-limits exports | New |
 | F-15 | Low | Pure privacy | iOS consumable notification body visible on Touch ID lock screens | Partly reopens NP-PRIV-ANALYSIS-003 LOW-1 |
 | F-16 | Low | Mixed | Smaller items (pasteboard, privacy manifest, condition links, others) | Mostly new |
@@ -336,13 +336,30 @@ F-12 to F-16 follow these.
 > **Rev 2 (2026-11-22).** Four findings repaired in the Compose app and the React web app, each with a
 > requirement row and tests. The SwiftUI parts were not changed: that app was removed by pull request #946, which closes F-01, F-02,
 > F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
+>
+> **Rev 4.** F-05 repaired in the Compose app, which closes `OI-PRIV-61`.
+>
+> **Rev 5 (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
+> decision (`OI-PRIV-60` stays open for it).
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
+| F-04 | The owner page's "offered" switch writes the owner's record for the connected helmet (`WarrantyOwnerRecord.withdrawnFamilies`, `WarrantyOwnerStore.setOffered`, in `np.warranty-owner.records`, which no user bundle carries), and the protocol library asks the owner's store whether a family is offered (`NPProtocolLibrary.isOffered`) and stores none of it. `np.archived-families` is now the person's own archive only: the person's Archive and Restore and the owner's switch no longer undo each other. The "used" marker is removed from the owner page | `SWR-WO-01`; `REQ-SHDR-10` (d) | `WarrantyOwnerOfferedTests`; `WarrantyOwnerScreenTest` | Whether a clinic owner may see usage with the wearer's consent: `docs/human-input/oi-priv-60-owner-sees-usage.md` (`OI-PRIV-60`). A family an earlier version archived from the owner page stays in the person's archive. The owner's own backup, restore and transfer: `OI-PRIV-20` |
+| F-05 | `ScheduledBackup.turnOn` keeps the code or passphrase only on a run whose storage is sealed (`AppServices` passes `StorageProtection.SEALED` and the protected list), and refuses with nothing written otherwise; a copy in the clear left by an earlier unsealed run is removed at start (a sealed one is left alone); the backup screen says why the automatic backup is not offered (`MIGRATION_BACKUP_AUTO_UNAVAILABLE_UNSEALED`), and the backup itself is still made under what the person types. The unsealed notice is shown on every host that keeps state on disk, phones included: the `reportsUnsealedStorage` switch, which only the desktop apps set, is removed | `SWR-MG-13` (c), (e) | `ScheduledBackupTest`, `AutomaticBackupSealingTest`, `StorageNoticeTest` | The new string is English in every locale until translated. Not run on a device: no Android SDK or Mac in the session |
 | F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | Sets saved earlier keep their name until saved again |
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
 | F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | — |
+
+### 8.1 Findings now tracked as open items
+
+> **Rev 3 (2026-11-25).** F-08 and F-13 each need a decision before code changes, so they are recorded,
+> not repaired. Nothing under `app/` changed.
+
+| Finding | Tracked in | What it asks | Checked against `main` (2026-11-25) |
+|---|---|---|---|
+| F-08 | `OI-CONSENT-08` point (6); `docs/human-input/oi-consent-08-clinician-tiers.md` Q6; register row `UC-212`; GitHub #727 | Whether each use case names only the elements it needs. Proposed for the principal and the clinical adviser: adherence gets session timestamps and duration; EEG review gets EEG waveforms with them; HRV outcomes gets the HRV time series with them. Each dropped element becomes a use case of its own if a clinician needs it | Unchanged: `clinician-use-cases.json` still gives each use case its tier's set. `OI-PRIV-64` (1) made widening a grant follow the use cases, which leaves the table as it was. The JSON is not edited, because the review precedes any edit and a change alters what users are told a clinician can learn (`CLAUDE.md` §6.1) |
+| F-13 | `OI-PRIV-78` (new); `docs/human-input/oi-priv-78-phone-erase.md`; GitHub #1060 | Whether phones get the in-app erase (`SWR-MG-17` offers it on computers only), whether iOS purges its Keychain items after a reinstall, and whether people are told to turn analytics off before removing the app | Partly. The shared iOS host keeps only the data key and the gated UHDR key in the Keychain. The finding's list (UHDR seed, warranty tokens, signing key) was the SwiftUI app's, deleted by #946. The sealed values go with the app container. Not limited to iOS: on both phones, removing the app sends no analytics ID to the erasure relay and revokes no cloud grant. #935 is closed (an erase now destroys the gated key, #944); #936 and `OI-PRES-07` are open |
 
 ## 7. Not reviewed
 
@@ -359,3 +376,6 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 2 | 2026-11-25 | NeurOne Software Engineering | **§8 added: F-07, F-09, F-10 and F-11 repaired in the Compose app and the React web app, with their requirements, tests and what remains; `OI-PRIV-77` raised from F-09.** |
+| 3 | 2026-11-25 | NeurOne Software Engineering | **New §8.1: where F-08 and F-13 are now tracked, each checked against `main`. F-08 is point (6) of `OI-CONSENT-08`, with a proposed minimum per use case (Q6 of its brief, register row `UC-212`). F-13 is new `OI-PRIV-78` (GitHub #1060, brief `oi-priv-78-phone-erase.md`). The iOS Keychain residue on the shared host is the data key and the gated key only, and the analytics ID and the cloud grant are left behind on both phones. §1, §3 and the header point to them.** |
+| 4 | 2026-11-25 | NeurOne Software Engineering | **§8: F-05 repaired in the Compose app (`SWR-MG-13` (c), (e)), with its tests and what remains; closes `OI-PRIV-61`.** |
+| 5 | 2026-11-26 | NeurOne Software Engineering | **§8: F-04 repaired in the Compose app and the shared core (the offered set in the owner's store per helmet, the used marker removed), with what remains: the principal's answer on whether a clinic owner may see usage.** |

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 87
-**Date:** 2026-11-25
+**Revision:** 89
+**Date:** 2026-11-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
 **Author:** NeurOne Firmware Engineering
@@ -17,6 +17,10 @@
 
 ---
 
+> **Rev 89 (2026-11-25) — the per-module running totals are Map 3, with the rest of its row (`REQ-FWHUB-93` (f) to (i), §6.11; `NP-FW-NVRAM-001` `OI-NVRAM-20`).** Each row gains mate cycles, a tile's metered dose (`dose_accum`, mJ/cm² summed over its wavelengths), its throttle count, `fault_flags` and `detail_lost`, as running totals or sticky bits. An accessory whose port gets a new occupant while the hub runs counts one mate (the boot scan counts none); the tiles' mates wait for the inventory poll (`OI-HEXMAP-02`). The record keeps one length, 12,288 B, so a later firmware's longer row is still read and this firmware's rewrite carries its newer fields through. The snapshot reports an unreadable table as unknown. The retired per-session journal codec (`np_map3_record`) is removed. Who sees which field is `NP-FW-NVRAM-001` §8.5: dose and throttle reach the fleet only under `NP-MOD-ID-001` §7's opt-in, `fault_flags` bit 0 never leaves the app, and the hub side of the upload is still not built.
+
+> **Rev 88 (2026-11-25) — the factory-reset command's wire format is specified, not built (new §4.7; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955).** A reset blob is a second blob kind on the protocol upload path (0x0008), with its own magic (`"NPHR"`), the device serial, the one-time upload challenge decided under `OI-PRIV-31` (reused, not a second nonce), the warranty owner's signing key and one signed entry per profile on the helmet, each marked exported (with the export's SHA-256) or destroy. §4.7.4 fixes the verification order before any dispatch and the refusals: not BLE, unknown signer, bad signature, wrong serial, stale or replayed challenge, session active, a profile list that is no longer the helmet's, an export the hub did not send. §4.7.5 hands off to the list, export and wipe flow of `NP-FW-EMMC-002` §B.2 and §B.3. The owner's key depends on `OI-SIMFW-71` Q8 and is put to the principal (brief §13); the command is built with or after per-person profiles (`NP-FW-EMMC-002` §C.8). No code, no requirement row and no test changes.
+>
 > **Rev 64 (2026-11-21) — no protocol, session record or biosignal stays in hub RAM once it is no longer needed (`REQ-FWHUB-84`, new §6.10; `OI-PRIV-39` (NP-PRIV-ANALYSIS-004), GitHub #967).** The transport zeroes its reassembly buffer when the consumer takes a blob, when a blob is dropped and when a partial frame is abandoned. At every session end the runner zeroes the parsed protocol and the session records (keeping only what `SESSION_PROGRESS` reports after a session), the logger zeroes its UHDR record buffer, the adaptation ring and the backend's UHDR staging block, and the photoparoxysmal detector's per-channel signal state is zeroed with its latch kept. The HRV and sLORETA libraries zero their FFT scratch and session signals at their own session end. Every clear goes through a volatile `memset` pointer so the compiler cannot remove it. **Not built:** a pass at `np_uhdr_key_background()`, which nothing in the hub firmware calls (§6.10).
 >
 > **Rev 58 (2026-11-11) — the hub's drivers refuse a value outside a limit; none clamps one (`REQ-FWHUB-78`; the principal, 2026-11-11: no silent clamping anywhere).** Five clamps are now refusals with `NP_HUB_ERR_INVALID_ARG`, at the same numeric limits: BES/tACS amplitude above 1 mA, tDCS current above 2 mA, a tDCS ramp shorter than 30 s (it was lengthened), auricular VNS amplitude above 40 mA, and PBM and intranasal duty above `0x32`. Each refusal is made before anything is driven, enabled or published to the safety MCU, and `np_runner_load()` makes the same check for the whole protocol at upload, with a status of its own (`NP_HUB_ERR_OUTSIDE_LIMIT`, reason 40; the principal, 2026-11-11). **The 25 % duty refusal is interim** and goes with `NP-HW-HEXTILE-001` `OI-HEXTILE-31`. No limit value changes, the descriptor format does not change, and the safety MCU is untouched. §8 (new opening rule), §8.1, §8.3, §8.3.1, §8.4, §8.7, §10.1, §13 (`OI-FWHUB-30`, new `OI-FWHUB-35`). **Also in this revision:** audio and cervical VNS join the load-time check; BES/tACS is refused outside 0.5–40 Hz and clinical tACS below 0.5 Hz, so the phase declared to the safety MCU is never the clamped one; an EEG gain code above 6 is refused; and the T2 stubs' "firmware cap" comments now say refuse (`REQ-FWHUB-78` (h) to (j); §8.2, §8.9). **And, on the principal's answers of 2026-11-11:** the load-time refusal has a status of its own, `NP_HUB_ERR_OUTSIDE_LIMIT` (reason 40); a cervical VNS block runs for the length the protocol authored and the hardcoded 60–120 s session bounds are retired (part (k), §8.8); a reserved bit in the goggles' zone mask is refused (part (l), §8.6). **And:** the two cervical block checks are structural, each with a status and message of its own (reasons 41 and 42); and the 2 s clamp on the declared phase is removed from the hub and from the safety MCU, replaced there by compile-time assertions (a Class C change whose change control is owed, `OI-FWHUB-35` (d)).
@@ -589,6 +593,7 @@ stack for one concurrent connection. "Encrypted" is all the hub is told: whether
 | BLE `STEALTH` (0x0022) | both | whether the wearer has hidden the indicators (a fact about the person, §5.5a) | link encryption required (`REQ-FWHUB-86` (c)) | payload encryption |
 | BLE `SESSION_STOP` (0x000f), `SESSION_PAUSE` panic (0x001a, code 0x03) | app to hub, write | one command byte | **not encrypted, on purpose**: a stop or a panic that a failed pairing could refuse does not stop (`REQ-FWHUB-81` (c), `OI-SIMFW-73`); on an unencrypted link each answers OK whatever came of it, so its answer says nothing of the wearer's session (`REQ-FWHUB-81` (f), `OI-PRIV-72`); they stay open, and pause does not (the principal, 2026-11-23, `OI-PRIV-24` Q1) | link and payload |
 | BLE `SESSION_PAUSE` pause (0x01) and resume (0x02) | app to hub, write | one command byte; a resume **restarts stimulation**, and a pause is its pair | link encryption required, ATT 0x0F otherwise, refused before any handler and whatever holds the session (`REQ-FWHUB-81` (e), `OI-PRIV-24` (NP-PRIV-ANALYSIS-004)); the row itself stays open for panic. **Encrypted is not authenticated:** a central that pairs by Just Works can still resume (`OI-SIMFW-72`) | payload encryption; an authenticated link for a detector hold (`OI-PRIV-24` (NP-PRIV-ANALYSIS-004)) |
+| BLE `PROTOCOL_UPLOAD` (0x0008), reset blob (§4.7) | app to hub | the warranty owner's signed factory-reset command | **specified, not built**; refused on any other transport until USB-C carries payload encryption (§4.7.4 step 3) | payload encryption |
 | USB-C CDC protocol upload (`np_transport_feed` from the CDC RX task) | app to hub | the same signed protocol | **none**: USB-C has no link-layer encryption, and the CDC driver is a platform seam not built in this tree | link and payload: **not covered** |
 | Mode 4 download: EDF+ and parameter logs (`EDF_REQUEST`, 0x0009) | hub to app | session recordings: user health data | **no path exists**: the hub has an EDF writer and its anonymisation gate (`firmware/edf`) and publishes no characteristic and no CDC reply for it | everything, when it is built (`OI-SIMFW-71`) |
 | OTA (`OTA_COMMAND`, `OTA_STATUS`) | app to hub | a firmware image | **no transfer path exists**: `firmware/ota` is the staging and swap record, and the bootloader verifies the image's Ed25519 signature (authenticity, not secrecy) and refuses a signed version below the rollback floor (`REQ-SW02-15`) | the transfer, link and payload (`OI-SIMFW-71`) |
@@ -1008,6 +1013,130 @@ the blob using the firmware's field offsets, so what is compared is what the com
 Its self-test perturbs one corner at a time and must fail on each (`NP-CONV-001` §8). **A change to
 any of the three without the other two fails CI.** `REQ-FWHUB-10` still applies: a length change in
 this table bumps §4.5's version.
+
+### 4.7 The factory-reset command: the reset blob *(specified, not built; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004))*
+
+> **Specified 88 (2026-11-25); nothing in this subsection is built.** It is the wire format of
+> `NP-FW-EMMC-002` §B.3 R-1 and R-2, which until now named a signed `FACTORY_RESET` command that no document specified.
+> It follows the principal's rulings: the command form (`docs/human-input/oi-priv-27-factory-reset-command.md` §3
+> option A, accepted 2026-11-24, §11), and the flow (warranty owner only, every user listed first, current users
+> exported by default, the wipe only after every selected export succeeds: brief §8 and §11, `NP-FW-EMMC-002` §B.2).
+> **It is built with per-person profiles (`NP-FW-EMMC-002` §C.8) or after them** (brief Q6): the hub cannot list its
+> users, or check an export, before profiles exist. **It also waits on** the one-time upload challenge
+> (`OI-PRIV-31` (NP-PRIV-ANALYSIS-004), decided, not built, sequenced with `OI-SIMFW-62`), the profile export
+> (`NP-FW-EMMC-002` §C.8.4) and the warranty owner's signing key (below, `OI-SIMFW-71` Q8). Until all of these are
+> built, a blob with the reset magic is refused as `NP_HUB_ERR_BAD_MAGIC` like any other unknown magic.
+
+**The reset is a second blob kind on the protocol upload path, not a new characteristic.** It is written to
+`PROTOCOL_UPLOAD` (0x0008) in the §2.3 framing (a 4-byte length, then the blob), reassembled by `np_transport.c` into
+the same single-slot mailbox, and answered on `UPLOAD_CHECK` (0x0018) with the blob's SHA-256 and a verdict, as a
+descriptor is. No frozen UUID is added (`REQ-SW03-01`).
+
+#### 4.7.1 Layout
+
+All fields packed, multi-byte integers little-endian, as `np_proto_header_t`.
+
+| Offset | Size | Field | Value and rule |
+|---|---|---|---|
+| 0 | 4 | `magic` | `NP_HUB_RESET_MAGIC` = `0x4E504852` (`"NPHR"`), encoded as `NP_HUB_PROTO_MAGIC` is. Differs from the descriptor's `"NPHP"` |
+| 4 | 2 | `version` | 1. Any other value is refused (`NP_HUB_ERR_BAD_VERSION`). Versioned apart from §4.5: the two kinds never share a version number |
+| 6 | 1 | `request` | `0x01` = factory reset. Every other value is refused (`NP_HUB_ERR_INVALID_ARG`): one blob kind carries one request |
+| 7 | 1 | `entry_count` | the number of profile entries that follow, 0 to `NP_UHDR_PROFILE_MAX` (24, `UC-204`). 0 means the helmet holds no profile |
+| 8 | 32 | `device_serial` | the helmet's serial, as in the descriptor header (§4.2) |
+| 40 | 16 | `challenge` | the one-time upload challenge of `OI-PRIV-31`, read from the hub on this link before the blob is signed. The same mechanism and the same value a descriptor carries, not a second nonce |
+| 56 | 32 | `signer_key` | the Ed25519 public key that signed the blob: the key the warranty owner's pairing holds (§4.7.3) |
+| 88 | 49 × `entry_count` | `entries[]` | one per profile on the helmet, in any order, each: `profile_id` (16 B, `NP_UHDR_PROFILE_ID_LEN`, the opaque identifier, `NP-FW-EMMC-002` §C.8.2), `disposition` (1 B: `0x01` exported, `0x02` destroy), `export_digest` (32 B: the SHA-256 of that profile's export as the app received it for `0x01`; all zero for `0x02`) |
+| 88 + 49 × `entry_count` | 64 | `signature` | Ed25519 (RFC 8032) over every preceding byte, by `signer_key` |
+
+The blob is 152 bytes with no entry and 1,328 with 24, within `NP_HUB_PROTO_BLOB_MAX`; its length must equal
+`88 + 49 × entry_count + 64` exactly, as a descriptor's body must be consumed exactly (§4.4).
+
+- **The challenge is 16 bytes** because the `OI-PRIV-31` decision (option A) fixes it there. Derivation: an uploader
+  that has not read the current challenge must guess it, which succeeds with probability 2⁻¹²⁸ per upload: the
+  128-bit strength `NIST SP 800-57 Part 1` assigns to AES-128 and above, the same floor `NP-FW-EMMC-002` §C.8.2 takes
+  for the recovery code. Checking that citation belongs to `OI-EMMC2-02`.
+- **The entries list every profile, including those to be destroyed.** A deselected person is named in the signed
+  blob (`0x02`), not left out, so the hub can tell "the owner chose to destroy this profile" from "the owner's app
+  never saw it" (§4.7.4). It is the wire form of the confirmation step that names every deselected person (brief §11).
+- **No name and no data.** An entry carries the opaque identifier and a digest of a sealed export the warranty owner
+  cannot open (§C.8.4). The label the owner's app shows for a profile stays in the app (brief Q4, §12 Q8).
+- **A user whose only data is a safety-MCU cardiac-cutoff record has no profile and no entry.** The app's list shows
+  that person, marked (brief Q5); what the reset does to the record is `OI-PRIV-25`'s.
+
+#### 4.7.2 Why a type confusion is impossible by construction
+
+1. **Distinct magics, each checked first by its own verifier.** The descriptor path (§4.4) refuses `"NPHR"` as
+   `NP_HUB_ERR_BAD_MAGIC` before anything else, and the reset path refuses `"NPHP"` the same way. The dispatcher selects
+   a verifier by the first four bytes; selecting the wrong one only produces that refusal.
+2. **Distinct keys.** A descriptor verifies only against the protocol public key the platform HAL reports
+   (`REQ-FWHUB-76`); a reset verifies only against a key held by the warranty owner's pairing. Neither verifier reads the
+   other's key, and the reset verifier refuses a `signer_key` equal to the protocol public key. A signature made for one
+   kind therefore never verifies as the other, even over identical bytes.
+3. **The magic is in the signed region of both kinds**, so changing it after signing fails the signature.
+4. **A reset never reaches the runner or the safety MCU.** It is not a session: no command is parsed, no session
+   descriptor is populated and no session signature frame (§7.3) is sent. A descriptor never reaches the reset.
+
+#### 4.7.3 The warranty owner's key (depends on `OI-SIMFW-71` Q8)
+
+The reset is signed by a key bound to the warranty owner's pairing (brief §11). **That binding is not settled:**
+`OI-SIMFW-71` Q8 (ruled 2026-11-13) gives a clinic hub one admin pairing, which may remove any other, but does not say
+that the admin is the warranty owner (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks it), and the secure channel's pairing
+exchanges X25519 keys for the session handshake, not a signing key (`docs/human-input/oi-simfw-71-secure-channel-design.md`
+§4.2). The format above needs an Ed25519 public key in the pairing table entry that the hub treats as the warranty
+owner's; how that key enters the table, and whether the owner is the admin, are put to the principal in brief §13.
+**Until they are answered no hub accepts a reset:** `signer_key` must match such an entry, and none exists.
+
+#### 4.7.4 Verification, in order, before any dispatch
+
+The hub takes the blob from the mailbox and runs these checks in this order. The first that fails refuses the blob,
+publishes the verdict on `UPLOAD_CHECK`, erases nothing and changes nothing but the challenge (step 0). Step 0 and
+step 7 are the properties this command needs of the `OI-PRIV-31` challenge (one outstanding, used once, held in RAM
+only); if that build settles its rules differently, this subsection is revised with it.
+
+| Step | Check | Refusal | What it stops |
+|---|---|---|---|
+| 0 | Taking any blob from the mailbox consumes the current challenge, whatever the blob's kind or outcome | — | a refused reset retried with the same challenge; one challenge used by two blobs |
+| 1 | the first four bytes are `"NPHR"`; any other magic goes to §4.4, which refuses all but `"NPHP"` | `BAD_MAGIC` | — |
+| 2 | length ≥ 152; `version` = 1; `request` = `0x01`; `entry_count` ≤ 24; length = `88 + 49 × entry_count + 64` | `BAD_VERSION` / `INVALID_ARG` | a field whose length is not pinned (§4.4's reason) |
+| 3 | the blob arrived over BLE on an encrypted link. The mailbox records which transport delivered the blob; today `np_transport_feed()` does not, and gains that with this build | **not BLE**: `NP_HUB_ERR_TRANSPORT_REFUSED` | a reset over USB-C CDC, which has no encryption (`CLAUDE.md` §23, brief §11). Lifted when USB-C carries payload encryption (`OI-SIMFW-71`), and not before |
+| 4 | `signer_key` is the key of the warranty owner's pairing (§4.7.3) and is not the protocol public key | **unknown signer**: `NP_HUB_ERR_UNKNOWN_SIGNER` | a reset by any other paired app, including a person's own: no user may reset (`NP-FW-EMMC-002` §B.2) |
+| 5 | the Ed25519 signature verifies under `signer_key` | `BAD_SIGNATURE` | an altered or unsigned blob |
+| 6 | the helmet reads its own serial, it is not all zero, and it equals `device_serial` | **wrong serial**: `WRONG_DEVICE`; `SERIAL_UNKNOWN` (`REQ-FWHUB-90`'s rule, unchanged) | a reset signed for another helmet |
+| 7 | `challenge` equals the challenge consumed at step 0, and one was outstanding | **stale or replayed challenge**: `NP_HUB_ERR_CHALLENGE` | a recorded reset replayed on this helmet; one signed before the last upload |
+| 8 | the session lease is claimed (`np_lease_claim()`) | **session active**: `SESSION_ACTIVE` | a wipe under a running session. The lease is then held to the reboot at R-12, so no session can load between this check and R-4 (R-4 is made real by exclusion) |
+| 9 | the entries name every profile on the helmet, each exactly once, and no other | `NP_HUB_ERR_PROFILE_SET` | the destruction of a profile created or imported after the owner's list was read, which the owner never saw |
+| 10 | every `0x01` entry's `export_digest` equals the SHA-256 of an export of that profile the hub completed on this link | `NP_HUB_ERR_EXPORT_UNCONFIRMED` | a wipe after a selected export failed or was never received (brief §11, consequence 1) |
+
+Steps 1 to 5 read nothing but the length, the fixed header and the key before the signature is checked; the entries
+are interpreted only after it. The order puts the cheap structural refusals and the transport refusal before the
+signature, and every check that compares the blob with the helmet's own state after it. The new statuses are named
+here and numbered when built, from the next free reason code then; `NP_HUB_ERR_CHALLENGE` is shared with the
+descriptor's use of the same challenge (`OI-PRIV-31`). Each needs its app message in all eleven locales (`CLAUDE.md`
+§17) when it is built.
+
+**What the hub keeps for steps 9 and 10.** The profile set is read from the profile store at the check. For each
+profile it exports (§C.8.4), the hub computes the SHA-256 of the bytes it sends as it sends them and keeps the
+profile identifier and the digest in RAM for the link: at most 24 entries of 48 bytes, cleared at disconnect and at
+reboot, never written to storage. An export on an earlier link, or before a reboot, does not count. The digest is of a
+sealed object, so it reveals nothing about the person, and it is held only until the link ends.
+
+#### 4.7.5 Hand-off to the list, export and wipe flow
+
+| Stage | Where it happens | What the reset blob has to do with it |
+|---|---|---|
+| 1. List | The warranty owner's app reads every profile on the helmet (identifier and size bucket, §C.8.1) and shows each with the owner's own label; the list is shown even when empty | The blob's entries are this list, signed. Step 9 refuses a blob whose list is no longer the helmet's |
+| 2. Select | Current users start selected, others deselected (`NP-FW-EMMC-002` §B.2). Deselecting everyone means wipe everything | Each entry's `disposition` is the selection |
+| 3. Confirm | The app names every deselected person: their data will be destroyed and cannot be recovered | Every `0x02` entry is a person so named |
+| 4. Export | Each selected profile is exported (§C.8.4) on the same link; the app keeps each export and computes its SHA-256 | Each `0x01` entry carries that digest. Step 10 refuses the blob unless the hub sent exactly that export on this link |
+| 5. Reset | Only after every selected export is held, the app reads the challenge, builds and signs the blob, and writes it | Steps 0 to 10 |
+| 6. Wipe | The hub calls `np_factory_reset_execute()`: `NP-FW-EMMC-002` §B.3 R-3 to R-12, with SANITIZE at R-7a (`REQ-SW02-13`) | The blob's verification is R-1 and R-2. After `UPLOAD_CHECK` reports acceptance, nothing the app sends stops the wipe; the link ends at R-12 |
+
+A failed export, a refused blob or a lost link at any stage before 6 erases nothing (brief §11). The owner starts
+again from stage 1, and a new challenge is needed.
+
+**No requirement row is written for this subsection.** It is required by the principal's rulings and traced to them,
+but nothing that meets it exists, so its rows are written with the code that meets it, with their tests (`CLAUDE.md`
+§18, §21), as `NP-FW-EMMC-002` §C.8 does for the profiles it depends on.
 
 ---
 
@@ -1813,13 +1942,18 @@ warranty lifetime is known and fleet maintenance can model it. `np_module_usage.
 | Sessions used | Each session the module is driven in | Each use is an on/off and a ramp up and down |
 | Time used | A tile: its dose ticks (`np_pst_usage()`). An accessory: each interval from an accepted drive command to its stop, a pause or the session end, on the session clock | Drive time is wear, and sessions differ in length |
 | Faults per code | Each `np_log_shdr_fault()` against an accessory slot: four codes by name, then a count of any other | Only device faults reach that log: an interlock that trips on a reading of the wearer writes nothing to SHDR (`REQ-FWHUB-91`, the principal, 2026-11-23), so it adds to no total either. A fault with no slot (a PBM fault carries none, F11) belongs to no module |
+| Mate cycles *(Rev 89)* | An accessory port whose occupant changes while the hub runs (`np_mod_reg_rescan_slot()`); never the boot scan's first look (`NP-MOD-ID-001` MODID-4a rule 2). A tile's mate is decided by the inventory poll under MODID-4a, which has no caller yet (`OI-HEXMAP-02`) | Insertion wears the contacts, which are rated in cycles. A total only: no event is kept (`NP-FW-NVRAM-001` D-20) |
+| `dose_accum` *(Rev 89)* | A tile's metered dose for the session, mJ/cm² summed over its wavelengths (`np_pst_get_record()`, `np_mu_dose_mJ_cm2()`) | Emitter wear. Per-module dose is treatment geography, so it reaches the fleet only under `NP-MOD-ID-001` §7's opt-in (`NP-FW-NVRAM-001` §8.5) |
+| `throttle_count` *(Rev 89)* | One for each session in which a tile's thermal throttle tripped (the dose meter latches it once per socket per session) | Thermal stress. Under the same opt-in as the dose |
+| `fault_flags` *(Rev 89)* | Sticky bits. Bit 0: a session closed with the module no longer seated (`NP-FW-NVRAM-001` D-29). Nothing sets it yet, because the hub cannot see a tile leave its socket until the inventory poll has a caller | Reconciliation against the module's own odometer. Never leaves the app (§6.5.1 of that document) |
+| `detail_lost` *(Rev 89)* | Set for good on a row that took another module's place in a full table, and on a module whose contribution was dropped because the record could not be read | The app must not read a restarted or short total as the growth since its last download (`NP-FW-NVRAM-001` §6.3) |
 
 **Which module a row is.** A tile reports its UID, so its row follows the part. An accessory reports no identity the
 hub can read (its authentication is a pass or fail), so its row is keyed by slot and module type and counts whatever
 accessory was in that port. A part-level total for an accessory needs an identity on the accessory: `OI-FWHUB-38`.
 
 **Totals, never sessions.** The table is one fixed-size record (`NP_CFG_FILE_MODULE_USAGE`, REPLICATED, the store's one
-record above 256 bytes), upserted once at each session end. No row is appended, nothing carries a session number or a
+record above 256 bytes: 12,288 B, whose layout and version rule are `NP-FW-NVRAM-001` §3.3.1.6 and §7.2), upserted once at each session end. No row is appended, nothing carries a session number or a
 time, and nothing is written to the SHDR log: a snapshot logged per session would let the difference between two
 snapshots say which module was used in which session, which is the treatment's montage (UHDR). The totals are SHDR and
 reach the fleet only as the upload's snapshot under its month anchor (`NP-FW-NVRAM-001` §8.5). The hub side of that
@@ -2499,7 +2633,7 @@ this line.
 | `REQ-FWHUB-90` | **The device-serial replay guard fails closed.** `np_protocol_verify_and_parse()` refuses (a) with `NP_HUB_ERR_WRONG_DEVICE` a descriptor whose header serial differs from the helmet's own, and with `NP_HUB_ERR_SERIAL_UNKNOWN` (-44, reason 44 in the upload-check frame; the principal, 2026-11-24) (b) every descriptor when the helmet cannot read its own serial (`np_proto_hal_get_device_serial()` does not return `NP_HUB_OK`), and (c) every descriptor when the serial it reads is all zero. The shared core names reason 44 `serial_unknown` (`helmetCause`), and every app shows `PROTOCOL_MENU_REFUSED_SERIAL_UNKNOWN` for it. *Fails without it:* a helmet whose serial read fails, or whose serial was never provisioned, skips the guard and runs a validly-signed descriptor captured from any other helmet (§4.2: "without it, a validly-signed protocol captured from one headset would run on any headset"); and because all zero is what a compiler writes when it has no serial, a zero stored serial would accept every serial-less descriptor. *Traced to:* §4.2 (the serial is the cross-device replay control), `NP-PRIV-ANALYSIS-004` Finding M4, `OI-PRIV-31` (NP-PRIV-ANALYSIS-004). (a) was already met; (b) and (c) are the repair. *Built (2026-11-21):* `np_protocol_verify_and_parse`, `np_protocol_tests` (`test_serial_guard_fails_closed`). Same-device replay is not covered by this row: a one-time upload challenge is decided and not built (`OI-PRIV-31`, `docs/human-input/oi-priv-31-protocol-freshness.md`). | `np_protocol.c` (`np_protocol_verify_and_parse`); `np_protocol_tests`, `simulator/server/fw-bridge.test.js` |
 | `REQ-FWHUB-91` | **No cervical VNS interlock trip reaches SHDR: not the cutoff, not the re-enable lifecycle, not a fault reason.** (a) A cervical VNS fault (`cvns_fault_cb`), whatever its reason (`HR_CHANGE`, `DATA_LOSS`, `WATCHDOG`, `IMPEDANCE`, `SAFETY_MCU`), writes no SHDR record, and sets the session-end record's cause-free `stopped_early` bit once, the same for every reason (`REQ-FWHUB-89` (c)). (b) No re-enable lifecycle event, the cutoff included, is written to SHDR. Codes `0xC1` to `0xC6` are retired and never reused. *Fails without it:* SHDR, which NeurOne holds linked to the device, records that the wearer had a cardiac event (`0xC1`, `HR_CHANGE`), or whether they resumed neck stimulation after one and how many skin-contact attempts it took. Those are facts about the person, not the device. *Traced to:* CLAUDE.md §5.1 (the defining test; when in doubt → UHDR); `data-architecture-detail.md` §5.1 (the safety-interlock line, narrowed by the principal, 2026-11-23, `OI-PRIV-22` (NP-PRIV-ANALYSIS-004); the re-enable lifecycle and cervical VNS summary rows); `OI-PRIV-28` (NP-PRIV-ANALYSIS-004 M1, GitHub #956); `OI-PRIV-22` (GitHub #950). *Built (2026-11-21, widened Rev 85):* `np_mod_cvns.c` `cvns_fault_cb()` calls `np_runner_note_early_stop()` and no SHDR sink; `log_cvns_event()` and `np_cvns_reenable_shdr_code()` are removed; `np_mod_cvns_tests` (`test_every_fault_reason_writes_nothing_to_shdr_and_notes_one_stop`); `scripts/check-redaction-shape.ts` lists no cervical VNS SHDR writer (`0xC7` was retired by `OI-PRIV-40`). | *(in the text)* |
 | `REQ-FWHUB-92` | **(Rev 79) The cervical VNS impedance cross-validation still fails closed, and SHDR records it only as a safety-MCU refusal.** (a) When the hub's per-electrode measurement and the safety MCU's report diverge beyond `NP_CVNS_IMPEDANCE_CROSSVAL_KOHM`, the driver drives the library to FAULT, the session never reaches delivery and the unified enable is never requested. (b) It is handled exactly as a safety-MCU enable refusal is: since `REQ-FWHUB-91` (Rev 85) that is no SHDR record and one cause-free early-stop note (`REQ-FWHUB-89` (c)), the same for every cervical VNS fault; the retired code `0xC7` is never written or reused, and the event is not handled differently from a refusal. *Fails without it:* (a) stimulation is enabled on mismatched impedance sensing (`OI-CVNS-HUB-11`); (b) SHDR, which NeurOne holds linked to the device, records the result of a contact check that measures through the wearer, which the principal ruled UHDR, either by its own code or by being handled differently from a refusal (`CLAUDE.md` §5.1 rule 2). *Traced to:* `OI-CVNS-HUB-11`; `CLAUDE.md` §5.1; `data-architecture-detail.md` §5.1 (in-session electrode impedance check → UHDR, the principal, 2026-11-23, `OI-PRIV-40` (NP-PRIV-ANALYSIS-004)). *Built:* `cvns_impedance_crossval_fail()` and `cvns_fault_cb()` in `np_mod_cvns.c`; `np_mod_cvns_tests` (`test_hb_impedance_crossval_diverges`, `test_hb_impedance_crossval_boundary`, `test_hb_impedance_crossval_logs_as_refusal`). | *(in the text)* |
-| `REQ-FWHUB-93` | **(Rev 86) Every module keeps running totals of its own wear, and SHDR gets them only as totals.** (a) Each module has one row, keyed by its UID when it reports one and otherwise by its slot and module type, holding sessions present, time present, sessions used, time used and fault counts per code. (b) A module fitted at a session's start counts one session present and the session's running time; a driven module counts one session used and its drive time on the session clock (a tile's dose ticks; an accessory's intervals from an accepted drive to its stop, a pause or the session end). (c) The totals are one fixed-size replicated record, upserted once per session end and never appended, and nothing is written to the SHDR log for them. (d) An absent record starts every total at zero; a record that exists but cannot be read is never overwritten. (e) A fault logged against an accessory slot adds to that port's count for its code; a fault with no slot adds to no module. *Fails without it:* a module's warranty lifetime is unknown, fleet maintenance has no exposure or use to model, or (c) a per-session record reveals which modules a person used in each session (UHDR), or (d) a torn read restarts a module's lifetime at zero. *Traced to:* `CLAUDE.md` §5.1, §5.2; `data-architecture-detail.md` §5.1 (per-module running totals, the principal, 2026-11-24); `NP-FW-NVRAM-001` §8.5; §6.11. *Built:* `np_module_usage.c`, the runner's hooks (`np_session_runner.c`), `np_pst_usage()`, `NP_CFG_FILE_MODULE_USAGE`; tests `np_module_usage_tests`, `np_runner_run_tests`, `np_cfg_store_tests`. | *(in the text)* |
+| `REQ-FWHUB-93` | **(Rev 86) Every module keeps running totals of its own wear, and SHDR gets them only as totals.** (a) Each module has one row, keyed by its UID when it reports one and otherwise by its slot and module type, holding sessions present, time present, sessions used, time used and fault counts per code. (b) A module fitted at a session's start counts one session present and the session's running time; a driven module counts one session used and its drive time on the session clock (a tile's dose ticks; an accessory's intervals from an accepted drive to its stop, a pause or the session end). (c) The totals are one fixed-size replicated record, upserted once per session end and never appended, and nothing is written to the SHDR log for them. (d) An absent record starts every total at zero; a record that exists but cannot be read is never overwritten. (e) A fault logged against an accessory slot adds to that port's count for its code; a fault with no slot adds to no module. (f) **(Rev 89, `OI-NVRAM-20`)** Each row also holds mate cycles, a tile's metered dose (`dose_accum`, mJ/cm² summed over its wavelengths), its throttle count (one for each session in which its thermal throttle tripped) and `fault_flags`, each a running total or a sticky bit: an accessory port whose occupant changes while the hub runs counts one mate and the boot scan's first look counts none (`NP-MOD-ID-001` MODID-4a rule 2); a module that closes a session unseated sets `fault_flags` bit 0 for good. (g) A row known to fall short carries `detail_lost`: a row that took another module's place in a full table, and a module whose contribution was dropped because the record could not be read, at the next commit that succeeds. (h) The record has one fixed length. It is read at any version from 1 and any row length from version 1's 64 bytes to the most that fits, with the version-1 fields at fixed offsets, and a rewrite carries every byte after them unchanged (zero in a row the rewrite creates). (i) The download's snapshot reports a table that could not be read as unknown, never as a table with no rows, and reading it changes nothing on the helmet. *Fails without it:* a module's warranty lifetime is unknown, fleet maintenance has no exposure or use to model, or (c) a per-session record reveals which modules a person used in each session (UHDR), or (d) a torn read restarts a module's lifetime at zero; (f) the row lacks the wear `NP-FW-NVRAM-001` §8.5 lists: insertions on contacts rated in cycles, and the dose and throttling the warranty and the opt-in fleet model need; (g) the app's difference reads a restarted total as growth, or a dropped session as none, and nothing says so (`NP-FW-NVRAM-001` D-7, D-12); (h) a firmware update or a rollback makes the record unreadable, so every later session's totals are dropped, or a rewrite discards a newer firmware's totals (`NP-FW-NVRAM-001` RISK-NVRAM-01); (i) an unreadable table reaches Map 2 as zero and drives its totals backwards (D-7). *Traced to:* `CLAUDE.md` §5.1, §5.2; `data-architecture-detail.md` §5.1 (per-module running totals, the principal, 2026-11-24); `NP-FW-NVRAM-001` §8.5, §3.3.1.6, §6, §6.3, §7.2; `NP-MOD-ID-001` §5.3.1; §6.11. *Built:* `np_module_usage.c`, the runner's hooks (`np_session_runner.c`), `np_pst_usage()`, `np_pst_get_record()`, the registry's mate (`np_module_registry.c`), `NP_CFG_FILE_MODULE_USAGE`; tests `np_module_usage_tests`, `np_runner_run_tests`, `np_module_registry_tests`, `np_cfg_store_tests`. *Not built:* a tile's mate and `fault_flags` bit 0 have no caller until the inventory poll does (`OI-HEXMAP-02`). | *(in the text)* |
 | `REQ-FWEEG-01` | **A lost EEG stop is reported and retried** (`OI-SIMFW-16`). (a) `np_mod_eeg_hal_stop_continuous()` returns `np_hub_status_t`, and a stop that does not return `NP_HUB_OK` is returned by `np_mod_eeg_control()` to its caller. (b) The driver clears its recording flag only on `NP_HUB_OK`; after a lost stop the flag stays set, so the next stop calls the HAL again (one attempt per call, no timer and no count), and a command received meanwhile reconfigures the channels without starting the converter a second time. (c) `np_mod_eeg_shutdown()` reports a lost stop and is retried by the next shutdown. (d) A clean start, command and stop are unchanged: a stop with nothing recording makes no HAL call. *Fails without it:* the hub reports an idle EEG front end while the converter is still sampling and the DMA still filling, and because the flag is already clear no later stop is ever sent. **Traceable to:** `CLAUDE.md` §4.2 (the hub must not leave an actuating or sampling path it cannot account for); the retry policy is `UC-130` | §8.2; `np_mod_eeg_tests` |
 
 ### 10.2 Requirements the code does NOT currently meet

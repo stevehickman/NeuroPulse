@@ -122,9 +122,10 @@ env:
   # 79 → 80: np_bootloader_rpmb_tests (OI-PRIV-32 (NP-PRIV-ANALYSIS-004), REQ-SW02-16).
   # 80 → 81: np_uhdr_seal_tests (OI-PRIV-34 (NP-PRIV-ANALYSIS-004), NP-FW-EMMC-002 §C.8.7, REQ-EMMC2-07).
   # 81 → 82: np_module_usage_tests (REQ-FWHUB-93, per-module running totals; OI-CVNS-04).
-  NP_TOTAL_TEST_COUNT: '82'
+  # 82 → 81: np_map3_record_tests removed with the retired journal codec (OI-NVRAM-20; the version check is in np_module_usage_tests).
+  NP_TOTAL_TEST_COUNT: '81'
   NP_SAFETY_TEST_COUNT: '11'
-  NP_CLASS_B_TEST_COUNT: '71'
+  NP_CLASS_B_TEST_COUNT: '70'
 
 jobs:
   host-tests-all:

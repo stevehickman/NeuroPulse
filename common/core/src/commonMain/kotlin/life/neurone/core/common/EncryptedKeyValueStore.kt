@@ -7,6 +7,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import life.neurone.core.data.BundleKey
+import life.neurone.core.data.KeptKeySealer
 import life.neurone.core.data.RandomSource
 import life.neurone.core.data.SystemRandomSource
 import life.neurone.core.data.toHex
@@ -71,7 +73,7 @@ class EncryptedKeyValueStore(
      * [secrets] is tried under it, so a value not yet moved still reads; [resealFromLegacy] moves them. Never written to.
      */
     private val legacy: SecretKeyStore? = null,
-) : KeyValueStore {
+) : KeyValueStore, KeptKeySealer {
     private var cached: ByteArray? = null
 
     /** The data key, or null if the keystore says there is none. Throws [SecretKeyUnavailableException] if it could not be asked. */
@@ -112,6 +114,31 @@ class EncryptedKeyValueStore(
     private fun open(name: String, stored: String, k: ByteArray): String? {
         val r = ask("openValue", k) { put("name", name); put("sealed", stored.removePrefix(PREFIX)) }
         return if (r["ok"]!!.jsonPrimitive.boolean) r["value"]!!.jsonPrimitive.content else null
+    }
+
+    /**
+     * [key] sealed by the core under this store's data key (`keySeal`, `SWR-MG-32` (i)): the automatic backup's key, kept in place of
+     * the person's secret (`OI-PRIV-65` (2)). Null when the keystore cannot be asked; a key is made only when it answered "no key",
+     * as for a value.
+     */
+    override fun sealKept(name: String, key: BundleKey): String? = runCatching {
+        val nonce = random.nextBytes(NONCE_BYTES)
+        require(nonce.size == NONCE_BYTES)
+        ask("keySeal", ensureKey()) { put("nonce", nonce.toHex()); put("name", name); put("bundle", key.ref()) }["sealed"]!!.jsonPrimitive.content
+    }.getOrNull()
+
+    /**
+     * The key [sealed] holds, kept again in the core under a new handle (`keyUnseal`). Tried under the earlier key too, as a value is,
+     * so a key sealed before the presence gate was turned on still opens. Null when it opens under neither, or the keystore cannot be
+     * asked.
+     */
+    override fun openKept(name: String, sealed: String): BundleKey? {
+        fun under(k: ByteArray): BundleKey? = runCatching {
+            val r = ask("keyUnseal", k) { put("name", name); put("sealed", sealed) }
+            if (r["ok"]!!.jsonPrimitive.boolean) BundleKey(r["key"]!!.jsonObject) else null
+        }.getOrNull()
+        val k = (try { key() } catch (ignored: SecretKeyUnavailableException) { null })
+        return k?.let(::under) ?: legacyKey()?.let { old -> try { under(old) } finally { old.fill(0) } }
     }
 
     /**
