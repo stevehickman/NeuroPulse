@@ -15,7 +15,7 @@ name: Simulator CI (firmware in the loop, host only)
 #      exactly one row in firmware/platform_sim/np_sim_seam_routes.txt, each row matches the sim layer's sources
 #      and the twin's link line, and (--lib, after the build) the built library agrees. A seam added to or
 #      removed from the contract or the sim layer fails until its row is written.
-#   4. `node --test` over simulator/server/fw-bridge.test.js and simulator/js/*.test.mjs, with
+#   4. `node --test` over simulator/server/*.test.js and simulator/js/*.test.mjs, with
 #      NP_SIM_FW_BIN set so the end-to-end tests run against the real firmware process and are not skipped.
 #
 # NOT in the host-test partition. The np_sim_* suites are opt-in custom-target executables, not add_test()
@@ -271,7 +271,7 @@ jobs:
           test -x "$NP_SIM_FW_BIN"
           # The summary is read from TAP lines (`# fail 0`). The reporter is pinned because Node 24's default
           # (the spec reporter, `ℹ fail 0`) does not print them, and the runner's Node is not pinned.
-          node --test --test-reporter=tap server/fw-bridge.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
+          node --test --test-reporter=tap server/*.test.js js/*.test.mjs 2>&1 | tee ../node-test.log
           if ! grep -q '^# fail 0$' ../node-test.log; then
             echo "::error::node --test reported a failure"
             exit 1

@@ -19,6 +19,10 @@ import { HubPanel } from './hub-panel.js';
 import { accessoryStates } from './accessories.js';
 import { AccessoryWindows } from './acc-windows.js';
 import { SIM_VERSION }  from './version.js';
+import { debugHandlesEnabled, setDebugHandle } from './debug-handles.js';
+
+// Read once, from the URL the page was loaded with (REQ-SIMFW-27 (a), debug-handles.js).
+const DEBUG_HANDLES = debugHandlesEnabled(window.location.search);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -319,7 +323,8 @@ class NeurOneSimulator {
     const acc = accessoryStates({ registry: this._simModules, snap, demo: this._demo });
     this._helmet.setAccessoriesInUse(acc);
     this._accWindows.update(acc, snap);
-    window.__accessoriesInUse = { windows: this._accWindows.visibleIds(), onHelmet: this._helmet.visibleAttached() };   // for the page's own check, not an API
+    // For the page's own check, not an API; attached only with ?debug=1 (REQ-SIMFW-27 (a))
+    if (DEBUG_HANDLES) window.__accessoriesInUse = { windows: this._accWindows.visibleIds(), onHelmet: this._helmet.visibleAttached() };
 
     // Update 3D helmet
     this._helmet.update(wallTime, snap);
@@ -396,5 +401,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.appendChild(banner);
     return;
   }
-  window.__sim = new NeurOneSimulator(); // debug handle — inspect from devtools/console
+  // The debug handle for devtools and a test harness, attached only with ?debug=1: it is the whole
+  // simulator, firmware commands included, and every script on the page could reach it (REQ-SIMFW-27 (a)).
+  setDebugHandle(window, DEBUG_HANDLES, '__sim', new NeurOneSimulator());
 });
