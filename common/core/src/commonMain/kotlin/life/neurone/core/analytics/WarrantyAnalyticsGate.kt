@@ -24,16 +24,32 @@ class WarrantyAnalyticsGate(private val records: WarrantyOwnerStore) {
     /** True only when this helmet's warranty owner has consented on this install. */
     fun isOpen(hub: String?): Boolean = hub != null && records.record(hub)?.fleetConsent == true
 
-    /** True once the owner has decided either way for this helmet; false when they have never been asked. */
-    fun isDecided(hub: String?): Boolean = hub != null && records.record(hub) != null
+    /**
+     * True once the owner has answered the reports question for this helmet, yes or no; false when they have never been asked. A
+     * record made only by another of the owner's choices (the stealth lock, the offered set) is not an answer (`REQ-SHDR-12` (e)).
+     */
+    fun isDecided(hub: String?): Boolean = hub != null && records.record(hub)?.fleetDecided == true
 
     /**
-     * Granted by the warranty owner for this helmet. Refused (false) when no helmet is named: consent with no helmet to attach it
-     * to would be consent for whichever helmet connects next.
+     * The general-consent content-set version this helmet's owner said yes to (`REQ-SHDR-12` (d)), or `null` when reports are not
+     * on. Content a later set adds is not covered until the owner says yes to that set.
      */
-    fun grant(hub: String?): Boolean {
-        if (hub == null) return false
-        records.update(hub) { it.copy(fleetConsent = true) }
+    fun contentLevel(hub: String?): Int? = hub?.let { records.record(it) }?.takeIf { it.fleetConsent }?.contentLevel
+
+    /**
+     * Granted by the warranty owner for this helmet, for the content set [contentVersion] that they were shown (the one this app
+     * ships, [GeneralShdrContent.shipped], unless a caller showed another). Refused (false) when no helmet is named: consent with
+     * no helmet to attach it to would be consent for whichever helmet connects next. A grant answers the content question for
+     * that set too, so prompt 2 does not ask it again (`REQ-SHDR-12` (b)).
+     */
+    fun grant(hub: String?, contentVersion: Int = GeneralShdrContent.shipped.version): Boolean {
+        if (hub == null || contentVersion < 0) return false
+        records.update(hub) {
+            it.copy(
+                fleetConsent = true, fleetDecided = true, contentLevel = contentVersion,
+                contentAsked = maxOf(it.contentAsked, contentVersion),
+            )
+        }
         return true
     }
 
@@ -46,7 +62,7 @@ class WarrantyAnalyticsGate(private val records: WarrantyOwnerStore) {
      */
     fun revoke(hub: String?) {
         if (hub == null) return
-        records.update(hub) { it.copy(fleetConsent = false, enrolled = false) }
+        records.update(hub) { it.copy(fleetConsent = false, fleetDecided = true, enrolled = false) }
         // A record staged under the consent now revoked is never sent, by a later grant or by anyone else (`REQ-SHDR-08` (g)).
         records.clearStaged(hub)
     }
