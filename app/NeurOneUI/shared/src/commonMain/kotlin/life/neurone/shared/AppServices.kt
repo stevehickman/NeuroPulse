@@ -83,6 +83,9 @@ class AppServices(
      * SWR-MG-13): it holds those keys in memory for the run and writes nothing to them on disk, so the sealed data is neither
      * read as ciphertext nor overwritten with plaintext. [storageProtection] says which of the three states this run is in.
      */
+    /** Keeps the window out of capture while a screen that asks is on show (REQ-SW03-36 (b)); the screens reach it through [LocalScreenCaptureGuard]. */
+    val screenCaptureGuard = ScreenCaptureGuard(platform.screenCaptureBlocker)
+
     /**
      * The person's presence for UHDR (`NP-APP-PRESENCE-001`), or null when the gate is not on: no host supplies [PlatformServices.gatedKeyStore]
      * yet, and a host that does answers [GatedSecretKeyStore.isEnabled] false until the person turns it on, so this is null and storage opens as before.
@@ -292,6 +295,9 @@ class AppServices(
             storageProtection == StorageProtection.SEALED &&
                 protectedStorage.keepsFromTheClear(life.neurone.shared.migration.ScheduledBackup.SECRET_KEY)
         },
+        // The kept backup key is sealed under the key of the tier `np.backup.auto-secret` is in (`OI-PRIV-65` (2)); a run whose
+        // storage is not sealed has no sealer and keeps nothing.
+        sealer = encrypted,
     )
 
     /**
@@ -472,7 +478,10 @@ class AppServices(
      * target without that binding wired yet (OI-UI-KMP-01) cannot do. Screens that do not list
      * protocols never pay for it, or fail on it.
      */
-    val protocolLibrary: NPProtocolLibrary by lazy { NPProtocolLibrary(keyValueStore, lock = presenceLock) }
+    val protocolLibrary: NPProtocolLibrary by lazy {
+        // The owner's offered set is the owner's, per helmet, and the library asks for it (SWR-WO-01, OI-PRIV-60); it stores none of it.
+        NPProtocolLibrary(keyValueStore, lock = presenceLock, ownerWithdrawn = { warrantyOwnerStore.withdrawnFamilies(gattManager.hubIdentifier.value) })
+    }
 
     /**
      * What the protocol menu offers protocols for (OI-HWFIT-01): the connected helmet's tier from the hub, and whether a 1064 nm

@@ -120,8 +120,9 @@ void np_lfs_assert_failed(const char *file, unsigned long line);
 
 /* ── 4. Thread safety ON ───────────────────────────────────────────────────────
  * SW-02 is a FreeRTOS system, and the Config instance already has three
- * independent writers specified against it — np_module_map's "NPMP" blob, Map 3's
- * journal (NP-FW-NVRAM-001 §4.2) and ukmd.rec (NP-FW-EMMC-002 §C.3, D-22) —
+ * independent writers specified against it — np_module_map's "NPMP" blob, Map 3
+ * (NP-FW-NVRAM-001 §4.2(b); a journal when this was written, the replicated
+ * module usage record since OI-NVRAM-20) and ukmd.rec (NP-FW-EMMC-002 §C.3, D-22) —
  * whose callers are not one task.  littlefs is not internally serialised; with
  * LFS_THREADSAFE it calls cfg->lock / cfg->unlock around every public entry
  * point and the caller supplies a mutex.

@@ -48,14 +48,23 @@ function instantiate(module: WebAssembly.Module): CoreExports {
   return new WebAssembly.Instance(module, {}).exports as unknown as CoreExports;
 }
 
-/** Load the core. Await this once at startup in a browser; Node loads it on first use without it. */
-export async function initNppsCore(): Promise<void> {
-  if (instance) return;
-  const nodeFs = nodeFileSystem();
-  const module = nodeFs
-    ? new WebAssembly.Module(nodeFs.readFileSync(nodeFilePath()))
-    : await WebAssembly.compileStreaming(fetch(WASM_URL));
-  instance = instantiate(module);
+let loading: Promise<void> | null = null;
+
+/**
+ * Load the core. Await this once at startup in a browser; Node loads it on first use without it. Callers
+ * that arrive while it is loading share the one load; a load that fails is not remembered, so the next call
+ * tries again.
+ */
+export function initNppsCore(): Promise<void> {
+  if (instance) return Promise.resolve();
+  loading ??= (async () => {
+    const nodeFs = nodeFileSystem();
+    const module = nodeFs
+      ? new WebAssembly.Module(nodeFs.readFileSync(nodeFilePath()))
+      : await WebAssembly.compileStreaming(fetch(WASM_URL));
+    instance ??= instantiate(module);
+  })().finally(() => { loading = null; });
+  return loading;
 }
 
 function nodeFileSystem(): { readFileSync(path: string): Uint8Array<ArrayBuffer> } | null {

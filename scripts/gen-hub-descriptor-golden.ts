@@ -38,7 +38,8 @@ const cases: Record<string, any> = {
   vns: def(600, mod('vns_hrv', { frequencyHz: 25, intensityMilliamps: 1.5, hrvProtocol: 'tavns_sync', resonanceBreathingRate: 6 })),
   audioBin: def(600, mod('audio_entrainment', { binauralBeatsHz: 20, carrierHz: 440, volumeDb: 75, eegAdaptive: true, boneConductionPacer: false })),
   audioPink: def(600, mod('audio_entrainment', { noiseType: 'pink', carrierHz: 440, volumeDb: 60, eegAdaptive: false, boneConductionPacer: true })),
-  visual: def(600, mod('visual_stimulation', { frequencyHz: 40, mode: 'binocular', emdrCadenceHz: 1.5, enableModeF: false })),
+  // 70 Hz, outside the 3-60 Hz photic zone the hub refuses (OI-FWHUB-37); it was 40 Hz, which the hub now refuses at load.
+  visual: def(600, mod('visual_stimulation', { frequencyHz: 70, mode: 'binocular', emdrCadenceHz: 1.5, enableModeF: false })),
   qeeg: def(600, mod('qeeg_21ch', { montage: 'standard_1020', sloretaEnabled: true, reference: 'average' })),
   tms: def(600, mod('tms', { tmsProtocol: 'iTBS', frequencyHz: 10, intensityPercentMT: 80, target: 'M1_R', pulseCount: 600 })),
   deep: def(600, mod('pbm_deep_1170nm', { intensityMWcm2: 500, frequencyHz: 40, dutyCyclePercent: 25 })),

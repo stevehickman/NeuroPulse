@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 20
-**Date:** 2026-11-25
+**Revision:** 22
+**Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -94,8 +94,18 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 > empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
 > signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
 > owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
-> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
-> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist.
+>
+> **Rev 22 (2026-11-26): the brief's two design points, answered by the principal (brief §15).**
+> - **Who is current.** A profile records its person's current-device key id (`docs/reference/data-architecture-detail.md`
+>   §5.3 step 1a, `OI-PRIV-68`). The signed superseded notice, brought by the owner's or the person's app, marks the
+>   profile not current once the helmet has verified it against that key and found a higher move count. A helmet that
+>   never sees a notice keeps the profile current, so its data starts selected. The owner thereby learns that a person
+>   moved, and the key id links one person's profiles across helmets, though not to a name; the principal accepted both.
+>   The key id stays in the profile record: never in SHDR, never sent to NeurOne.
+> - **Labels.** The warranty owner's app records its own label for a profile identifier when the profile is created.
+>   The helmet stores no name (§C.8.2). An unlabelled or imported profile is listed by its identifier and export size
+>   bucket until the owner labels it.
 
 ### B.3 Reset sequence
 
@@ -111,14 +121,16 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      read back from a fresh mount, and the reset starts only if it reads PRESENT;
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
-R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), which
-     unmaps it; the purge is R-7a (Rev 9)
+R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), meant
+     to unmap it; the purge is R-7a (Rev 9). That ERASE unmaps is not yet confirmed
+     from a primary source (Rev 21)
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
      then CMD13 polling until the card is in TRAN, ready for data, with no error bit
-     → NIST SP 800-88 "Purge" of every unmapped block: the UHDR blocks R-5 unmapped
-     and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
+     → meant as a Purge (NIST SP 800-88r2 §3.1.2; whether SANITIZE qualifies is IEEE
+     2883's to say, not yet read, Rev 21) of every unmapped block: the
+     UHDR blocks R-5 erased and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
      not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
      not finish within its bound, the reset fails here and stays in progress
      (Rev 9)
@@ -164,6 +176,36 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > challenge of `OI-PRIV-31` (NP-PRIV-ANALYSIS-004), carries one signed entry per profile marked exported or destroy, and
 > is refused unless every exported profile's digest matches an export the hub sent on the same link, so the hub itself
 > holds §B.2's rule that a failed export erases nothing. Built with §C.8 or after it.
+>
+> **Rev 21 (2026-11-26): the sources read, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) to (e).**
+> **NIST SP 800-88 Rev 1 is withdrawn, and the citation is now Rev 2. Rev 2 names no eMMC technique.** The CSRC
+> page for Rev 1 (https://csrc.nist.gov/pubs/sp/800/88/r1/final) reads "Withdrawn on September 26, 2025" and
+> "Superseded by" SP 800-88r2. Rev 2 (https://doi.org/10.6028/NIST.SP.800-88r2, September 2025) reads "Supersedes NIST
+> SP 800-88r1 (Revision 1) (December 2014)". Rev 2 §3.1 says "Except for cryptographic erase (see Sec. 3.2),
+> technology-specific sanitization techniques are out of scope for this document". §3.1.2 says "IEEE 2883 [13] should
+> be consulted to determine acceptable purge sanitization techniques, which can include overwrite, block erase, and
+> cryptographic erase using dedicated, standardized device sanitize commands". Appendix D says the media-specific
+> appendices "were removed to improve the document's longevity". So the spec cites Rev 2 for what Purge means
+> (§3.1.2: recovery "infeasible using state-of-the-art laboratory techniques"). Whether eMMC SANITIZE is an
+> acceptable Purge technique is for IEEE 2883, which has not been read: it is not free to download. Rev 1's rows that
+> named eMMC (Table A-3, Android and Windows Phone) said a purge "should use the eMMC Secure Erase or Secure Trim
+> command". Its "Embedded Flash Memory" row (Table A-8) gave Purge as "N/A". Neither binds now.
+>
+> **Two public eMMC datasheets confirm the register bytes and what SANITIZE acts on.** They do not confirm the
+> CMD6 mechanism, the bit, the R1 error bits or what ERASE leaves behind. Transcend EMC210 (eMMC 4.51,
+> https://cdn.transcend-info.com/products/images/modelpic/698/No3109_Datasheet_TS8-32GEMC210_formal%20version%20V10.pdf):
+> "The use of sanitize operation requires EMC210 to physically remove data from the unmapped user address space. For
+> more details, refer to section 6.6.13 of the JEDEC Standard". Its EXT_CSD table lists `SEC_FEATURE_SUPPORT` R `55h`
+> `[231]` and `SANITIZE_START` W/E_P `0h` `[165]`. Alliance Memory 64–512 GB eMMC 5.1, Rev 1.1, July 2026
+> (https://www.alliancememory.com/wp-content/uploads/AllianceMemory_eMMC_64GB_128GB_256GB_512GB_RevA_Datasheet_rev1.1_July2026.pdf)
+> lists the same two bytes, the same `55h`, and "Trim, Sanitize, Discard, Secure Erase, Secure Trim" among its
+> features. `55h` has bit 6 set, which agrees with `SEC_SANITIZE BIT(6)` in Linux. Neither datasheet names the bits.
+> Both refer to JESD84 for the behaviour, and neither says whether a plain ERASE leaves its range unmapped. Transcend
+> says only that Trim and Discard let the device "erase the data if necessary during background erase events".
+>
+> **Still open.** JESD84-B51 is behind a JEDEC login, so it remains to read the command, the bit, the R1 error
+> bits and **(d), whether ERASE unmaps**. Until then R-5 stays an ERASE, and nothing here shows that TRIM or DISCARD
+> is needed. Neither datasheet states a SANITIZE time, so `UC-202` is unchanged.
 
 ### B.4 Power-loss resilience
 
@@ -1371,6 +1413,8 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
 | 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
+| 21 | 2026-11-26 | **§B.3: a callout records the sources read for `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) (c) to (e), with quotes and URLs. NIST SP 800-88r1 is withdrawn (CSRC, 2025-09-26) and superseded by Rev 2, which names no eMMC or flash technique and defers Purge techniques to IEEE 2883 (unread), so R-7a is now "meant as a Purge" under Rev 2 §3.1.2. Transcend EMC210 and Alliance Memory eMMC 5.1 datasheets confirm SANITIZE_START at EXT_CSD[165], SEC_FEATURE_SUPPORT at [231] (55h, bit 6 set) and that SANITIZE removes data from the unmapped user address space. They do not settle CMD6, the bit names, the R1 error bits, a SANITIZE time (`UC-202` unchanged) or whether ERASE unmaps, so R-5 now says its unmapping is unconfirmed. Code unchanged.** |
+| 22 | 2026-11-26 | **§B.2: new Rev note recording the answers to brief §12 Q7 and Q8 (brief §15). A profile records its person's current-device key id and is marked not current by a verified superseded notice; a helmet that sees none keeps the profile current. The owner learns that a person moved, and the key id links one person's profiles across helmets, not to a name (both accepted; never in SHDR). The owner's app records each profile's label at creation; the helmet stores no name (§C.8.2). Not built (`OI-PRIV-27`, NP-PRIV-ANALYSIS-004, #955).** |
 
 Open items created by this document:
 

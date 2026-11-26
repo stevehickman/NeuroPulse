@@ -350,9 +350,9 @@ jobs:
         .github/actions/setup-toolchain/**
       # The littlefs caller-rules gate (NP-SOUP-LFS-001 Rev 4 §13: OI-LFS-03's
       # REQ-LFS-01 check and OI-LFS-06's one-handle check). The edit that breaks
-      # it is a littlefs call added anywhere in firmware/, a Config file added
-      # or re-policied in np_cfg_store.c, or a journal read appearing in a
-      # limit consumer — any firmware tree, so firmware/** rather than
+      # it is a littlefs call added anywhere in firmware/, or a Config file
+      # added or re-policied in np_cfg_store.c (a tail-additive file is refused
+      # since OI-NVRAM-21) — any firmware tree, so firmware/** rather than
       # hub_control/**. It opens no document.
       NP_SCOPE_LFSCALLERS: |
         firmware/**
@@ -1545,13 +1545,13 @@ jobs:
 
       # No `bun install`: the checker reads source text with node builtins.
 
-      - name: Guard self-test (prove R1–R6 can fail and the vacuity paths refuse)
+      - name: Guard self-test (prove R1–R4 and R7 can fail and the vacuity paths refuse)
         run: bun scripts/check-lfs-caller-rules.ts --self-test
 
       # NP-SOUP-LFS-001 found that littlefs is Class B on SW-02 because of
       # caller policy, not because of littlefs (§6.2, §11). np_cfg_store makes
       # each rule a property of its API; this makes going around the API — a
-      # second opener, a rename, a journal read in a limit consumer — fail CI.
+      # second opener, a rename, a tail-additive Config file — fail CI.
       # REQ-LFS-01 (OI-LFS-03) and one-handle-per-file (OI-LFS-06).
       - name: littlefs caller rules and REQ-LFS-01
         run: bun scripts/check-lfs-caller-rules.ts

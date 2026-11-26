@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 /**
  * check-lfs-caller-rules.ts — the littlefs caller rules stay true of the code.
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-lfs-caller-rules.ts --self-test
+ * CI-Scans: every littlefs call site in firmware/, and the Config store's file table and its policies
+ * CI-Scan-Paths: firmware/** scripts/check-lfs-caller-rules.ts
+ *   (declared here, inside check-gate-coverage's 80-line header window)
  *
  * ── Why this file exists ─────────────────────────────────────────────────────
  *
@@ -36,17 +41,26 @@
  *   R3  The Config store calls no lfs_remove, lfs_rename or lfs_stat: no
  *       create/delete churn (#1210, OI-LFS-08), and presence is never taken as
  *       durability (#1164, OI-LFS-09).
- *   R4  The Config file table's TAIL_ADDITIVE rows are exactly
- *       PINNED_TAIL_ADDITIVE, and every NP_CFG_FILE_* has a row. A second
- *       journal, or a rebuild cache quietly moved to tail-additive, is a
- *       REQ-LFS-01 decision and fails here until it is made. (OI-LFS-03)
- *   R5  np_cfg_store_journal_read() and np_cfg_store_journal_read_rows() —
- *       the only readers of a tail-additive file — are called only from
- *       JOURNAL_READERS, each listed with why what it reads is history and not
- *       a limit. (OI-LFS-03; the second reader is OI-NVRAM-16's)
- *   R6  No emission-limit consumer (LIMIT_CONSUMERS) names the journal at all:
- *       not its file id, not the journal API, not its path. A consumer that
- *       cannot name Map 3 cannot read a limit out of it. (OI-LFS-03)
+ *   R4  Every NP_CFG_FILE_* has a row in the Config file table, and every
+ *       row's policy is one of ADMITTED_POLICIES (REBUILD, REPLICATED). There
+ *       is no tail-additive Config file, so no file is kept under the policy
+ *       REQ-LFS-01 forbids a limit in. A tail-additive file returning, a
+ *       rebuild cache moved to another policy, or a policy nobody has admitted
+ *       is a REQ-LFS-01 decision to record in NP-SOUP-LFS-001 first, and fails
+ *       here until it is. (OI-LFS-03; narrowed by OI-NVRAM-21, 2026-11-26,
+ *       from "the tail-additive rows are exactly map3.jrn" when that file, never
+ *       written, was removed with the store's journal API.)
+ *   R5  RETIRED (OI-NVRAM-21). It allowed np_cfg_store_journal_read() and
+ *       np_cfg_store_journal_read_rows() to be called only from a listed
+ *       JOURNAL_READERS entry, each with why what it read was history. Both
+ *       readers are removed with the journal, and R4 admits no policy such a
+ *       reader could read. A tail-additive file admitted by a recorded
+ *       decision brings a reader rule back with it.
+ *   R6  RETIRED (OI-NVRAM-21). It forbade every emission-limit consumer to
+ *       name the journal: its file id, its API or its path. None of them
+ *       exists, and R4 forbids the policy they belonged to. Whether Map 3's
+ *       record, now REPLICATED, needs a guard of its own is OI-LFS-15
+ *       (NP-SOUP-LFS-001 §9).
  *   R7  The struct lfs_file_config that cfg_open() passes to
  *       lfs_file_opencfg() has static storage duration: the last argument is
  *       `&name`, and `name` is declared at file scope or `static` inside the
@@ -61,23 +75,15 @@
  *
  * ── The reach, stated narrowly ───────────────────────────────────────────────
  *
- * Textual, like its siblings. R5 and R6 see a direct call and a direct name;
- * they do not follow a value through a helper, so a JOURNAL_READERS entry that
- * handed a journal value to a limit consumer would pass. That is why every
- * JOURNAL_READERS entry must carry its reason — the gate forces the question
- * to be asked where a reader is added, which is the only place a text check
- * can ask it. Widening to data flow needs a C parser, which this is not.
+ * Textual, like its siblings. R4 reads the policy each row of the file table
+ * names; it does not check what a policy's API does, which np_cfg_store_tests
+ * case 1 does. Widening to data flow needs a C parser, which this is not.
  *
  *   bun scripts/check-lfs-caller-rules.ts
  *   bun scripts/check-lfs-caller-rules.ts --self-test
  *
  * Exits 1 listing each violation; exits 2 rather than passing vacuously if the
  * store, its file table, its opener or its enum cannot be found.
- *
- * CI-Kind: gate
- * CI-Self-Test: bun scripts/check-lfs-caller-rules.ts --self-test
- * CI-Scans: every littlefs call site in firmware/, the Config store's file table, and every reader of the Map 3 journal
- * CI-Scan-Paths: firmware/** scripts/check-lfs-caller-rules.ts
  */
 
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
@@ -103,34 +109,12 @@ const LFS_CALLERS: Record<string, string> = {
     "the simulator's host-only glue for the log partitions (NP-SIM-FW-001 §33, REQ-SIMFW-25): the file layer OI-LOG-05..07 describes, which the device's board layer does not implement yet. It is never built for a device (REQ-SIMFW-01), keeps one open handle per partition, and is the one non-store file allowed lfs_file_opencfg (R2)",
 };
 
-/** R4 — the only tail-additive Config files. Adding one is a REQ-LFS-01 decision. */
-const PINNED_TAIL_ADDITIVE = ["NP_CFG_FILE_MAP3"];
-
-/** R5 — who may read a tail-additive journal, and why what it reads is history. */
-const JOURNAL_READERS: Record<string, string> = {
-  // None yet: Map 3 has no consumer in the tree (NP-FW-NVRAM-001 §4.2 is
-  // specified, not implemented). The first one is added here with its reason.
-};
-
 /**
- * R6 — the files on the path to an emission magnitude. §5 of NP-SOUP-LFS-001
- * names the consumer family; the safety MCU is listed because it owns every
- * limit that is resident, and a stored value reaching it would be the breach.
- * Paths ending in "/" are directory prefixes.
+ * R4 — the only policies a Config file may be kept under. Admitting another,
+ * a tail-additive one above all, is a REQ-LFS-01 decision recorded in
+ * NP-SOUP-LFS-001 before it is made here.
  */
-const LIMIT_CONSUMERS = [
-  "firmware/hub_control/src/np_module_map.c",
-  "firmware/hub_control/src/np_hexmap_nvram.c", // OI-HEXMAP-01: npmp.bin, the emission-path cache
-  "firmware/hub_control/src/np_pbm_power_gov.c",
-  "firmware/hub_control/src/np_pbm_cal_bridge.c",
-  "firmware/hub_control/src/np_socket_dispatch.c",
-  "firmware/hub_control/src/np_session_runner.c",
-  "firmware/hub_control/src/np_chan_decl.c",
-  "firmware/hub_control/modules/np_mod_pbm.c",
-  "firmware/hub_control/modules/np_mod_stim.c",
-  "firmware/pbm/",
-  "firmware/safety_mcu/",
-];
+const ADMITTED_POLICIES = ["NP_CFG_POLICY_REBUILD", "NP_CFG_POLICY_REPLICATED"];
 
 /** Strip comments and string literals; newlines survive so line numbers do. */
 function stripNonCode(src: string): string {
@@ -162,11 +146,6 @@ function stripNonCode(src: string): string {
   return out;
 }
 
-/** Comments only stripped — for R6's path check, which must see string literals. */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " ")).replace(/\/\/[^\n]*/g, "");
-}
-
 function walk(dir: string, acc: string[]): string[] {
   if (!existsSync(dir)) return acc;
   for (const name of readdirSync(dir)) {
@@ -183,10 +162,6 @@ function walk(dir: string, acc: string[]): string[] {
 }
 
 const lineOf = (text: string, idx: number) => text.slice(0, idx).split("\n").length;
-
-function isLimitConsumer(rel: string): boolean {
-  return LIMIT_CONSUMERS.some((c) => (c.endsWith("/") ? rel.startsWith(c) : rel === c));
-}
 
 /** Brace-matched body of the function whose definition starts at `sig`. */
 function functionSpan(code: string, sig: RegExp): [number, number] | null {
@@ -234,14 +209,14 @@ function run(root: string): { code: number; lines: string[] } {
   for (const m of members) {
     if (!rows.has(m)) violations.push(`R4 ${STORE_C}: ${m} has no row in CFG_FILES[] — every Config file must be kept under a declared policy`);
   }
-  const tail = [...rows].filter(([, p]) => p === "NP_CFG_POLICY_TAIL_ADDITIVE").map(([f]) => f).sort();
-  const pinned = [...PINNED_TAIL_ADDITIVE].sort();
-  if (tail.join(",") !== pinned.join(",")) {
-    violations.push(
-      `R4 ${STORE_C}: the TAIL_ADDITIVE files are [${tail.join(", ")}], pinned as [${pinned.join(", ")}]. ` +
-        "REQ-LFS-01: a file under a tail-additive policy must never hold a value that bounds an emission, " +
-        "and moving a file into or out of that policy is a decision to record in NP-SOUP-LFS-001 before it is made here",
-    );
+  for (const [f, p] of rows) {
+    if (!ADMITTED_POLICIES.includes(p)) {
+      violations.push(
+        `R4 ${STORE_C}: ${f} is kept under ${p}, which is not an admitted policy [${ADMITTED_POLICIES.join(", ")}]. ` +
+          "REQ-LFS-01: no value that bounds an emission may be stored under a tail-additive policy, and the store has none; " +
+          "admitting a policy is a decision to record in NP-SOUP-LFS-001 before it is made here",
+      );
+    }
   }
 
   // ── R2 (part): the single opener ──────────────────────────────────────────
@@ -301,7 +276,7 @@ function run(root: string): { code: number; lines: string[] } {
     }
   }
 
-  // ── R1, R2, R3, R5, R6 across the population ───────────────────────────────
+  // ── R1, R2, R3 across the population ───────────────────────────────────────
   const files = walk(join(root, "firmware"), []);
   let storeCalls = 0;
   let opencfgInOpener = 0;
@@ -339,46 +314,11 @@ function run(root: string): { code: number; lines: string[] } {
       }
     }
 
-    // R5
-    if (rel !== STORE_C && rel !== STORE_H) {
-      for (const m of code.matchAll(/\b(np_cfg_store_journal_read(?:_rows)?)\s*\(/g)) {
-        if (!(rel in JOURNAL_READERS)) {
-          violations.push(
-            `R5 ${rel}:${lineOf(code, m.index!)}: ${m[1]}() from a file not in JOURNAL_READERS. ` +
-              "Map 3's journal is history, never a limit (REQ-LFS-01) — add the file with the reason what it reads is history",
-          );
-        }
-      }
-    }
-
-    // R6
-    if (isLimitConsumer(rel)) {
-      const withStrings = stripComments(src);
-      for (const [re, what] of [
-        [/\bNP_CFG_FILE_MAP3\b/g, "NP_CFG_FILE_MAP3"],
-        [/\bnp_cfg_store_journal_\w+/g, "the journal API"],
-        [/map3\.jrn/g, "the journal's path"],
-      ] as const) {
-        for (const m of withStrings.matchAll(re)) {
-          violations.push(`R6 ${rel}:${lineOf(withStrings, m.index!)}: an emission-limit consumer names ${what} — REQ-LFS-01`);
-        }
-      }
-    }
   }
 
   if (storeCalls === 0) return refuse("np_cfg_store.c calls littlefs nowhere — the scan found nothing to check");
   if (opencfgInOpener !== 1) {
     violations.push(`R2 ${STORE_C}: cfg_open() must contain exactly one lfs_file_opencfg() call, found ${opencfgInOpener}`);
-  }
-  // A LIMIT_CONSUMERS entry that names nothing would exempt the file it meant
-  // to name — silently, for as long as the typo lived.
-  for (const c of LIMIT_CONSUMERS) {
-    if (!existsSync(join(root, c))) {
-      violations.push(`R6 LIMIT_CONSUMERS names ${c}, which does not exist — a renamed consumer has left the rule`);
-    }
-  }
-  for (const reader of Object.keys(JOURNAL_READERS)) {
-    if (isLimitConsumer(reader)) violations.push(`R6 ${reader}: listed in JOURNAL_READERS but it is an emission-limit consumer — REQ-LFS-01`);
   }
 
   // The population actually read, for check-gate-coverage.ts's probe: a gate
@@ -391,8 +331,8 @@ function run(root: string): { code: number; lines: string[] } {
   }
   lines.push(
     `check-lfs-caller-rules: OK — ${files.length} firmware files; littlefs called only by ${Object.keys(LFS_CALLERS).length} listed callers; ` +
-      `one opener; no remove/rename/stat in the Config store; tail-additive = [${tail.join(", ")}]; ` +
-      `${Object.keys(JOURNAL_READERS).length} journal reader(s); no limit consumer names the journal; the opener's file config is static.`,
+      `one opener; no remove/rename/stat in the Config store; ${rows.size} Config files, each under an admitted policy ` +
+      `[${ADMITTED_POLICIES.join(", ")}] (no tail-additive file); the opener's file config is static.`,
   );
   return { code: 0, lines };
 }
@@ -405,11 +345,10 @@ if (process.argv.includes("--self-test")) {
 
   type Tree = Record<string, string>;
   const header = (extra = "") =>
-    `typedef enum {\n    NP_CFG_FILE_NPMP = 0,\n    NP_CFG_FILE_MAP3,\n    NP_CFG_FILE_UKMD,\n${extra}    NP_CFG_FILE_COUNT\n} np_cfg_file_t;\n`;
+    `typedef enum {\n    NP_CFG_FILE_NPMP = 0,\n    NP_CFG_FILE_UKMD,\n${extra}    NP_CFG_FILE_COUNT\n} np_cfg_file_t;\n`;
   const store = (o: { npmpPolicy?: string; extraRow?: string; body?: string; opener?: string; fcfg?: string } = {}) =>
     `static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {\n` +
     `    [NP_CFG_FILE_NPMP] = { ${o.npmpPolicy ?? "NP_CFG_POLICY_REBUILD"}, { "npmp.bin", NULL } },\n` +
-    `    [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },\n` +
     `    [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED, { "ra/ukmd.rec", "rb/ukmd.rec" } },\n` +
     (o.extraRow ?? "") +
     `};\n\n` +
@@ -417,11 +356,7 @@ if (process.argv.includes("--self-test")) {
     `static np_hub_status_t cfg_open(np_cfg_file_t f, unsigned c, lfs_file_t *h, int fl)\n{\n` +
     (o.opener ?? `    int err = lfs_file_opencfg(s_lfs, h, CFG_FILES[f].path[c], fl, &s_fcfg);\n    return err;\n`) +
     `}\n\nstatic int reader(void)\n{\n    lfs_file_read(s_lfs, 0, 0, 0);\n    lfs_file_close(s_lfs, 0);\n${o.body ?? ""}    return 0;\n}\n`;
-  const consumers: Tree = Object.fromEntries(
-    LIMIT_CONSUMERS.map((c) => [c.endsWith("/") ? `${c}src/placeholder.c` : c, "int c_(void) { return 0; }\n"]),
-  );
   const base = (): Tree => ({
-    ...consumers,
     [STORE_H]: header(),
     [STORE_C]: store(),
     "firmware/hub_control/src/np_lfs_log_instance.c": "int p(void) { return lfs_fs_gc(0); }\n",
@@ -479,39 +414,30 @@ if (process.argv.includes("--self-test")) {
       edit({ [STORE_C]: store({ body: `    ${fn}(s_lfs, "npmp.tmp", 0);\n` }) }), 1, `R3 ${STORE_C}`);
   }
 
-  // R4
+  // R4 — no Config file outside the admitted policies (REQ-LFS-01; OI-NVRAM-21)
   expect("R4 rejects the rebuild cache moved to tail-additive",
-    edit({ [STORE_C]: store({ npmpPolicy: "NP_CFG_POLICY_TAIL_ADDITIVE" }) }), 1, "the TAIL_ADDITIVE files are");
-  expect("R4 rejects a second tail-additive file",
+    edit({ [STORE_C]: store({ npmpPolicy: "NP_CFG_POLICY_TAIL_ADDITIVE" }) }), 1,
+    "NP_CFG_FILE_NPMP is kept under NP_CFG_POLICY_TAIL_ADDITIVE, which is not an admitted policy");
+  expect("R4 rejects a tail-additive journal coming back (the removed map3.jrn)",
+    edit({
+      [STORE_H]: header("    NP_CFG_FILE_MAP3,\n"),
+      [STORE_C]: store({ extraRow: `    [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },\n` }),
+    }), 1, "NP_CFG_FILE_MAP3 is kept under NP_CFG_POLICY_TAIL_ADDITIVE");
+  expect("R4 rejects a policy nobody admitted, whatever its name",
     edit({
       [STORE_H]: header("    NP_CFG_FILE_CAL,\n"),
-      [STORE_C]: store({ extraRow: `    [NP_CFG_FILE_CAL] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "cal.jrn", NULL } },\n` }),
-    }), 1, "the TAIL_ADDITIVE files are");
+      [STORE_C]: store({ extraRow: `    [NP_CFG_FILE_CAL] = { NP_CFG_POLICY_APPEND_LOG, { "cal.log", NULL } },\n` }),
+    }), 1, "NP_CFG_FILE_CAL is kept under NP_CFG_POLICY_APPEND_LOG");
+  expect("R4 accepts a new file under an admitted policy",
+    edit({
+      [STORE_H]: header("    NP_CFG_FILE_CAL,\n"),
+      [STORE_C]: store({ extraRow: `    [NP_CFG_FILE_CAL] = { NP_CFG_POLICY_REPLICATED, { "ra/cal.rec", "rb/cal.rec" } },\n` }),
+    }), 0, "OK");
   expect("R4 rejects a Config file with no policy row",
     edit({ [STORE_H]: header("    NP_CFG_FILE_CAL,\n") }), 1, "NP_CFG_FILE_CAL has no row");
-
-  // R6's population must be real.
-  {
-    const t = base();
-    delete t["firmware/hub_control/src/np_pbm_power_gov.c"];
-    expect("R6 rejects a LIMIT_CONSUMERS entry that no longer exists", t, 1, "which does not exist");
-  }
-
-  // R5
-  expect("R5 rejects an unlisted journal reader",
-    edit({ "firmware/hub_control/src/np_hub_control_main.c": "int main_(void) { return np_cfg_store_journal_read(NP_CFG_FILE_MAP3, 0,0,0,0,0,0); }\n" }),
-    1, "R5 firmware/hub_control/src/np_hub_control_main.c");
-  expect("R5 rejects an unlisted variable-length journal reader (OI-NVRAM-16)",
-    edit({ "firmware/hub_control/src/np_hub_control_main.c": "int main_(void) { return np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, 0,0,0,0,0,0); }\n" }),
-    1, "np_cfg_store_journal_read_rows() from a file not in JOURNAL_READERS");
-
-  // R6
-  expect("R6 rejects a limit consumer naming the journal id",
-    edit({ "firmware/hub_control/src/np_module_map.c": "int m(void) { return NP_CFG_FILE_MAP3; }\n" }), 1, "names NP_CFG_FILE_MAP3");
-  expect("R6 rejects a limit consumer naming the journal path in a string",
-    edit({ "firmware/pbm/src/np_pbm_zone.c": "const char *p = \"map3.jrn\";\n" }), 1, "names the journal's path");
-  expect("R6 ignores the journal named only in a limit consumer's comment",
-    edit({ "firmware/pbm/src/np_pbm_zone.c": "/* never read map3.jrn here — REQ-LFS-01 */\nint z(void) { return 0; }\n" }), 0, "OK");
+  expect("R4 ignores a tail-additive row that is only a comment",
+    edit({ [STORE_C]: store({ extraRow: `    /* [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } }, removed */\n` }) }),
+    0, "OK");
 
   // R7 — the file config outlives the handle (OI-LFS-13)
   const opencfg = (arg: string, decl = "") =>
@@ -551,7 +477,7 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log(`  ${cases} case(s): R1–R7 each proven to reject, prose proven not to count,`);
+  console.log(`  ${cases} case(s): R1–R4 and R7 each proven to reject (R5, R6 retired), prose proven not to count,`);
   console.log("  tests/ and vendor/ proven out of population, and 4 vacuity refusals.");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);

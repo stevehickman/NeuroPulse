@@ -169,7 +169,8 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
     });
   }
 
-  const isLoadingPredefined = !protocolLibrary.isLoaded;
+  const predefinedLoadFailed = protocolLibrary.predefinedLoadFailed;
+  const isLoadingPredefined = !protocolLibrary.isLoaded && !predefinedLoadFailed;
   const showPredefined = filter !== 'mine' && predefined.length > 0;
   const showUser = filter !== 'predefined' && userOwned.length > 0;
   const showEmpty = predefined.length === 0 && userOwned.length === 0 && !isLoadingPredefined;
@@ -259,6 +260,17 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           <div className="empty-state" style={{ opacity: 0.6 }}>
             <div className="empty-state-icon">⏳</div>
             <div className="empty-state-title">{t('WEB_LOADING_PROTOCOLS')}</div>
+          </div>
+        )}
+
+        {predefinedLoadFailed && filter !== 'mine' && (
+          <div className="empty-state" role="alert">
+            <div className="empty-state-icon">⚠️</div>
+            <div className="empty-state-title">{t('WEB_PROTOCOLS_LOAD_FAILED')}</div>
+            <div className="empty-state-text">{t('WEB_PROTOCOLS_LOAD_FAILED_BODY')}</div>
+            <button className="btn btn-secondary" onClick={() => protocolLibrary.retryPredefinedLoad()}>
+              {t('WEB_PROTOCOLS_LOAD_RETRY')}
+            </button>
           </div>
         )}
 

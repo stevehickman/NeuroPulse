@@ -114,7 +114,6 @@ set(NP_SIM_PBM_FIRMWARE
     ../hub_control/src/np_log_backend.c         # the boot admission flag np_runner_load reads (np_log_backend_init / _refuse); built WITHOUT -DNPTEST_HOST (below): its file layer is np_sim_storage.c
     ../hub_control/src/np_lfs_log_instance.c    # the UHDR and SHDR littlefs instances' geometry (OI-SIMFW-51)
     ../hub_control/src/np_hexmap_nvram.c        # the module-map blob on the Config partition
-    ../hub_control/src/np_map3_record.c         # Map 3's record format (nothing in the tree calls it yet)
     ../hub_control/src/np_hexmap_inventory.c    # the socket inventory reader (calls the smart-module register tunnel, unrouted)
     # the hub's own task set and boot path (OI-SIMFW-45, OI-SIMFW-50): the five tasks and np_hub_control_app_main, the freertos hooks, the module
     # registry np_runner_run dispatches through, the session log and count, the photic roles, and the factory-reset boot check np_hub_control_app_main calls

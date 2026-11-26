@@ -1,8 +1,8 @@
 # NP-COND-LINK-001 — Condition external-link UI
 
 **Document:** NP-COND-LINK-001
-**Revision:** 2
-**Date:** 2026-11-22
+**Revision:** 3
+**Date:** 2026-11-26
 **Status:** ACTIVE
 **Applies to:** iOS, macOS, Android, Windows, Web
 **Related:** NP-NPPS-REF-001 (grammar), `protocols/predefined/00-conditions.npps` (registry)
@@ -109,13 +109,19 @@ Identical on all platforms:
 1. Conditions appear as tappable chips on the protocol card / detail view.
 2. Selecting a chip opens the confirmation surface (sheet on mobile, dialog on
    desktop/web) showing: condition name, ICD-11 code when present, the
-   destination **host**, and a line stating the app is about to leave.
+   destination **host**, below it the **whole address** that Open hands to the
+   browser, and a line stating the app is about to leave.
 3. **Open** hands the URL to the OS browser. **Cancel** dismisses.
 4. Blocked links render the reason instead of an Open action.
 
-The destination shown is the host, not the full URL — the host is the security-
-relevant part and a full Wikipedia URL is long enough to push the buttons off a
-watch-sized sheet.
+The host is shown first and most prominently: it is the security-relevant part.
+The whole address follows it, smaller and wrapping, because a query string or a
+fragment can carry an identifier of the person or of the file to the destination,
+and a person shown only the host would not see it before leaving
+(`REQ-SW03-38`, NP-PRIV-ANALYSIS-006 F-16). The policy of §3 is unchanged: the
+address is not rewritten, so what is shown is exactly what is opened. (An earlier
+revision showed the host alone so that a long address would not push the buttons
+off a watch-sized sheet; the watch app is retired.)
 
 ## 5. Code sharing
 
@@ -148,3 +154,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 2 | 2026-11-22 | NeurOne Software Engineering | **§3 rule 8: a numeric host must be a canonical dotted quad; CGNAT (100.64/10), multicast and reserved IPv4 are refused; an IPv6 literal must parse, carry no zone identifier, and any IPv4 address it embeds passes the rule; one trailing dot is ignored (`OI-PRIV-66` (1), NP-PRIV-ANALYSIS-007 L14).** |
+| 3 | 2026-11-26 | NeurOne Software Engineering | **§4: the confirmation shows the whole address below the host, so a query string or fragment is seen before leaving (`REQ-SW03-38`, NP-PRIV-ANALYSIS-006 F-16); the link policy of §3 is unchanged.** |

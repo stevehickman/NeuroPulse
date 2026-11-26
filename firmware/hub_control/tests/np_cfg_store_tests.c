@@ -9,7 +9,8 @@
  * those callers for the Config instance.  This suite shows each rule holding,
  * and — per NP-CONV-001 §8 — shows each check able to fail:
  *
- *   1. policy        every API refuses a file kept under a different policy
+ *   1. policy        every API refuses a file kept under a different policy,
+ *                    and no Config file is tail-additive (REQ-LFS-01)
  *   2. OI-LFS-06     a second handle on an open file is refused
  *   3. OI-LFS-09     every read is content-verified; presence is not durability
  *   4. OI-LFS-09     upstream #1205 REPRODUCED on the pinned version through raw
@@ -20,15 +21,15 @@
  *                    the partition, zero removes, over a thousand operations
  *   6. OI-LFS-08     ukmd.rec survives the loss of either entry and is repaired
  *                    from its twin the first time it is read
- *   7. L-3, L-4,     the store's own orderings swept under a power cut at every
+ *   7. L-3,          the store's own orderings swept under a power cut at every
  *      replicated    medium-touching op, three tear models: the in-place O_TRUNC
- *                    replacement (which replaces §12's write-temp-then-rename),
- *                    the journal append, and the two-copy write
+ *                    replacement (which replaces §12's write-temp-then-rename)
+ *                    and the two-copy write.  (The journal append, L-4, went
+ *                    with the journal, OI-NVRAM-21.)
  *   8. falsified     the same verifiers are required to catch the unsafe
  *                    orderings — remove-then-write, and both copies lost
- *   9. OI-NVRAM-16   a Map 3 journal whose rows differ in length is read back
- *                    whole through np_cfg_store_journal_read_rows(), and the
- *                    fixed-length reader is shown losing rows on the same file
+ *   9. (retired)     OI-NVRAM-16's variable-length journal read, removed with
+ *                    the journal and its API (OI-NVRAM-21)
  *  10. OI-HEXMAP-01  np_module_map_persist()/_restore() end to end through
  *                    np_hexmap_nvram.c and this store: the blob survives a
  *                    reboot, a damaged or absent blob restores an EMPTY map,
@@ -64,7 +65,6 @@
 #include "np_lfs_instance.h"
 #include "np_lfs_powerbd.h"
 #include "np_lfs_sweep.h"
-#include "np_map3_record.h"
 #include "np_module_map.h"
 #include "np_session_count.h"
 #include "np_hub_test_fixtures.h"
@@ -171,37 +171,6 @@ static bool accept_anything(const uint8_t *buf, size_t len, void *ctx)
     return true;
 }
 
-/* 32-byte self-checking journal record — NP-FW-NVRAM-001 §4.2 D-5. */
-
-static void rec_build(uint8_t out[REC_SIZE], uint32_t ordinal)
-{
-    memcpy(out, "NPM3", 4U);
-    out[4] = (uint8_t)(ordinal & 0xFFU);
-    out[5] = (uint8_t)((ordinal >> 8) & 0xFFU);
-    out[6] = (uint8_t)((ordinal >> 16) & 0xFFU);
-    out[7] = (uint8_t)((ordinal >> 24) & 0xFFU);
-    for (unsigned i = 8U; i < 28U; i++) {
-        out[i] = (uint8_t)(ordinal * 31U + i);
-    }
-    uint32_t crc = np_crc32(out, 28U);
-    out[28] = (uint8_t)(crc & 0xFFU);
-    out[29] = (uint8_t)((crc >> 8) & 0xFFU);
-    out[30] = (uint8_t)((crc >> 16) & 0xFFU);
-    out[31] = (uint8_t)((crc >> 24) & 0xFFU);
-}
-
-static bool rec_verify(const uint8_t *rec, size_t rec_len, uint32_t index,
-                       void *ctx)
-{
-    (void)ctx;
-    uint8_t expect[REC_SIZE];
-    if (rec_len != REC_SIZE) {
-        return false;
-    }
-    rec_build(expect, index);
-    return memcmp(rec, expect, REC_SIZE) == 0;
-}
-
 /* ukmd.rec's shape: 192 bytes (np_ukmd_record_t).  The store cannot check the
  * GCM tag — np_uhdr_key does, at every unlock — so the payload is opaque here. */
 #define UKMD_BYTES 192U
@@ -256,32 +225,32 @@ static void test_policy_decides_the_api(void)
 {
     uint8_t  buf[64];
     size_t   len = 0U;
-    uint32_t n   = 0U;
 
     fresh();
 
     ASSERT(np_cfg_store_policy(NP_CFG_FILE_NPMP) == NP_CFG_POLICY_REBUILD,
            "npmp.bin must be a rebuild cache — it is the file that carries "
            "safe ranges (NP-SOUP-LFS-001 §5.3)");
-    ASSERT(np_cfg_store_policy(NP_CFG_FILE_MAP3) == NP_CFG_POLICY_TAIL_ADDITIVE,
-           "Map 3's journal must be tail-additive (NP-FW-NVRAM-001 §4.2 D-5)");
     ASSERT(np_cfg_store_policy(NP_CFG_FILE_UKMD) == NP_CFG_POLICY_REPLICATED,
            "ukmd.rec must be replicated (OI-LFS-08)");
     ASSERT(np_cfg_store_policy(NP_CFG_FILE_COUNT) == NP_CFG_POLICY_INVALID,
            "an id outside the table must have no policy");
 
-    /* REQ-LFS-01's API half: the journal cannot be read through the reader a
-     * limit's consumer uses, and a rebuild cache cannot be appended to. */
-    ASSERT(np_cfg_store_read(NP_CFG_FILE_MAP3, buf, sizeof(buf), &len,
+    /* REQ-LFS-01's API half: no Config file is kept under any policy but the
+     * rebuild cache and the replicated record.  There is no tail-additive
+     * policy (its one file, the Map 3 journal, was removed unwritten,
+     * OI-NVRAM-21), so no file can hold a limit under one. */
+    for (int f = 0; f < (int)NP_CFG_FILE_COUNT; f++) {
+        np_cfg_policy_t p = np_cfg_store_policy((np_cfg_file_t)f);
+        ASSERT(p == NP_CFG_POLICY_REBUILD || p == NP_CFG_POLICY_REPLICATED,
+               "a Config file is kept under a policy other than REBUILD or "
+               "REPLICATED (REQ-LFS-01)");
+    }
+    /* A replicated record cannot be read through the reader a limit's
+     * consumer uses. */
+    ASSERT(np_cfg_store_read(NP_CFG_FILE_UKMD, buf, sizeof(buf), &len,
                              accept_anything, NULL) == NP_HUB_ERR_INVALID_ARG,
-           "the rebuild-cache reader accepted the Map 3 journal");
-    ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_NPMP, buf, 8U)
-               == NP_HUB_ERR_INVALID_ARG,
-           "a rebuild cache accepted a tail-additive append");
-    ASSERT(np_cfg_store_journal_read(NP_CFG_FILE_NPMP, buf, sizeof(buf),
-                                     REC_SIZE, &n, rec_verify, NULL)
-               == NP_HUB_ERR_INVALID_ARG,
-           "the journal reader accepted a rebuild cache");
+           "the rebuild-cache reader accepted a replicated record");
     ASSERT(np_cfg_store_replace(NP_CFG_FILE_UKMD, buf, 8U) == NP_HUB_ERR_INVALID_ARG,
            "ukmd.rec was writable as ONE entry — the thing OI-LFS-08 forbids");
     ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_NPMP, buf, 8U)
@@ -292,10 +261,6 @@ static void test_policy_decides_the_api(void)
     ASSERT(np_cfg_store_read(NP_CFG_FILE_NPMP, buf, sizeof(buf), &len, NULL, NULL)
                == NP_HUB_ERR_INVALID_ARG,
            "a read without a content check was accepted");
-    ASSERT(np_cfg_store_journal_read(NP_CFG_FILE_MAP3, buf, sizeof(buf),
-                                     REC_SIZE, &n, NULL, NULL)
-               == NP_HUB_ERR_INVALID_ARG,
-           "a journal read without a per-record check was accepted");
 
     np_cfg_store_unmount();
 }
@@ -532,7 +497,7 @@ static void test_1205_stale_cache_reproduced_and_stopped(void)
 static void test_churn_is_bounded(void)
 {
     np_cfg_store_stats_t st;
-    uint8_t rec[REC_SIZE];
+    uint8_t cnt[8];
     uint8_t ukmd[UKMD_BYTES];
 
     fresh();
@@ -543,9 +508,12 @@ static void test_churn_is_bounded(void)
         blob_build(g_blob, (uint8_t)i);
         ASSERT(np_cfg_store_replace(NP_CFG_FILE_NPMP, g_blob, BLOB_BYTES) == NP_HUB_OK,
                "replace");
-        rec_build(rec, i);
-        ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE)
-                   == NP_HUB_OK, "append");
+        /* A small replicated record rewritten every time (it was a journal
+         * append until the journal was removed, OI-NVRAM-21). */
+        memset(cnt, (int)(i & 0xFFU), sizeof(cnt));
+        ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_SESSION_COUNT, cnt,
+                                             sizeof(cnt)) == NP_HUB_OK,
+               "small replicated write");
         if ((i % 8U) == 0U) {
             ukmd_build(ukmd, (uint8_t)i);
             ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_UKMD, ukmd,
@@ -568,18 +536,18 @@ static void test_churn_is_bounded(void)
     ASSERT(creates_after_mount == 2U, "format did not lay out both replica dirs");
 
     /* Count the whole partition's creates from scratch: exactly one per
-     * directory and one per file (npmp, map3, two ukmd copies). */
+     * directory and one per file (npmp, two sesscnt copies, two ukmd copies). */
     fresh();
     blob_build(g_blob, 1U);
-    rec_build(rec, 0U);
+    memset(cnt, 0x5A, sizeof(cnt));
     ukmd_build(ukmd, 1U);
     for (unsigned i = 0U; i < 50U; i++) {
         (void)np_cfg_store_replace(NP_CFG_FILE_NPMP, g_blob, BLOB_BYTES);
-        (void)np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE);
+        (void)np_cfg_store_replicated_write(NP_CFG_FILE_SESSION_COUNT, cnt, sizeof(cnt));
         (void)np_cfg_store_replicated_write(NP_CFG_FILE_UKMD, ukmd, UKMD_BYTES);
     }
     np_cfg_store_stats(&st);
-    ASSERT(st.creates == 2U + 1U + 1U + 2U,
+    ASSERT(st.creates == 2U + 1U + 2U + 2U,
            "create count is not one per directory and file — churn is not bounded");
     np_cfg_store_unmount();
 }
@@ -757,7 +725,6 @@ static void finding(const char *what, long cut, np_powerbd_tear_t tear,
  * verifier reads, falsifications included.
  */
 static volatile bool     g_blob_acked;
-static volatile uint32_t g_jrn_acked;
 static volatile bool     g_ukmd_acked;
 static volatile bool     g_count_acked;
 static volatile bool     g_npmp_acked;
@@ -817,58 +784,6 @@ static int v_blob(const char *what, long cut, np_powerbd_tear_t tear)
     if (g_blob_acked && g_rb[4] != 2U) {
         finding(what, cut, tear, "the replace had returned OK and npmp.bin is "
                 "still generation 1 — it was not durable (L-3)");
-        return 1;
-    }
-    return 0;
-}
-
-/* L-4 — the journal append, through the store. */
-
-#define JRN_BASE 200U
-#define JRN_ADD  4U
-static uint8_t g_jrn[REC_SIZE * (JRN_BASE + JRN_ADD) + 512U];
-
-static void s_jrn_baseline(void)
-{
-    uint8_t rec[REC_SIZE];
-    ASSERT(np_cfg_store_format() == NP_HUB_OK && np_cfg_store_mount() == NP_HUB_OK,
-           "baseline format/mount");
-    for (uint32_t i = 0U; i < JRN_BASE; i++) {
-        rec_build(rec, i);
-        (void)np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE);
-    }
-    np_cfg_store_unmount();
-}
-
-static void s_jrn_append(void)
-{
-    uint8_t rec[REC_SIZE];
-    g_jrn_acked = 0U;
-    if (np_cfg_store_mount() != NP_HUB_OK) { return; }
-    for (uint32_t i = 0U; i < JRN_ADD; i++) {
-        rec_build(rec, JRN_BASE + i);
-        if (np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE) ==
-            NP_HUB_OK) {
-            g_jrn_acked++;
-        }
-    }
-    np_cfg_store_unmount();
-}
-
-static int v_jrn(const char *what, long cut, np_powerbd_tear_t tear)
-{
-    uint32_t n = 0U;
-    if (np_cfg_store_mount() != NP_HUB_OK) {
-        finding(what, cut, tear, "MOUNT FAILED after the cut");
-        return 1;
-    }
-    np_hub_status_t st = np_cfg_store_journal_read(NP_CFG_FILE_MAP3, g_jrn,
-                                                   sizeof(g_jrn), REC_SIZE, &n,
-                                                   rec_verify, NULL);
-    np_cfg_store_unmount();
-    if (st != NP_HUB_OK || n < JRN_BASE + g_jrn_acked) {
-        finding(what, cut, tear, "%u of %u durable records survived (status %d) "
-                "(L-4)", (unsigned)n, JRN_BASE + g_jrn_acked, st);
         return 1;
     }
     return 0;
@@ -971,20 +886,17 @@ static void test_store_orderings_survive_power_loss(void)
 
     np_sweep_result_t blob = run("L-3 in-place replace", s_blob_baseline,
                                  s_blob_replace, v_blob, false);
-    np_sweep_result_t jrn  = run("L-4 journal append", s_jrn_baseline,
-                                 s_jrn_append, v_jrn, false);
     np_sweep_result_t ukmd = run("replicated write", s_ukmd_baseline,
                                  s_ukmd_write, v_ukmd, false);
 
-    ASSERT(blob.ops > 0 && jrn.ops > 0 && ukmd.ops > 0,
+    ASSERT(blob.ops > 0 && ukmd.ops > 0,
            "a store ordering touched the medium zero times");
     ASSERT(blob.violations == 0,
            "L-3 does not hold for the in-place O_TRUNC replacement — the store's "
            "churn bound (OI-LFS-08) cannot use it");
-    ASSERT(jrn.violations == 0, "L-4 does not hold through the store's append");
     ASSERT(ukmd.violations == 0,
            "a power loss during the replicated write lost ukmd.rec");
-    ASSERT(blob.missed_cuts == 0 && jrn.missed_cuts == 0 && ukmd.missed_cuts == 0,
+    ASSERT(blob.missed_cuts == 0 && ukmd.missed_cuts == 0,
            "an armed cut did not fire — the op sequence is not the one measured");
 
     /* Direction 1 — the verifiers can see what they are for. */
@@ -1216,168 +1128,6 @@ static void test_reset_marker_is_durable(void)
     ASSERT(r.ops > 0 && r.missed_cuts == 0, "marker sweep did not run as measured");
     ASSERT(r.violations == 0,
            "a power loss during the marker write left Config in neither state");
-}
-
-/* ── 9. OI-NVRAM-16 — a journal whose rows differ in length ─────────────────
- *
- * D-25 makes each Map 3 row carry its own length.  Here a grown row (the version-2 row,
- * which is 64 bytes since OI-UINT16-01, with an 8-byte tail before the CRC and
- * version 3 in its header, built as §7.2 rule 1 permits) is appended between
- * 32-byte version-1 rows, through the store, and read back two ways.  The
- * version-1 rows are built here, because the production writer writes version 2.
- */
-
-static void put_le32(uint8_t *p, uint32_t v)
-{
-    p[0] = (uint8_t)v;
-    p[1] = (uint8_t)(v >> 8);
-    p[2] = (uint8_t)(v >> 16);
-    p[3] = (uint8_t)(v >> 24);
-}
-
-/* tail == 0: the 64-byte row; tail > 0: the same row with `tail` bytes more, as version 2. */
-static size_t map3_row(uint32_t i, uint8_t tail, uint8_t *out)
-{
-    np_map3_rec_t r;
-    memset(&r, 0, sizeof(r));
-    for (unsigned k = 0U; k < NP_MAP3_UID_LEN; k++) {
-        r.uid[k] = (uint8_t)(0x30U + i + k);
-    }
-    r.seq = 100U + i;
-    r.session_count = i;
-    if (np_map3_encode(&r, out, NP_MAP3_ROW_BYTES) != NP_MAP3_ROW_BYTES) {
-        return 0U;
-    }
-    if (tail == 0U) {
-        return NP_MAP3_ROW_BYTES;
-    }
-    size_t len = NP_MAP3_ROW_BYTES + tail;
-    for (size_t k = 0U; k < tail; k++) {
-        out[NP_MAP3_FIELDS_END + k] = (uint8_t)(0xC0U + k);
-    }
-    out[0] = (uint8_t)len;
-    out[1] = 2U;
-    put_le32(&out[len - NP_MAP3_CRC_BYTES],
-             np_crc32(out, (uint32_t)(len - NP_MAP3_CRC_BYTES)));
-    return len;
-}
-
-/* The step Map 3's owner hands the store. */
-static size_t map3_step(const uint8_t *rec, size_t left, uint32_t index,
-                        void *ctx)
-{
-    (void)index;
-    (void)ctx;
-    return np_map3_row_len(rec, left);
-}
-
-/* The only check the fixed-length reader can make: a whole row in the slice. */
-static bool map3_fixed_verify(const uint8_t *rec, size_t rec_len,
-                              uint32_t index, void *ctx)
-{
-    (void)index;
-    (void)ctx;
-    return np_map3_row_len(rec, rec_len) == rec_len;
-}
-
-static size_t step_zero(const uint8_t *rec, size_t left, uint32_t i, void *c)
-{
-    (void)rec; (void)left; (void)i; (void)c;
-    return 0U;
-}
-
-static size_t step_overrun(const uint8_t *rec, size_t left, uint32_t i, void *c)
-{
-    (void)rec; (void)i; (void)c;
-    return left + 1U;
-}
-
-static bool seq_in_order(const np_map3_row_t *row, void *ctx)
-{
-    uint32_t *next = (uint32_t *)ctx;
-    if (row->rec.seq != 100U + *next) {
-        return false;
-    }
-    (*next)++;
-    return true;
-}
-
-/* @verifies REQ-FWHUB-51 */
-static void test_journal_rows_of_differing_length(void)
-{
-    enum { ROWS = 10U, GROWN = 4U, TAIL = 8U };
-    static uint8_t jrn[1024];
-    uint8_t row[NP_MAP3_MAX_BYTES];
-    size_t want_bytes = 0U;
-
-    printf("[OI-NVRAM-16] a Map 3 journal with a grown row is read whole\n");
-    fresh();
-    for (uint32_t i = 0U; i < ROWS; i++) {
-        size_t n = map3_row(i, (i == GROWN) ? (uint8_t)TAIL : 0U, row);
-        ASSERT(n != 0U, "row encode");
-        ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_MAP3, row, n) == NP_HUB_OK,
-               "append");
-        want_bytes += n;
-    }
-    ASSERT(want_bytes == (ROWS - 1U) * NP_MAP3_ROW_BYTES + NP_MAP3_ROW_BYTES + TAIL, "the fixture has one grown row");
-
-    /* The reader stepping by each row's own length gets every row back. */
-    uint32_t count = 0U;
-    size_t bytes = 0U;
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
-               == NP_HUB_OK, "variable-length read");
-    ASSERT(count == ROWS, "a row was lost across the grown row");
-    ASSERT(bytes == want_bytes, "the valid prefix does not end at the journal's end");
-    uint32_t next = 0U;
-    np_map3_scan_t sc;
-    np_map3_scan(jrn, bytes, seq_in_order, &next, &sc);
-    ASSERT(sc.rows == ROWS && sc.end == NP_MAP3_END_CLEAN && next == ROWS,
-           "the rows read back are not the rows written, in order");
-
-    /* Falsified: the fixed-length reader on the same file stops at the grown
-     * row, which is the defect OI-NVRAM-16 recorded.  If this ever reads
-     * every row, the fixture no longer contains a grown row and the check
-     * above proves nothing. */
-    uint32_t fixed = 0U;
-    ASSERT(np_cfg_store_journal_read(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                     NP_MAP3_ROW_BYTES, &fixed,
-                                     map3_fixed_verify, NULL) == NP_HUB_OK,
-           "fixed-length read");
-    ASSERT(fixed == GROWN, "the fixed-length reader did not lose the rows after the "
-           "grown one — the fixture does not exercise OI-NVRAM-16");
-
-    /* A step that verifies nothing, or claims more than remains, ends the
-     * prefix at once; neither may walk the store past what it read. */
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, step_zero, NULL)
-               == NP_HUB_OK && count == 0U && bytes == 0U,
-           "a step of 0 did not end the prefix");
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, step_overrun, NULL)
-               == NP_HUB_OK && count == 0U && bytes == 0U,
-           "a step past the end was accepted");
-
-    /* A torn tail costs the torn row only (L-4). */
-    size_t n = map3_row(ROWS, 0U, row);
-    ASSERT(np_cfg_store_journal_append(NP_CFG_FILE_MAP3, row, n / 2U) == NP_HUB_OK,
-           "append half a row");
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
-               == NP_HUB_OK && count == ROWS && bytes == want_bytes,
-           "a torn tail cost more than the torn row");
-
-    /* The policy and the mandatory check hold for this reader too. */
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_NPMP, jrn, sizeof(jrn),
-                                          &count, &bytes, map3_step, NULL)
-               == NP_HUB_ERR_INVALID_ARG,
-           "the variable-length reader accepted a rebuild cache");
-    ASSERT(np_cfg_store_journal_read_rows(NP_CFG_FILE_MAP3, jrn, sizeof(jrn),
-                                          &count, &bytes, NULL, NULL)
-               == NP_HUB_ERR_INVALID_ARG,
-           "a variable-length read without a per-record check was accepted");
-
-    np_cfg_store_unmount();
 }
 
 /* ── 10. OI-HEXMAP-01 — the module map's blob, through the real caller ─────
@@ -1627,7 +1377,6 @@ int main(void)
     test_store_orderings_survive_power_loss();
     test_session_count_is_persisted();
     test_reset_marker_is_durable();
-    test_journal_rows_of_differing_length();
     test_module_map_blob_through_the_store();
 
     np_sweep_release();

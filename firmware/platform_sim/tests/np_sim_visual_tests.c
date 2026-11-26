@@ -94,16 +94,18 @@ static void test_each_mode_reaches_the_leds(void)
     check(!vis()->driven && !enabled(), "stop: the LEDs go dark and the enable drops");
 }
 
-/* @verifies-none The 3 to 30 Hz refusal (REQ-FWHUB-65) is np_mod_visual.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). The other photic tests drive at 2 Hz, outside it, so the goggles are the shipped ones. */
+/* @verifies-none The 3 to 60 Hz refusal (REQ-FWHUB-65) is np_mod_visual.c's; the hub suite verifies it. Simulator evidence only (REQ-SIMFW-06). The other photic tests drive at 2 Hz, outside it, so the goggles are the shipped ones. */
 static void test_photic_driving_in_the_ppx_zone_is_refused(void)
 {
     setup();
     run("vis 0 10 50 0 63 0 0 0 0");
     check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: photic at 10 Hz is refused and nothing is driven, as on the device");
-    run("vis 3 30 50 0 63 0 20 0 0");
-    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: combined at 30 Hz is refused too");
-    run("vis 0 31 50 0 63 0 0 0 0");
-    check(result_code_is(0) && vis()->vis_emitting, "zone: 31 Hz is outside it and drives");
+    run("vis 3 60 50 0 63 0 20 0 0");
+    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: combined at 60 Hz is refused too");
+    run("vis 0 40 50 0 63 0 0 0 0");
+    check(!result_code_is(0) && !enabled() && !vis()->vis_emitting, "zone: 40 Hz, the gamma protocols' frequency, is refused (OI-FWHUB-37)");
+    run("vis 0 61 50 0 63 0 0 0 0");
+    check(result_code_is(0) && vis()->vis_emitting, "zone: 61 Hz is outside it and drives");
 }
 
 /* @verifies-none The interlocks are np_mod_visual.c's; the hub suite verifies them. Simulator evidence only (REQ-SIMFW-06). */

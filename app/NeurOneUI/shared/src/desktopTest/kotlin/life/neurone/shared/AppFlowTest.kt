@@ -46,7 +46,7 @@ class AppFlowTest {
         Res.string.dashboard_add_clinician, Res.string.clinician_grant_title, Res.string.common_cancel,
         Res.string.ota_firmware, Res.string.dashboard_revoke_button, Res.string.and_ui_brainwave_eeg_data_consent,
         Res.string.and_ui_review_consent, Res.string.and_ui_blanket_research_consent, Res.string.dashboard_per_category,
-        Res.string.bipa_step4_decline_button,
+        Res.string.bipa_step4_decline_button, Res.string.eeg_revoked_title, Res.string.common_close,
     )
 
     /** The English text of [resource], read in composition: that is where the resource environment is defined. */
@@ -209,6 +209,9 @@ class AppFlowTest {
         onNodeWithText(text(Res.string.tab_settings)).performClick()
         // Revoke, then review the release and decline it: the answer stays "no".
         onNodeWithText(text(Res.string.dashboard_revoke_button)).performClick()
+        // The withdrawal says what stays (REQ-SW03-37); this host keeps no recordings, so there is only Close.
+        onNodeWithText(text(Res.string.eeg_revoked_title)).assertExists()
+        onNodeWithText(text(Res.string.common_close)).performClick()
         onNodeWithText(text(Res.string.and_ui_review_consent)).performClick()
         onNodeWithText(text(Res.string.bipa_step4_decline_button)).performClick()
         assertFalse(kv.getBoolean(OnboardingKeys.BIPA_ACCEPTED))

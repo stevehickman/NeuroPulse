@@ -88,7 +88,7 @@ typedef enum {
      * does not either.  It reaches the app as reason 29 in the upload-check frame (|status|). */
     NP_HUB_ERR_NO_LAYOUT            = -29,
     /* REQ-FWHUB-66 (OI-FWHUB-29; the principal, option A): the protocol drives the goggles photically (visual modes 0 or 3)
-     * at a frequency in the photoparoxysmal risk zone, 3 to 30 Hz, which the hub refuses outright until the Oz detector
+     * at a frequency in the photoparoxysmal risk zone, 3 to 60 Hz, which the hub refuses outright until the Oz detector
      * exists.  Refused at load so the person learns it when they send the protocol, not when the session runs.  Nothing
      * the helmet does changes it: the author must change the frequency.  Reason 30 in the upload-check frame. */
     NP_HUB_ERR_PHOTIC_ZONE          = -30,

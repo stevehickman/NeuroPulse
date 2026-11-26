@@ -69,9 +69,8 @@ np_hexmap_inventory_tests 534
 np_hrv_session_tests 226
 np_lfs_config_tests 255
 np_lfs_log_instance_tests 2270
-np_lfs_powerloss_tests 1952
+np_lfs_powerloss_tests 1889  # lowered from 1952: the L-4 Map 3 journal scenario and its truncate-and-rebuild falsification were removed with the journal (OI-NVRAM-21; L-4 retired in NP-SOUP-LFS-001)
 np_log_backend_tests 1133
-np_map3_record_tests 263
 np_mod_cvns_tests 896
 np_mod_pbm_chlatch_tests 277
 np_mod_stim_tests 256

@@ -29,7 +29,7 @@
 #include "np_lfs_instance.h"
 #include "np_lfs_log_instance.h"
 #include "np_hexmap_inventory.h"
-#include "np_map3_record.h"
+#include "np_module_usage.h"
 #include "np_module_map.h"
 #include "np_safety_spi.h"
 #include "np_session_count.h"
@@ -522,33 +522,29 @@ static void test_a_medium_that_cannot_be_made_refuses_the_boot(void)
     check(strstr(last_with("\"ev\":\"error\""), "not running") != NULL, "and no hub runs");
 }
 
-static bool count_row(const np_map3_row_t *row, void *ctx) { (void)row; (*(unsigned *)ctx)++; return true; }
-
 /* @verifies REQ-SIMFW-25#e */
-static void test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix(void)
+static void test_map3_rows_round_trip_and_a_damaged_header_is_refused_whole(void)
 {
-    uint8_t journal[3U * NP_MAP3_ROW_BYTES];
+    /* Map 3 is the per-module running-total record (NP-FW-NVRAM-001 §8.5); its
+     * integrity is the store's envelope, so the codec's own refusal is of a header
+     * it cannot read, and it refuses the record whole. */
+    static uint8_t rec[NP_MU_TABLE_BYTES];
+    np_mu_row_t in[3];
+    memset(in, 0, sizeof in);
     for (unsigned i = 0U; i < 3U; i++) {
-        np_map3_rec_t r;
-        memset(&r, 0, sizeof r);
-        r.uid[0] = 0xA5U;
-        r.seq = i + 1U;
-        r.ordinal = i;
-        r.session_count = 1U;
-        r.dose_accum = 1000U * (i + 1U);
-        check(np_map3_encode(&r, &journal[i * NP_MAP3_ROW_BYTES], NP_MAP3_ROW_BYTES) == NP_MAP3_ROW_BYTES, "a row encodes to the row length");
+        uint8_t uid[NP_MU_ID_LEN] = { 0xA5U, (uint8_t)i, 0, 0, 0, 0, 0, 0 };
+        in[i].key = np_mu_key_uid(uid);
+        in[i].sessions_present = i + 1U;
+        in[i].dose_accum = 1000U * (i + 1U);
     }
-    np_map3_scan_t sc;
-    unsigned seen = 0U;
-    np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
-    check(seen == 3U && sc.rows == 3U && sc.end == NP_MAP3_END_CLEAN, "three rows scan back, and the scan ends clean");
-    journal[NP_MAP3_ROW_BYTES + 5U] ^= 0x01U;           /* a bit of the second row */
-    seen = 0U;
-    np_map3_scan(journal, sizeof journal, count_row, &seen, &sc);
-    check(seen == 1U && sc.end == NP_MAP3_END_BAD_CRC, "a damaged second row ends the valid prefix at the first: nothing after it is trusted");
-    seen = 0U;
-    np_map3_scan(journal, NP_MAP3_ROW_BYTES - 4U, count_row, &seen, &sc);
-    check(seen == 0U && sc.end == NP_MAP3_END_TORN, "a journal cut short in its first row is a torn tail");
+    np_mu_encode(in, 3U, rec);
+    np_mu_row_t out[NP_MU_MAX_ROWS];
+    size_t n = 0U;
+    check(np_mu_decode(rec, out, NP_MU_MAX_ROWS, &n) && n == 3U && out[2].dose_accum == 3000U
+          && out[1].sessions_present == 2U, "three module rows decode back, every total intact");
+    rec[1] = 1U;                                        /* a row length no version has */
+    n = 0U;
+    check(!np_mu_decode(rec, out, NP_MU_MAX_ROWS, &n) && n == 0U, "a damaged header is refused whole: nothing is misread");
 }
 
 /* @verifies REQ-SIMFW-25#e */
@@ -682,7 +678,7 @@ int main(void)
     in_child(test_a_second_session_gets_its_own_uhdr_file_and_the_shdr_log_grows);
     in_child(test_the_session_count_and_the_module_map_are_kept_in_the_config_file);
     in_child(test_a_medium_that_cannot_be_made_refuses_the_boot);
-    in_child(test_map3_rows_round_trip_and_a_damaged_row_ends_the_valid_prefix);
+    in_child(test_map3_rows_round_trip_and_a_damaged_header_is_refused_whole);
     in_child(test_a_socket_poll_stops_at_the_unrouted_register_tunnel_and_fails_closed);
     in_child(test_the_key_lifecycle_runs_from_the_devices_own_source_on_synthetic_credentials);
     in_child(test_a_wrong_credential_is_refused_and_mounts_nothing);

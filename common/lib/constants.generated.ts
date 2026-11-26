@@ -128,10 +128,17 @@ export const NPHardwareLimits = {
   BREATHING_MAX_BPM: 7.0,
   // Visual stimulation
   VISUAL_MAX_HZ: 100.0,
-  // photoparoxysmal risk zone — clinician unlock required
+  // photoparoxysmal risk zone, lower edge (inclusive): photic driving from here to VISUAL_HIGH_RISK_MAX_HZ is
+  // refused until the Oz detector is built and validated (REQ-FWHUB-65, -66). Flashes faster than 3 per second are
+  // the hazard threshold of the Epilepsy Foundation working group (Fisher et al., Epilepsia 2005;46:1426-41;
+  // checked by OI-FWHUB-38)
   VISUAL_HIGH_RISK_MIN_HZ: 3.0,
-  // firmware halts goggles, <200ms, if EEG shows photoparoxysmal response
-  VISUAL_HIGH_RISK_MAX_HZ: 30.0,
+  // photoparoxysmal risk zone, upper edge (inclusive), 60 Hz since 2026-11-25 (was 30, unsourced, UC-121). The
+  // European photic-stimulation method tests photosensitivity up to 60 Hz, and about 49 % of photosensitive
+  // patients respond at 50 Hz and 15 % at 60 Hz, so 40 Hz gamma driving is inside the range (OI-FWHUB-37;
+  // Kasteleijn-Nolst Trenite et al., Epilepsia 2012;53:16-24; Fisher et al., Epilepsia 2005;46:1426-41; checked by
+  // OI-FWHUB-38)
+  VISUAL_HIGH_RISK_MAX_HZ: 60.0,
   // Clinical tACS (T2 only)
   CLINICAL_TACS_MAX_MILLIAMPS: 4.0,
   // One driver channel per T2 cap electrode (NP-FW-HD-001 §6.4, NP_HD_DRIVER_CHANNELS). OI-TACS-01: the hub wire
@@ -243,7 +250,7 @@ export const GattIds = {
   // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings (REQ-FWHUB-71).
   // Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical; REQ-FWHUB-70). Write:
   // flags only. Flags: bit 0 stop on an occipital-only discharge (on by default), bit 1 manual override of the 3
-  // to 30 Hz refusal (off by default; it lifts the refusal only where the evidence level is 1). Any other bit set
+  // to 60 Hz refusal (off by default; it lifts the refusal only where the evidence level is 1). Any other bit set
   // is refused. Set by the hardware owner.
   PPX_CONFIG_ID: 0x001E,
   // READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person paused it, 2
@@ -342,7 +349,7 @@ export const GattUuidStrings = {
   // READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
   // (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
   // REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
-  // bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+  // bit 1 manual override of the 3 to 60 Hz refusal (off by default; it lifts the refusal only where the
   // evidence level is 1). Any other bit set is refused. Set by the hardware owner.
   PPX_CONFIG_ID: "4e455550-001e-1000-8000-00805f9b34fb",
   // READ/NOTIFY 1 B: why a session is held paused (SWR-SS-09, REQ-FWHUB-72): 0 not held, 1 the person
