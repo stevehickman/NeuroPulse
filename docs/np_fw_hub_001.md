@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 89
+**Revision:** 90
 **Date:** 2026-11-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,6 +17,8 @@
 
 ---
 
+> **Rev 90 (2026-11-26) — the warranty owner's reset key is ruled (§4.7.3; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955; brief §13, the principal, 2026-11-26).** The warranty owner is the `OI-SIMFW-71` Q8 admin pairing (Q10), and that pairing carries an Ed25519 signing key, sent inside the SPAKE2-authenticated channel at pairing and stored in the admin's table entry (Q9 A). §4.7.4 step 4 checks `signer_key` against that entry. Nothing is built: the pairing table belongs to the `OI-SIMFW-71` secure channel.
+>
 > **Rev 89 (2026-11-25) — the per-module running totals are Map 3, with the rest of its row (`REQ-FWHUB-93` (f) to (i), §6.11; `NP-FW-NVRAM-001` `OI-NVRAM-20`).** Each row gains mate cycles, a tile's metered dose (`dose_accum`, mJ/cm² summed over its wavelengths), its throttle count, `fault_flags` and `detail_lost`, as running totals or sticky bits. An accessory whose port gets a new occupant while the hub runs counts one mate (the boot scan counts none); the tiles' mates wait for the inventory poll (`OI-HEXMAP-02`). The record keeps one length, 12,288 B, so a later firmware's longer row is still read and this firmware's rewrite carries its newer fields through. The snapshot reports an unreadable table as unknown. The retired per-session journal codec (`np_map3_record`) is removed. Who sees which field is `NP-FW-NVRAM-001` §8.5: dose and throttle reach the fleet only under `NP-MOD-ID-001` §7's opt-in, `fault_flags` bit 0 never leaves the app, and the hub side of the upload is still not built.
 
 > **Rev 88 (2026-11-25) — the factory-reset command's wire format is specified, not built (new §4.7; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955).** A reset blob is a second blob kind on the protocol upload path (0x0008), with its own magic (`"NPHR"`), the device serial, the one-time upload challenge decided under `OI-PRIV-31` (reused, not a second nonce), the warranty owner's signing key and one signed entry per profile on the helmet, each marked exported (with the export's SHA-256) or destroy. §4.7.4 fixes the verification order before any dispatch and the refusals: not BLE, unknown signer, bad signature, wrong serial, stale or replayed challenge, session active, a profile list that is no longer the helmet's, an export the hub did not send. §4.7.5 hands off to the list, export and wipe flow of `NP-FW-EMMC-002` §B.2 and §B.3. The owner's key depends on `OI-SIMFW-71` Q8 and is put to the principal (brief §13); the command is built with or after per-person profiles (`NP-FW-EMMC-002` §C.8). No code, no requirement row and no test changes.
@@ -1024,7 +1026,7 @@ this table bumps §4.5's version.
 > **It is built with per-person profiles (`NP-FW-EMMC-002` §C.8) or after them** (brief Q6): the hub cannot list its
 > users, or check an export, before profiles exist. **It also waits on** the one-time upload challenge
 > (`OI-PRIV-31` (NP-PRIV-ANALYSIS-004), decided, not built, sequenced with `OI-SIMFW-62`), the profile export
-> (`NP-FW-EMMC-002` §C.8.4) and the warranty owner's signing key (below, `OI-SIMFW-71` Q8). Until all of these are
+> (`NP-FW-EMMC-002` §C.8.4) and the warranty owner's signing key in the `OI-SIMFW-71` admin pairing (below; ruled 2026-11-26, not built). Until all of these are
 > built, a blob with the reset magic is refused as `NP_HUB_ERR_BAD_MAGIC` like any other unknown magic.
 
 **The reset is a second blob kind on the protocol upload path, not a new characteristic.** It is written to
@@ -1076,15 +1078,24 @@ The blob is 152 bytes with no entry and 1,328 with 24, within `NP_HUB_PROTO_BLOB
 4. **A reset never reaches the runner or the safety MCU.** It is not a session: no command is parsed, no session
    descriptor is populated and no session signature frame (§7.3) is sent. A descriptor never reaches the reset.
 
-#### 4.7.3 The warranty owner's key (depends on `OI-SIMFW-71` Q8)
+#### 4.7.3 The warranty owner's key (ruled 2026-11-26)
 
-The reset is signed by a key bound to the warranty owner's pairing (brief §11). **That binding is not settled:**
-`OI-SIMFW-71` Q8 (ruled 2026-11-13) gives a clinic hub one admin pairing, which may remove any other, but does not say
-that the admin is the warranty owner (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks it), and the secure channel's pairing
-exchanges X25519 keys for the session handshake, not a signing key (`docs/human-input/oi-simfw-71-secure-channel-design.md`
-§4.2). The format above needs an Ed25519 public key in the pairing table entry that the hub treats as the warranty
-owner's; how that key enters the table, and whether the owner is the admin, are put to the principal in brief §13.
-**Until they are answered no hub accepts a reset:** `signer_key` must match such an entry, and none exists.
+The reset is signed by a key bound to the warranty owner's pairing (brief §11). **The principal ruled on 2026-11-26**
+(`docs/human-input/oi-priv-27-factory-reset-command.md` §13, Q9 option A and Q10 yes):
+
+- **The warranty owner is the admin pairing of `OI-SIMFW-71` Q8** (Q10). The one admin pairing a hub holds, which may
+  remove any other, is the warranty owner's. No other pairing, and no user's pairing, can sign a reset.
+- **The admin pairing carries an Ed25519 signing key** (Q9 A). At pairing, the owner's app makes an Ed25519 key pair and
+  sends the public key inside the SPAKE2-authenticated channel together with its X25519 key, bound to the same
+  transcript (`docs/human-input/oi-simfw-71-secure-channel-design.md` §4.1, §4.2); the hub stores it in that pairing's
+  table entry (32 bytes more per entry). The private key stays in the owner's app and is never exported. `signer_key`
+  must equal the key in the admin entry (§4.7.4 step 4).
+
+The blob therefore stays verifiable on its own, whatever transport carried it, and the same check holds over USB-C
+once its payload is encrypted. **Not built:** the pairing table, the admin entry and its signing key are part of the
+`OI-SIMFW-71` secure channel, which has no code; until it exists no hub holds an admin entry, and no reset is accepted.
+A re-pairing of the admin replaces the entry and its key, so a reset signed by an admin key that was replaced is
+refused as an unknown signer.
 
 #### 4.7.4 Verification, in order, before any dispatch
 
@@ -1099,7 +1110,7 @@ only); if that build settles its rules differently, this subsection is revised w
 | 1 | the first four bytes are `"NPHR"`; any other magic goes to §4.4, which refuses all but `"NPHP"` | `BAD_MAGIC` | — |
 | 2 | length ≥ 152; `version` = 1; `request` = `0x01`; `entry_count` ≤ 24; length = `88 + 49 × entry_count + 64` | `BAD_VERSION` / `INVALID_ARG` | a field whose length is not pinned (§4.4's reason) |
 | 3 | the blob arrived over BLE on an encrypted link. The mailbox records which transport delivered the blob; today `np_transport_feed()` does not, and gains that with this build | **not BLE**: `NP_HUB_ERR_TRANSPORT_REFUSED` | a reset over USB-C CDC, which has no encryption (`CLAUDE.md` §23, brief §11). Lifted when USB-C carries payload encryption (`OI-SIMFW-71`), and not before |
-| 4 | `signer_key` is the key of the warranty owner's pairing (§4.7.3) and is not the protocol public key | **unknown signer**: `NP_HUB_ERR_UNKNOWN_SIGNER` | a reset by any other paired app, including a person's own: no user may reset (`NP-FW-EMMC-002` §B.2) |
+| 4 | `signer_key` equals the Ed25519 key in the hub's admin pairing entry, which is the warranty owner's (§4.7.3), and is not the protocol public key | **unknown signer**: `NP_HUB_ERR_UNKNOWN_SIGNER` | a reset by any other paired app, including a person's own: no user may reset (`NP-FW-EMMC-002` §B.2) |
 | 5 | the Ed25519 signature verifies under `signer_key` | `BAD_SIGNATURE` | an altered or unsigned blob |
 | 6 | the helmet reads its own serial, it is not all zero, and it equals `device_serial` | **wrong serial**: `WRONG_DEVICE`; `SERIAL_UNKNOWN` (`REQ-FWHUB-90`'s rule, unchanged) | a reset signed for another helmet |
 | 7 | `challenge` equals the challenge consumed at step 0, and one was outstanding | **stale or replayed challenge**: `NP_HUB_ERR_CHALLENGE` | a recorded reset replayed on this helmet; one signed before the last upload |
