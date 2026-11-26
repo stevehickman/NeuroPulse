@@ -94,8 +94,18 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 > empty; a user with only a safety-MCU cardiac-cutoff record is listed and marked (`OI-PRIV-25`). The command is a
 > signed reset blob on the upload path with a hub nonce and the device serial, signed by a key bound to the warranty
 > owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
-> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist. How
-> the helmet knows who is current, and how the owner's app labels each profile, are design points in the brief's §12.
+> and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist.
+>
+> **Rev {NP-FW-EMMC-002 to} (2026-11-26): the brief's two design points, answered by the principal (brief §15).**
+> - **Who is current.** A profile records its person's current-device key id (`docs/reference/data-architecture-detail.md`
+>   §5.3 step 1a, `OI-PRIV-68`). The signed superseded notice, brought by the owner's or the person's app, marks the
+>   profile not current once the helmet has verified it against that key and found a higher move count. A helmet that
+>   never sees a notice keeps the profile current, so its data starts selected. The owner thereby learns that a person
+>   moved, and the key id links one person's profiles across helmets, though not to a name; the principal accepted both.
+>   The key id stays in the profile record: never in SHDR, never sent to NeurOne.
+> - **Labels.** The warranty owner's app records its own label for a profile identifier when the profile is created.
+>   The helmet stores no name (§C.8.2). An unlabelled or imported profile is listed by its identifier and export size
+>   bucket until the owner labels it.
 
 ### B.3 Reset sequence
 
