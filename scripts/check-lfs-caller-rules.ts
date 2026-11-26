@@ -108,8 +108,11 @@ const PINNED_TAIL_ADDITIVE = ["NP_CFG_FILE_MAP3"];
 
 /** R5 — who may read a tail-additive journal, and why what it reads is history. */
 const JOURNAL_READERS: Record<string, string> = {
-  // None yet: Map 3 has no consumer in the tree (NP-FW-NVRAM-001 §4.2 is
-  // specified, not implemented). The first one is added here with its reason.
+  // None. Map 3 was to be the journal's consumer, but the per-session journal was
+  // retired unwritten and Map 3 is the upserted, REPLICATED record
+  // NP_CFG_FILE_MODULE_USAGE (NP-FW-NVRAM-001 §8.5, D-35; OI-NVRAM-20 closed
+  // 2026-11-25). Whether map3.jrn and the journal API stay is OI-NVRAM-21. A
+  // reader added before that is decided is added here with its reason.
 };
 
 /**
