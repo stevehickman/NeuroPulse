@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 89
+**Revision:** 90
 **Date:** 2026-11-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -18,6 +18,8 @@
 ---
 
 > **Rev {NP-FW-HUB-001 to} (2026-11-25) — the photic refusal zone is 3 to 60 Hz, not 3 to 30 (`OI-FWHUB-37`, closed; the principal, 2026-11-25).** The goggles now refuse the 40 Hz gamma protocols until the Oz detector is built and validated. The 30 Hz edge had no source (`UC-121`); the European photic-stimulation method tests photosensitivity up to 60 Hz (Kasteleijn-Nolst Trenité et al., *Epilepsia* 2012;53:16-24, already cited for `REQ-FWHUB-67`), and an Epilepsy Foundation review reports about 49 % of photosensitive patients responding at 50 Hz and 15 % at 60 Hz (Fisher et al., *Epilepsia* 2005;46:1426-41). HOPE Phase 3 adds a weak signal (seizures 0.9 % on the device vs 0.3 % on sham). `REQ-FWHUB-65` and `-66` carry the new edge; the three predefined protocols that drive the goggles at 40 Hz (`01-gamma-focus`, `14-gamma-theta-coupled`, `15-full-t1-immersive`) now lose their visual block, as `13-focus-prime` already did at 20 Hz, and are a clinical decision, not edited here. The citations are checked by `OI-FWHUB-38`.
+>
+> **Rev 90 (2026-11-26) — the warranty owner's reset key is ruled (§4.7.3; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955; brief §13, the principal, 2026-11-26).** The warranty owner is the `OI-SIMFW-71` Q8 admin pairing (Q10), and that pairing carries an Ed25519 signing key, sent inside the SPAKE2-authenticated channel at pairing and stored in the admin's table entry (Q9 A). §4.7.4 step 4 checks `signer_key` against that entry. Nothing is built: the pairing table belongs to the `OI-SIMFW-71` secure channel.
 >
 > **Rev 89 (2026-11-25) — the per-module running totals are Map 3, with the rest of its row (`REQ-FWHUB-93` (f) to (i), §6.11; `NP-FW-NVRAM-001` `OI-NVRAM-20`).** Each row gains mate cycles, a tile's metered dose (`dose_accum`, mJ/cm² summed over its wavelengths), its throttle count, `fault_flags` and `detail_lost`, as running totals or sticky bits. An accessory whose port gets a new occupant while the hub runs counts one mate (the boot scan counts none); the tiles' mates wait for the inventory poll (`OI-HEXMAP-02`). The record keeps one length, 12,288 B, so a later firmware's longer row is still read and this firmware's rewrite carries its newer fields through. The snapshot reports an unreadable table as unknown. The retired per-session journal codec (`np_map3_record`) is removed. Who sees which field is `NP-FW-NVRAM-001` §8.5: dose and throttle reach the fleet only under `NP-MOD-ID-001` §7's opt-in, `fault_flags` bit 0 never leaves the app, and the hub side of the upload is still not built.
 >
@@ -1026,7 +1028,7 @@ this table bumps §4.5's version.
 > **It is built with per-person profiles (`NP-FW-EMMC-002` §C.8) or after them** (brief Q6): the hub cannot list its
 > users, or check an export, before profiles exist. **It also waits on** the one-time upload challenge
 > (`OI-PRIV-31` (NP-PRIV-ANALYSIS-004), decided, not built, sequenced with `OI-SIMFW-62`), the profile export
-> (`NP-FW-EMMC-002` §C.8.4) and the warranty owner's signing key (below, `OI-SIMFW-71` Q8). Until all of these are
+> (`NP-FW-EMMC-002` §C.8.4) and the warranty owner's signing key in the `OI-SIMFW-71` admin pairing (below; ruled 2026-11-26, not built). Until all of these are
 > built, a blob with the reset magic is refused as `NP_HUB_ERR_BAD_MAGIC` like any other unknown magic.
 
 **The reset is a second blob kind on the protocol upload path, not a new characteristic.** It is written to
@@ -1078,15 +1080,24 @@ The blob is 152 bytes with no entry and 1,328 with 24, within `NP_HUB_PROTO_BLOB
 4. **A reset never reaches the runner or the safety MCU.** It is not a session: no command is parsed, no session
    descriptor is populated and no session signature frame (§7.3) is sent. A descriptor never reaches the reset.
 
-#### 4.7.3 The warranty owner's key (depends on `OI-SIMFW-71` Q8)
+#### 4.7.3 The warranty owner's key (ruled 2026-11-26)
 
-The reset is signed by a key bound to the warranty owner's pairing (brief §11). **That binding is not settled:**
-`OI-SIMFW-71` Q8 (ruled 2026-11-13) gives a clinic hub one admin pairing, which may remove any other, but does not say
-that the admin is the warranty owner (`OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks it), and the secure channel's pairing
-exchanges X25519 keys for the session handshake, not a signing key (`docs/human-input/oi-simfw-71-secure-channel-design.md`
-§4.2). The format above needs an Ed25519 public key in the pairing table entry that the hub treats as the warranty
-owner's; how that key enters the table, and whether the owner is the admin, are put to the principal in brief §13.
-**Until they are answered no hub accepts a reset:** `signer_key` must match such an entry, and none exists.
+The reset is signed by a key bound to the warranty owner's pairing (brief §11). **The principal ruled on 2026-11-26**
+(`docs/human-input/oi-priv-27-factory-reset-command.md` §13, Q9 option A and Q10 yes):
+
+- **The warranty owner is the admin pairing of `OI-SIMFW-71` Q8** (Q10). The one admin pairing a hub holds, which may
+  remove any other, is the warranty owner's. No other pairing, and no user's pairing, can sign a reset.
+- **The admin pairing carries an Ed25519 signing key** (Q9 A). At pairing, the owner's app makes an Ed25519 key pair and
+  sends the public key inside the SPAKE2-authenticated channel together with its X25519 key, bound to the same
+  transcript (`docs/human-input/oi-simfw-71-secure-channel-design.md` §4.1, §4.2); the hub stores it in that pairing's
+  table entry (32 bytes more per entry). The private key stays in the owner's app and is never exported. `signer_key`
+  must equal the key in the admin entry (§4.7.4 step 4).
+
+The blob therefore stays verifiable on its own, whatever transport carried it, and the same check holds over USB-C
+once its payload is encrypted. **Not built:** the pairing table, the admin entry and its signing key are part of the
+`OI-SIMFW-71` secure channel, which has no code; until it exists no hub holds an admin entry, and no reset is accepted.
+A re-pairing of the admin replaces the entry and its key, so a reset signed by an admin key that was replaced is
+refused as an unknown signer.
 
 #### 4.7.4 Verification, in order, before any dispatch
 
@@ -1101,7 +1112,7 @@ only); if that build settles its rules differently, this subsection is revised w
 | 1 | the first four bytes are `"NPHR"`; any other magic goes to §4.4, which refuses all but `"NPHP"` | `BAD_MAGIC` | — |
 | 2 | length ≥ 152; `version` = 1; `request` = `0x01`; `entry_count` ≤ 24; length = `88 + 49 × entry_count + 64` | `BAD_VERSION` / `INVALID_ARG` | a field whose length is not pinned (§4.4's reason) |
 | 3 | the blob arrived over BLE on an encrypted link. The mailbox records which transport delivered the blob; today `np_transport_feed()` does not, and gains that with this build | **not BLE**: `NP_HUB_ERR_TRANSPORT_REFUSED` | a reset over USB-C CDC, which has no encryption (`CLAUDE.md` §23, brief §11). Lifted when USB-C carries payload encryption (`OI-SIMFW-71`), and not before |
-| 4 | `signer_key` is the key of the warranty owner's pairing (§4.7.3) and is not the protocol public key | **unknown signer**: `NP_HUB_ERR_UNKNOWN_SIGNER` | a reset by any other paired app, including a person's own: no user may reset (`NP-FW-EMMC-002` §B.2) |
+| 4 | `signer_key` equals the Ed25519 key in the hub's admin pairing entry, which is the warranty owner's (§4.7.3), and is not the protocol public key | **unknown signer**: `NP_HUB_ERR_UNKNOWN_SIGNER` | a reset by any other paired app, including a person's own: no user may reset (`NP-FW-EMMC-002` §B.2) |
 | 5 | the Ed25519 signature verifies under `signer_key` | `BAD_SIGNATURE` | an altered or unsigned blob |
 | 6 | the helmet reads its own serial, it is not all zero, and it equals `device_serial` | **wrong serial**: `WRONG_DEVICE`; `SERIAL_UNKNOWN` (`REQ-FWHUB-90`'s rule, unchanged) | a reset signed for another helmet |
 | 7 | `challenge` equals the challenge consumed at step 0, and one was outstanding | **stale or replayed challenge**: `NP_HUB_ERR_CHALLENGE` | a recorded reset replayed on this helmet; one signed before the last upload |
@@ -2595,9 +2606,9 @@ this line.
 | `REQ-FWHUB-48` | **(Rev 15)** No SHDR record written from session data carries a lattice socket. Per-socket SHDR comes only from the idle pass over every occupied socket, and the PBM session-count record is written at every session end. *Fails without it:* SHDR reconstructs the treatment montage and, from it, the indication (CLAUDE.md §5.1 rule 2; fleet schema DOSE-01; principal rulings F1, F8, F11, F13b of 2026-09-27) | §6.8; `np_pbm_socket_telem_tests` (the pass is byte-identical before and after a session), `np_mod_pbm_chlatch_tests` |
 | `REQ-FWHUB-49` | **(Rev 16; Rev 17: docked only)** A maintenance test that emits runs only as a signed maintenance session with the helmet in a dock the hub detects from hardware, never on a head; until that path exists it is refused. No maintenance test runs while a session holds the lease, and away from the dock a maintenance test records a verdict, never a raw reading. *Fails without it:* an app request lights a tile outside every session interlock, contrary to CLAUDE.md §4.2's "no app-side path may bypass" the safety MCU; off the dock an invisible 808 nm source faces whoever holds the helmet (`NP-FW-BENCH-001` §7.1 rows 4–5); and a reading taken from a person would be SHDR under D-41, whose premise is that none is. *Traceable to:* CLAUDE.md §4.2, §5.1; IEC 62471; `NP-FW-BENCH-001` §7.1, D-9; principal decisions 2026-09-27 | §6.9; `np_pbm_socket_telem_tests` |
 | `REQ-FWHUB-50` | **(Rev 23)** The safety SPI frame layouts (sizes, field offsets, magic values, checksums, the command and fault-slot constants, the `session_status` bit assignments and the enable-word layout) are one contract with the safety MCU. Frame lengths are distinct so a frame classifies by length, and no `session_status` bit overlaps another. *Fails without it:* the two MCUs misparse each other's frames, or a bit is read as the wrong control. *Traced to:* `CLAUDE.md` §4.2; `NP-SW-001` §7.1; `REQ-FWHUB-11`, `REQ-FWHUB-42`. | *(in the text)* |
-| `REQ-FWHUB-51` | **(Rev 23)** The Config store refuses a second handle on an open file and a file kept under a different policy, verifies the content of every read (presence is not durability), bounds create and delete churn, repairs a replicated record from its twin, orders its writes to survive power loss, and keeps the session count and the reset marker durable. A Map 3 journal written under version *n* loses no record when read under *n+1*. *Fails without it:* a stale or torn read returns success, or a session record is lost across an update. *Traced to:* `NP-SOUP-LFS-001` §11, §13; `NP-FW-NVRAM-001` §7.2; `REQ-LFS-01`, `REQ-LFS-02`. | *(in the text)* |
+| `REQ-FWHUB-51` | **(Rev 23)** The Config store refuses a second handle on an open file and a file kept under a different policy, verifies the content of every read (presence is not durability), bounds create and delete churn, repairs a replicated record from its twin, orders its writes to survive power loss, and keeps the session count and the reset marker durable. ~~A Map 3 journal written under version *n* loses no record when read under *n+1*.~~ *(Retired Rev {NP-FW-HUB-001 to}, `NP-FW-NVRAM-001` `OI-NVRAM-21`: the journal was never written and is removed with the store's journal API; Map 3's version rule is `REQ-FWHUB-93` (h).)* *Fails without it:* a stale or torn read returns success, or a session record is lost across an update. *Traced to:* `NP-SOUP-LFS-001` §11, §13; `NP-FW-NVRAM-001` §7.2; `REQ-LFS-01`, `REQ-LFS-02`. | *(in the text)* |
 | `REQ-FWHUB-52` | **(Rev 23)** The littlefs in force is the one recorded: the vendored files match their recorded SHA-256, the build configuration equals the SOUP record, the instance parameters are pinned, the log instances hold the L1/L2 contract, and a configuration with any one parameter perturbed is rejected. *Fails without it:* the anomaly analysis in the SOUP record describes a library that is not the one that ships. *Traced to:* `NP-SOUP-LFS-001` §6.2, §13.1; `NP-FW-EMMC-001`. | *(in the text)* |
-| `REQ-FWHUB-53` | **(Rev 23)** A log append is power-safe, a blob replace is atomic, and a torn journal write costs at most one record, each shown with a fault injector that is itself shown to fire. *Fails without it:* a power loss mid-write corrupts the record being written or the ones before it. *Traced to:* `NP-SOUP-LFS-001` §11; `REQ-LFS-01`. | *(in the text)* |
+| `REQ-FWHUB-53` | **(Rev 23)** A log append is power-safe, a blob replace is atomic, ~~and a torn journal write costs at most one record,~~ each shown with a fault injector that is itself shown to fire. *(The journal clause is retired Rev {NP-FW-HUB-001 to}, `NP-FW-NVRAM-001` `OI-NVRAM-21`: no Config file is tail-additive, and `NP-SOUP-LFS-001` retires claim `L-4`.)* *Fails without it:* a power loss mid-write corrupts the record being written or the ones before it. *Traced to:* `NP-SOUP-LFS-001` §11; `REQ-LFS-01`. | *(in the text)* |
 | `REQ-FWHUB-54` | **(Rev 23)** The consumable counters read zero on a new device, count by the stated increment rule, survive a reboot, reset on a replacement, saturate rather than wrap, retry a failed write without overwriting a newer count, and notify only on change. An unreadable store reads as unknown, never as zero. *Fails without it:* a replacement prompt fires, or is withheld, on a count the device did not measure. *Traced to:* `CLAUDE.md` §2.3, §5.2; `docs/reference/commercial-model.md` §2.3. | *(in the text)* |
 | `REQ-FWHUB-55` | **(Rev 23)** The cervical fault summary keeps the newest four faults per user, oldest first, builds the `CVNS_FAULT_STATUS` frame byte for byte as the apps parse it, persists across power loss, starts empty on a corrupt blob, retries a failed save, notifies only on change, and never writes UHDR before the record is persisted. *Fails without it:* a user is not told of a cardiac cutoff that happened while no phone was connected, or is told of another user's. *Traced to:* `NP-SW-FAULTMSG-001` §9.6; `DI-SAFE-09`; `CLAUDE.md` §6.0. | *(in the text)* |
 | `REQ-FWHUB-56` | **(Rev 23)** The GATT server's UUIDs, attribute table and access rules are the published contract. The warranty token is provisioned once on first read, is never regenerated over an unreadable token, and leaves nothing behind when provisioning fails. The device serial, the active-user write and the fault-status read and notify agree. *Fails without it:* the apps read a different table from the one the hub serves, or a warranty token changes under the warranty owner. *Traced to:* `NP-SW-FAULTMSG-001` §9.3; `CLAUDE.md` §5.1, §6.0. | *(in the text)* |

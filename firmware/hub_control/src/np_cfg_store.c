@@ -16,9 +16,11 @@
 
 /* ── The file table ────────────────────────────────────────────────────────────
  * The ONLY place a Config file is named.  scripts/check-lfs-caller-rules.ts
- * parses it: the set of TAIL_ADDITIVE rows is pinned there (REQ-LFS-01), so a
- * second journal — or a rebuild-cache file quietly moved to tail-additive — is
- * a decision that fails CI until it is made on the record.
+ * parses it: every row must be REBUILD or REPLICATED (REQ-LFS-01), so a
+ * tail-additive file — or a rebuild-cache file quietly moved to another policy
+ * — is a decision that fails CI until it is made on the record.  The store had
+ * one tail-additive file, the per-session Map 3 journal map3.jrn; it was never
+ * written and is removed with its append and read API (OI-NVRAM-21).
  *
  * Paths.  The replicated record's two copies live in two DIRECTORIES, not two
  * names in one directory: each littlefs directory is its own chain of metadata
@@ -37,10 +39,6 @@ typedef struct {
 
 static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_NPMP] = { NP_CFG_POLICY_REBUILD,       { "npmp.bin", NULL } },
-    /* NP-FW-NVRAM-001 §8.5: the per-session Map 3 journal was retired before a row was written; Map 3 is
-     * NP_CFG_FILE_MODULE_USAGE below.  Nothing in production appends to or reads this file.  It stays the store's
-     * one tail-additive file, which the journal tests exercise, until OI-NVRAM-21 decides whether it goes. */
-    [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },
     [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/ukmd.rec",
                              NP_CFG_REPLICA_DIR_B "/ukmd.rec" } },
@@ -511,137 +509,6 @@ np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
         return NP_HUB_ERR_INVALID_ARG;
     }
     WITH_STORE(write_whole(file, 0U, buf, len));
-}
-
-/* ── TAIL_ADDITIVE ─────────────────────────────────────────────────────────── */
-
-static np_hub_status_t append_locked(np_cfg_file_t file, const uint8_t *rec,
-                                     size_t rec_len)
-{
-    lfs_file_t handle;
-    np_hub_status_t st = cfg_open(file, 0U, &handle, LFS_O_RDONLY);
-    bool existed = (st == NP_HUB_OK);
-    if (existed) {
-        (void)cfg_close(file, 0U, &handle);
-    } else if (st != NP_HUB_ERR_NOT_PRESENT) {
-        return st;
-    }
-
-    /* O_APPEND and never O_TRUNC: D-5, and REQ-LFS-01's premise. */
-    st = cfg_open(file, 0U, &handle, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND);
-    if (st != NP_HUB_OK) {
-        return (st == NP_HUB_ERR_NOT_PRESENT) ? NP_HUB_ERR_STORE_IO : st;
-    }
-    lfs_ssize_t put = lfs_file_write(s_lfs, &handle, rec, (lfs_size_t)rec_len);
-    int cerr = cfg_close(file, 0U, &handle);
-    if (put != (lfs_ssize_t)rec_len || cerr != 0) {
-        note_read_error();
-        return NP_HUB_ERR_STORE_IO;
-    }
-    if (!existed) {
-        s_stats.creates++;
-    }
-    return NP_HUB_OK;
-}
-
-np_hub_status_t np_cfg_store_journal_append(np_cfg_file_t file,
-                                            const uint8_t *rec, size_t rec_len)
-{
-    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
-        rec == NULL || rec_len == 0U || s_lfs == NULL) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    WITH_STORE(append_locked(file, rec, rec_len));
-}
-
-static np_hub_status_t journal_read_locked(np_cfg_file_t file, uint8_t *buf,
-                                           size_t cap, size_t rec_len,
-                                           uint32_t *out_count,
-                                           np_cfg_record_verify_fn verify,
-                                           void *ctx)
-{
-    size_t len = 0U;
-    np_hub_status_t st = read_whole(file, 0U, buf, cap, &len);
-    if (st != NP_HUB_OK) {
-        return st;
-    }
-    uint32_t n = 0U;
-    for (size_t off = 0U; off + rec_len <= len; off += rec_len) {
-        if (!verify(buf + off, rec_len, n, ctx)) {
-            /* The valid prefix ends here.  A torn tail is L-4's expected
-             * outcome, not a fault — but it is counted, so a journal that is
-             * torn more often than power is lost becomes visible. */
-            s_stats.integrity_fails++;
-            break;
-        }
-        n++;
-    }
-    *out_count = n;
-    return NP_HUB_OK;
-}
-
-np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
-                                          size_t cap, size_t rec_len,
-                                          uint32_t *out_count,
-                                          np_cfg_record_verify_fn verify,
-                                          void *ctx)
-{
-    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
-        buf == NULL || out_count == NULL || verify == NULL || rec_len == 0U ||
-        s_lfs == NULL) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    *out_count = 0U;
-    WITH_STORE(journal_read_locked(file, buf, cap, rec_len, out_count, verify,
-                                   ctx));
-}
-
-static np_hub_status_t journal_rows_locked(np_cfg_file_t file, uint8_t *buf,
-                                           size_t cap, uint32_t *out_count,
-                                           size_t *out_bytes,
-                                           np_cfg_record_step_fn step,
-                                           void *ctx)
-{
-    size_t len = 0U;
-    np_hub_status_t st = read_whole(file, 0U, buf, cap, &len);
-    if (st != NP_HUB_OK) {
-        return st;
-    }
-    uint32_t n = 0U;
-    size_t off = 0U;
-    while (off < len) {
-        size_t left = len - off;
-        size_t rl = step(buf + off, left, n, ctx);
-        if (rl == 0U || rl > left) {
-            /* The valid prefix ends here, as in the fixed-length reader.  A
-             * step that claims more bytes than remain is treated the same
-             * way: the store never reads past what it read. */
-            s_stats.integrity_fails++;
-            break;
-        }
-        off += rl;
-        n++;
-    }
-    *out_count = n;
-    *out_bytes = off;
-    return NP_HUB_OK;
-}
-
-np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
-                                               size_t cap, uint32_t *out_count,
-                                               size_t *out_bytes,
-                                               np_cfg_record_step_fn step,
-                                               void *ctx)
-{
-    if (!file_ok(file) || CFG_FILES[file].policy != NP_CFG_POLICY_TAIL_ADDITIVE ||
-        buf == NULL || out_count == NULL || out_bytes == NULL || step == NULL ||
-        s_lfs == NULL) {
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    *out_count = 0U;
-    *out_bytes = 0U;
-    WITH_STORE(journal_rows_locked(file, buf, cap, out_count, out_bytes, step,
-                                   ctx));
 }
 
 /* ── REPLICATED ────────────────────────────────────────────────────────────── */

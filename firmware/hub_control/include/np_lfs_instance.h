@@ -88,12 +88,16 @@
  * own Config value.  Size is what it costs: littlefs holds one read cache, one program cache, and
  * one cache per OPEN FILE, all of which are static here.  A larger cache buys
  * fewer block accesses on sequential reads that this device does not do — the
- * Config partition's traffic is a 14,012-byte blob and 32-byte journal appends.
+ * Config partition's traffic is a 14,012-byte blob and small replicated records
+ * (it was 32-byte journal appends until the Map 3 journal was removed,
+ * OI-NVRAM-21).
  * It also bounds inline_max, so small files live in metadata.  inline_max is
  * min(cache_size, attr_max, block_size/8) = min(512, 256, 512) = 256 B since
- * attr_max took EMMC-FS-01's 256: Map 3 records (32 B) and ukmd.rec's 208-byte
- * replica envelope are both still inlineable, which is the cheap case for
- * exactly the two the design writes most.
+ * attr_max took EMMC-FS-01's 256: ukmd.rec's 208-byte replica envelope and the
+ * other small replicated records are inlineable, which is the cheap case for
+ * the records the design rewrites most.  (Map 3's 32-byte journal records were
+ * the other case until the journal was removed, OI-NVRAM-21; Map 3 is now the
+ * 12,288-byte module usage record, NP-FW-NVRAM-001 §3.3.1.6.)
  *
  * lookahead_size 64 (EMMC-FS-01; was 512 until OI-LFS-10).  The lookahead
  * buffer is a bitmap, one bit per block, so 64 B covers 512 blocks — 2 MiB,

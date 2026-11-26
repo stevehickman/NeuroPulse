@@ -250,3 +250,8 @@ The Principal answered all nine questions of §12 on 2026-11-13 by accepting the
 | 9 Attestation | Deferred. | It needs a CA held by NeurOne; a counterfeit hub that knows the code could pair, which is a stimulation-safety question for the ISO 14971 analysis. | The risk analysis asks for it. | Final (deferred) |
 
 Choices adopted without a derivation (the 3 to 5 min window, the failure counter of 10, the 8-entry table) go into `docs/status/unjustified-choices.md` when they are built, not before.
+
+**Addendum (2026-11-26), from another brief.** The principal answered `docs/human-input/oi-priv-27-factory-reset-command.md`
+§13 Q9 (option A) and Q10 (yes), which add to Q8 and to §4.2: **the admin pairing is the warranty owner's**, and at
+pairing the admin app also sends **an Ed25519 public key** inside the SPAKE2-authenticated channel, with its X25519 key,
+which the hub keeps in the admin's table entry. It signs the owner's factory-reset blob (`NP-FW-HUB-001` §4.7.3).

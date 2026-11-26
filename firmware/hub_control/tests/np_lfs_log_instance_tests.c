@@ -367,7 +367,13 @@ static void test_log_instances_hold_l1_l2(void)
 
 /* ── 4. ECR-EMMC-002 — a program smaller than the XTS unit ─────────────────── */
 
-/* The Config instance, through the store's journal (L-4), on a dense medium. */
+/* The Config instance, through the store, on a dense medium.  Until OI-NVRAM-21
+ * this workload was the Map 3 journal's append (L-4).  The journal is removed,
+ * so the store's two-copy write of a small replicated record carries the sweep
+ * instead: it is the write the store makes most often, and the record is inline
+ * in its directory's metadata pair, so every write is a program smaller than
+ * the 512-byte unit landing beside bytes littlefs has already committed, which
+ * is the hazard this case is about. */
 static uint8_t          *g_cmedia;
 static uint8_t           g_cdirty[(NP_LFS_CFG_BLOCK_COUNT + 7U) / 8U];
 static void store_lock(void) { }
@@ -378,74 +384,86 @@ static void reboot_store(void)
     (void)np_cfg_store_bind(&g_lfs, &g_cfg, store_lock, store_lock);
 }
 
-static bool rec_ok(const uint8_t *rec, size_t len, uint32_t idx, void *ctx)
+#define CREC_BASE 40U   /* generations written in the baseline */
+#define CREC_ADD  8U    /* generations the mutation writes: 34 cut points, more than the journal workload this replaced had (28) */
+
+/* Generation `gen` of the swept record: REC_SIZE bytes, every one a function of
+ * the generation, so a torn or mixed copy never reads as a valid generation. */
+static void crec_build(uint8_t out[REC_SIZE], uint32_t gen)
 {
-    uint8_t e[REC_SIZE];
-    (void)ctx;
-    rec_build(e, idx, 3U);
-    return len == REC_SIZE && memcmp(rec, e, REC_SIZE) == 0;
+    rec_build(out, gen, 3U);
 }
 
-static void jrn_baseline(void)
+static void crec_baseline(void)
 {
     uint8_t rec[REC_SIZE];
     (void)np_cfg_store_format();
     (void)np_cfg_store_mount();
-    for (uint32_t i = 0U; i < 40U; i++) {
-        rec_build(rec, i, 3U);
-        (void)np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE);
+    for (uint32_t i = 0U; i < CREC_BASE; i++) {
+        crec_build(rec, i);
+        (void)np_cfg_store_replicated_write(NP_CFG_FILE_SESSION_COUNT, rec, REC_SIZE);
     }
     np_cfg_store_unmount();
 }
 
-/* Journal appends the store acknowledged in the current attempt (OI-LFS-14). */
-static volatile uint32_t g_jrn_acked;
+/* Writes the store acknowledged in the current attempt (OI-LFS-14). */
+static volatile uint32_t g_crec_acked;
 
-static void jrn_append(void)
+static void crec_write(void)
 {
     uint8_t rec[REC_SIZE];
-    g_jrn_acked = 0U;
+    g_crec_acked = 0U;
     if (np_cfg_store_mount() != NP_HUB_OK) { return; }
-    for (uint32_t i = 40U; i < 44U; i++) {
-        rec_build(rec, i, 3U);
-        if (np_cfg_store_journal_append(NP_CFG_FILE_MAP3, rec, REC_SIZE) ==
-            NP_HUB_OK) {
-            g_jrn_acked++;
+    for (uint32_t i = CREC_BASE; i < CREC_BASE + CREC_ADD; i++) {
+        crec_build(rec, i);
+        if (np_cfg_store_replicated_write(NP_CFG_FILE_SESSION_COUNT, rec,
+                                          REC_SIZE) == NP_HUB_OK) {
+            g_crec_acked++;
         }
     }
     np_cfg_store_unmount();
 }
 
-static int jrn_verify(const char *what, long cut, np_powerbd_tear_t tear)
+static int crec_verify(const char *what, long cut, np_powerbd_tear_t tear)
 {
-    static uint8_t rb[REC_SIZE * 48U];
-    uint32_t n = 0U;
+    uint8_t rb[REC_SIZE];
+    uint8_t e[REC_SIZE];
+    uint32_t gen = 0U;
+    bool found = false;
     np_hub_status_t st = NP_HUB_ERR_GENERIC;
     if (np_cfg_store_mount() == NP_HUB_OK) {
-        st = np_cfg_store_journal_read(NP_CFG_FILE_MAP3, rb, sizeof(rb), REC_SIZE,
-                                       &n, rec_ok, NULL);
+        st = np_cfg_store_replicated_read(NP_CFG_FILE_SESSION_COUNT, rb, REC_SIZE);
         np_cfg_store_unmount();
     }
-    /* L-4 bounds the loss to the record in flight: every append the store
-     * acknowledged before the cut is durable, not only the 40 of the baseline. */
-    if (st == NP_HUB_OK && n >= 40U + g_jrn_acked) {
+    for (uint32_t g = 0U; st == NP_HUB_OK && g < CREC_BASE + CREC_ADD; g++) {
+        crec_build(e, g);
+        if (memcmp(rb, e, REC_SIZE) == 0) {
+            gen = g;
+            found = true;
+            break;
+        }
+    }
+    /* Every write the store acknowledged before the cut is durable: the record
+     * reads as the newest acknowledged generation or the one in flight. */
+    const uint32_t floor = CREC_BASE - 1U + g_crec_acked;
+    if (found && gen >= floor && gen <= floor + 1U) {
         return 0;
     }
     if (g_expect && g_shown < 2) {
         g_shown++;
-        printf("           caught: [%s] cut@%ld %s: %u of %u durable records "
-               "(status %d)\n", what, cut, np_powerbd_tear_name(tear),
-               (unsigned)n, 40U + g_jrn_acked, st);
+        printf("           caught: [%s] cut@%ld %s: generation %s%u, durable "
+               "%u (status %d)\n", what, cut, np_powerbd_tear_name(tear),
+               found ? "" : "none/", (unsigned)gen, (unsigned)floor, st);
     } else if (!g_expect) {
-        printf("FAIL [%s] cut@%ld: %u of %u durable records\n", what, cut,
-               (unsigned)n, 40U + g_jrn_acked);
+        printf("FAIL [%s] cut@%ld: generation %s%u, durable %u (status %d)\n",
+               what, cut, found ? "" : "none/", (unsigned)gen, (unsigned)floor, st);
     }
     return 1;
 }
 
-static bool g_erase_noop;   /* applied by config_journal_sweep's bind */
+static bool g_erase_noop;   /* applied by config_store_sweep's bind */
 
-static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
+static np_sweep_result_t config_store_sweep(lfs_size_t rmw, const char *label,
                                               bool expect)
 {
     memset(&g_cfg, 0, sizeof(g_cfg));
@@ -460,7 +478,7 @@ static np_sweep_result_t config_journal_sweep(lfs_size_t rmw, const char *label,
     np_sweep_bind(&g_bd, reboot_store);
     g_expect = expect;
     g_shown  = 0;
-    np_sweep_result_t r = np_sweep_run(jrn_baseline, jrn_append, label, jrn_verify);
+    np_sweep_result_t r = np_sweep_run(crec_baseline, crec_write, label, crec_verify);
     g_expect = false;
     printf("  %-34s %3ld ops x 3 = %4ld attempts, %4ld cuts, %4ld violations,"
            " %3ld exposed\n", label, r.ops, r.attempts, r.cuts, r.violations,
@@ -507,19 +525,23 @@ static void test_prog_smaller_than_xts_unit_breaks_the_contract(void)
     /* (d) OI-LFS-10: the Config instance.  Until 2026-09-24 it was built at
      *     prog 256 and this case EXPECTED a lost Map 3 record under a 512-byte
      *     RMW unit — it found one (NP-SOUP-LFS-001 §13.1.3).  It is now built
-     *     at 512, so through the store's own journal it must lose nothing. */
+     *     at 512, so through the store it must lose nothing.  The workload was
+     *     the store's journal until the journal was removed (OI-NVRAM-21); it
+     *     is now the store's replicated write. */
     g_cmedia = malloc((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT);
     ASSERT(g_cmedia != NULL, "host out of memory");
     if (g_cmedia == NULL) {
         return;
     }
-    np_sweep_result_t c0 = config_journal_sweep(0U, "Config L-4, no RMW (control)",
-                                                false);
-    np_sweep_result_t c1 = config_journal_sweep(512U, "Config L-4 / XTS RMW 512",
-                                                false);
-    ASSERT(c0.violations == 0, "the Config journal fails even without RMW");
+    np_sweep_result_t c0 = config_store_sweep(0U, "Config store, no RMW (control)",
+                                              false);
+    np_sweep_result_t c1 = config_store_sweep(512U, "Config store / XTS RMW 512",
+                                              false);
+    ASSERT(c0.ops > 0 && c0.missed_cuts == 0 && c1.ops > 0 && c1.missed_cuts == 0,
+           "the Config store sweep did not run as measured");
+    ASSERT(c0.violations == 0, "the Config store's write fails even without RMW");
     ASSERT(c1.violations == 0,
-           "the Config instance as built lost a durable Map 3 record under a "
+           "the Config instance as built lost an acknowledged record under a "
            "512-byte RMW unit — OI-LFS-10's decision does not hold");
 
     /* (e) The evidence for that decision, kept: the Config geometry at the
@@ -636,18 +658,20 @@ static void test_noop_erase_is_contract_valid(void)
            "eMMC is NOT safe");
     np_sweep_release();
 
-    /* The Config instance, through the store's journal (L-4). */
+    /* The Config instance, through the store's replicated write (the store's
+     * journal until it was removed, OI-NVRAM-21). */
     g_cmedia = malloc((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT);
     ASSERT(g_cmedia != NULL, "host out of memory");
     if (g_cmedia == NULL) {
         return;
     }
     g_erase_noop = true;
-    np_sweep_result_t cfg = config_journal_sweep(0U, "Config L-4, no-op erase",
-                                                 false);
+    np_sweep_result_t cfg = config_store_sweep(0U, "Config store, no-op erase",
+                                               false);
     g_erase_noop = false;
+    ASSERT(cfg.ops > 0 && cfg.missed_cuts == 0, "sweep did not run as measured");
     ASSERT(cfg.violations == 0,
-           "the Config journal loses records when erase() is a no-op");
+           "the Config store loses an acknowledged record when erase() is a no-op");
     np_sweep_release();
     free(g_cmedia);
     g_cmedia = NULL;
