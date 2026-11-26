@@ -304,6 +304,9 @@ class WarrantyOwnerConsentTests {
             "v2,2,0,0,0,0", "v3,1,0,0,0,0", "v2,1,0,-1,0,0", "v2,1,0,0,0", "v2,1,0,0,0,2", "v1,1,0,0,0,0", "v1,2,0,0,0",
             "v1,1,0,-1,0", "v1,1,0,0", "true", "v2,1,0,0,0,0,", "v4,1,0,0,0,0,", "v3,1,0,0,0,0,zz", "v3,1,0,0,0,0,616",
             "v3,1,0,0,0,0,61.", "v3,1,0,0,0,0,6A",
+            // v4 (OI-NVRAM-26): twelve fields, every flag 0 or 1, the two versions whole and not negative.
+            "v4,1,0,0,0,0,,1,0,0,0", "v4,1,0,0,0,0,,2,0,0,0,0", "v4,1,0,0,0,0,,1,-1,0,0,0", "v4,1,0,0,0,0,,1,0,2,0,0",
+            "v4,1,0,0,0,0,,1,0,0,x,0", "v4,1,0,0,0,0,,1,0,0,0,-1", "v4,1,0,0,0,0,,1,a,0,0,0", "v4,1,0,0,0,0,,1,0,0,0,0,",
         )) {
             store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(WRITTEN, bad))
             assertFalse(warranty.isOpen(HELMET_A), bad)
@@ -356,7 +359,7 @@ class WarrantyOwnerConsentTests {
 
     private companion object {
         /** The line this version writes for a helmet whose owner granted the reports and decided nothing else. */
-        const val WRITTEN = "v3,1,0,0,0,0,"
+        const val WRITTEN = "v4,1,0,0,0,0,,1,0,0,0,0"
     }
 }
 
@@ -504,9 +507,9 @@ class CharacterisationEnrolmentGateTests {
         assertTrue(char.isOpen(HELMET_A))
         // The record as a later programme's enrolment would be written: the last field is the programme.
         val value = store.getString(WarrantyOwnerStore.RECORDS_KEY)!!
-        val enrolled = "v3,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID},0,"
+        val enrolled = "v4,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID},0,,1,0,0,0,0"
         assertTrue(enrolled in value)
-        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(enrolled, "v3,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID + 1},0,"))
+        store.putString(WarrantyOwnerStore.RECORDS_KEY, value.replace(enrolled, "v4,1,1,1,${PersistedKeys.CURRENT_PROGRAMME_ID + 1},0,,1,0,0,0,0"))
         assertFalse(char.isOpen(HELMET_A), "enrolment in programme N must not carry into N+1")
     }
 
