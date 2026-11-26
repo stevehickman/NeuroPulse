@@ -251,6 +251,7 @@ export function parseFragment(path: string, text: string): Fragment | string {
     ...frag.sections.map((s) => ({ where: s.target, text: s.text })),
     ...frag.log.map((text) => ({ where: "LOG", text })),
     ...frag.claude.map((text) => ({ where: CLAUDE_TARGET, text })),
+    ...frag.open.flatMap((h) => h.lines.map((text) => ({ where: `OPEN ${h.label}`, text }))),
   ];
   for (const s of texts) {
     for (const m of s.text.matchAll(TOKEN)) {

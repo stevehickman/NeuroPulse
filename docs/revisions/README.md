@@ -28,8 +28,10 @@ text: **…**
 
 - One `## <serial>` section per controlled document the PR changes, and a `## DHF` section (the DHF is bumped once per
   PR). Each `text:` is one line and holds no `|`.
-- `{X from}`, `{X to}` and `{X from → to}` (X is a serial, or `DHF`) become the numbers assigned. They work in a `text:`
-  and anywhere in a bumped document, for example a callout `> **Rev {NP-FW-HUB-001 to} (2026-11-02) — …**`.
+- `{X from}`, `{X to}` and `{X from → to}` (X is a serial, or `DHF`) become the numbers assigned. They work in every
+  `text:` of the fragment (a history row, a `## LOG` or `## CLAUDE.md` entry, an `## OPEN` hunk's lines) and anywhere in
+  a bumped document, for example a callout `> **Rev {NP-FW-HUB-001 to} (2026-11-02) — …**`. X must have a section in
+  the same fragment, or the fragment is refused.
 - The PR does not edit a `**Revision:**` line, a history row, or a `Rev` cell in the DHF index. `check-revision-fragments`
   fails it if it does, or if a controlled document changes with no section naming it.
 - A **new** document starts at its first revision by hand, with its DHF index row.
@@ -112,6 +114,9 @@ text: - [ ] **`OI-PRIV-42`** …
   commit, after the fragments of the pull requests queued ahead, provided the queue merges by `MERGE`. With `strict`
   off (`NP-SW-CI-001` §6.20) N does not re-run when another PR lands first: two PRs that edit the same item can both
   merge, the second's hunk then fails in `assign-revisions` on `main`, which emails the owner, and it is fixed by hand.
+- A revision token in a hunk's `text:` lines (`Rev {NP-FW-EMMC-002 to}`) is resolved at merge, after the hunk's
+  `was:` / `after:` / `before:` lines are matched, so the page gets the number and the hash still matches. Before
+  2026-11-26 OPEN text was applied as written, and one token reached the page literally (`OI-PRIV-27`).
 - A fragment may hold only `## OPEN` sections. The page is not a controlled document, so they bump nothing.
 
 When the PR merges, the `assign-revisions` workflow, on `main`, takes each fragment oldest first and sets each named
