@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 20
-**Date:** 2026-11-25
+**Revision:** 21
+**Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -113,13 +113,13 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
 R-4  Hub suspends all active sessions and closes all open file handles
 R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), meant
      to unmap it; the purge is R-7a (Rev 9). That ERASE unmaps is not yet confirmed
-     from a primary source (Rev {NP-FW-EMMC-002 to})
+     from a primary source (Rev 21)
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
      then CMD13 polling until the card is in TRAN, ready for data, with no error bit
      → meant as a Purge (NIST SP 800-88r2 §3.1.2; whether SANITIZE qualifies is IEEE
-     2883's to say, not yet read, Rev {NP-FW-EMMC-002 to}) of every unmapped block: the
+     2883's to say, not yet read, Rev 21) of every unmapped block: the
      UHDR blocks R-5 erased and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
      not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
      not finish within its bound, the reset fails here and stays in progress
@@ -167,7 +167,7 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > is refused unless every exported profile's digest matches an export the hub sent on the same link, so the hub itself
 > holds §B.2's rule that a failed export erases nothing. Built with §C.8 or after it.
 >
-> **Rev {NP-FW-EMMC-002 to} (2026-11-26): the sources read, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) to (e).**
+> **Rev 21 (2026-11-26): the sources read, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) to (e).**
 > **NIST SP 800-88 Rev 1 is withdrawn, and the citation is now Rev 2. Rev 2 names no eMMC technique.** The CSRC
 > page for Rev 1 (https://csrc.nist.gov/pubs/sp/800/88/r1/final) reads "Withdrawn on September 26, 2025" and
 > "Superseded by" SP 800-88r2. Rev 2 (https://doi.org/10.6028/NIST.SP.800-88r2, September 2025) reads "Supersedes NIST
@@ -1403,6 +1403,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 18 | 2026-11-22 | **`OI-EMMC2-08`: the serial-number join (`OI-PRIV-58`) is recorded beside the module-UID channel, with the month-granular manufacture dates of SHDR schema Rev G.** |
 | 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
+| 21 | 2026-11-26 | **§B.3: a callout records the sources read for `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) (c) to (e), with quotes and URLs. NIST SP 800-88r1 is withdrawn (CSRC, 2025-09-26) and superseded by Rev 2, which names no eMMC or flash technique and defers Purge techniques to IEEE 2883 (unread), so R-7a is now "meant as a Purge" under Rev 2 §3.1.2. Transcend EMC210 and Alliance Memory eMMC 5.1 datasheets confirm SANITIZE_START at EXT_CSD[165], SEC_FEATURE_SUPPORT at [231] (55h, bit 6 set) and that SANITIZE removes data from the unmapped user address space. They do not settle CMD6, the bit names, the R1 error bits, a SANITIZE time (`UC-202` unchanged) or whether ERASE unmaps, so R-5 now says its unmapping is unconfirmed. Code unchanged.** |
 
 Open items created by this document:
 
