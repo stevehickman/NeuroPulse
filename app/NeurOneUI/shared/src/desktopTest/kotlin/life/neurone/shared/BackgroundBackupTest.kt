@@ -6,6 +6,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.InMemoryKeyValueStore
+import life.neurone.core.common.InMemorySecretKeyStore
+import life.neurone.core.common.SecretKeyStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
@@ -34,9 +36,13 @@ class BackgroundBackupTest {
     private val store = MemoryObjectStore()
     private val recorder = Recorder()
 
-    private fun services(kv: KeyValueStore, placeOn: Boolean = true) = AppServices(
+    /** A host that seals, as the phones and computers do: the automatic backup keeps its secret only where it is sealed (`SWR-MG-13` (e)). */
+    private val keystore = InMemorySecretKeyStore()
+
+    private fun services(kv: KeyValueStore, placeOn: Boolean = true, secrets: SecretKeyStore? = keystore) = AppServices(
         platform = object : PlatformServices {
             override val keyValueStore = kv
+            override val secretKeyStore = secrets
             override val bleCentral = UnavailableBleCentral()
             override val protocolSigner = Ed25519ProtocolSigner()
             override val analyticsBackend = NoOpAnalyticsBackend()
@@ -93,7 +99,7 @@ class BackgroundBackupTest {
         // A sealed value on disk and no keystore to open it: the run is locked.
         val sealedKey = EncryptedKeyValueStore.uhdrKeys().first()
         val kv = InMemoryKeyValueStore().apply { putString(sealedKey, EncryptedKeyValueStore.PREFIX + "ciphertext") }
-        val app = services(kv)
+        val app = services(kv, secrets = null)
         assertEquals(life.neurone.core.common.StorageProtection.LOCKED, app.storageProtection)
         recorder.calls.clear()
         assertNull(app.runBackgroundBackup())

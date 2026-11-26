@@ -1,6 +1,6 @@
 # Principal decision for review: OI-PRIV-65 (2), what the automatic backup keeps on the phone in place of the person's passphrase
 
-**Status:** DRAFT, ready to send; not yet sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-24 by the principal: **option B** (section 4). Not a controlled document; see `docs/human-input/README.md`.
 **From:** NeurOne Software Engineering (`OI-PRIV-65` (2) in `docs/status/pending-decisions.md`; `NP-PRIV-ANALYSIS-007` Finding L21)
 **To:** The principal
 **Response needed:** an option for Q1 (and Q2 if Q1 is B or C), a short rationale, conditions that would reopen it, name, role and date.
@@ -36,3 +36,11 @@ The sender's reading: B keeps the person's experience and the format, and limits
 1. An option for Q1, and for Q2 if it applies.
 2. If B: confirmation that `SWR-MG-32` (b) may allow a sealed export of a kept bundle key under the data key, for the automatic backup only.
 3. Conditions that would reopen it, name, role and date.
+
+## 4. Answer (the principal, 2026-11-24)
+
+**Q1: option B.** The automatic backup keeps a key derived from the code or passphrase under one salt, sealed under the data key, and
+never the secret. `SWR-MG-32` (b) allows a sealed export of a kept bundle key for this purpose only, recorded as `SWR-MG-32` (i).
+**Q2** was not answered separately; it was built as section 2 says: a value of the earlier form is destroyed unread, and the person
+turns the automatic backup on again with their next backup. Built on `claude/oi-priv-65-human-secrets` (`keySeal`, `keyUnseal`, a
+fixed `kdf` for the backup flow, `ScheduledBackup`); the record of what was built is `OI-PRIV-65`.

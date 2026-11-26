@@ -338,3 +338,63 @@ fn an_oblivious_request_s_response_secret_is_kept_in_the_core_used_once_and_its_
     assert!(!text.contains(&old_secret[..16]));
     assert!(migration_json(&request(json!({ "keep": "yes" })).to_string()).is_err());
 }
+
+/// A kept backup key leaves the core only sealed (`SWR-MG-32` (i), `OI-PRIV-65` (2)): `keySeal` under a `data` key, and
+/// `keyUnseal` back into a new handle that seals the same bundle. Nothing in either answer holds the key.
+// @verifies SWR-MG-32#i
+#[test]
+fn a_kept_bundle_key_leaves_the_core_only_sealed_under_a_data_key_and_comes_back_as_a_handle() {
+    let _one = one();
+    let k = kdf("passphrase");
+    let secret = b"correct horse battery staple";
+    let (derived, _, _) = ask_with(json!({ "op": "deriveBundleKey", "secret": {"$secret": 0}, "kdf": k, "keep": "bundle" }), &[secret]).unwrap();
+    let bundle = derived["key"].clone();
+    let (imported, _, _) = ask_with(json!({ "op": "keyImport", "key": {"$secret": 0}, "purpose": "data" }), &[&KEY]).unwrap();
+    let data = imported["key"].clone();
+
+    let (sealed, beside, text) = ask_with(json!({ "op": "keySeal", "key": data, "nonce": NONCE, "name": "np.backup.auto-secret", "bundle": bundle }), &[]).unwrap();
+    assert!(beside.is_empty(), "nothing comes back beside the answer");
+    let sealed = sealed["sealed"].as_str().unwrap().to_string();
+    let (opened, beside, _) = ask_with(json!({ "op": "keyUnseal", "key": data, "name": "np.backup.auto-secret", "sealed": sealed }), &[]).unwrap();
+    assert!(beside.is_empty());
+    assert_eq!(opened["ok"], true);
+    let again = opened["key"].clone();
+    assert!(again.get("$handle").is_some() && again != bundle, "a new handle, not bytes and not the old handle");
+
+    // The key that came back is the key that went in: both seal the same bundle, byte for byte.
+    let seal = |key: &Value| ask(json!({ "op": "sealBundle", "epoch": 1, "kind": "uhdr", "key": key, "nonce": NONCE, "items": {}, "kdf": k }));
+    assert_eq!(seal(&bundle)["bundle"], seal(&again)["bundle"]);
+
+    // The key derived from the same secret: the answers above held none of it.
+    let (plain, out, _) = ask_with(json!({ "op": "deriveBundleKey", "secret": {"$secret": 0}, "kdf": k }), &[secret]).unwrap();
+    assert_eq!(plain["ok"], true);
+    let key_hex = hex(&out[0]);
+    assert!(!text.contains(&key_hex) && !sealed.contains(&key_hex));
+
+    // A different name, or another reading of the same bytes, opens nothing.
+    let other = |op: &str, name: &str| ask_with(json!({ "op": op, "key": data, "name": name, "sealed": sealed }), &[]).unwrap().0;
+    assert_eq!(other("keyUnseal", "np.backup.other")["reason"], "authentication_failed");
+    assert_eq!(other("openValue", "np.backup.auto-secret")["reason"], "authentication_failed");
+    assert_eq!(other("unwrapKey", "np.backup.auto-secret")["reason"], "authentication_failed");
+}
+
+/// Only a `bundle` key can be sealed, only as a handle, and only a `data` key can seal it.
+// @verifies SWR-MG-32#i
+#[test]
+fn only_a_kept_bundle_key_is_sealed_and_only_under_a_data_key() {
+    let _one = one();
+    let k = kdf("passphrase");
+    let secret = b"correct horse battery staple";
+    let keep = |purpose: &str| ask_with(json!({ "op": "deriveBundleKey", "secret": {"$secret": 0}, "kdf": k, "keep": purpose }), &[secret]).unwrap().0["key"].clone();
+    let (bundle, wrapping) = (keep("bundle"), keep("wrapping"));
+    let data = ask_with(json!({ "op": "keyImport", "key": {"$secret": 0}, "purpose": "data" }), &[&KEY]).unwrap().0["key"].clone();
+    let seal = |key: &Value, what: Value| migration_secret_json(&json!({ "op": "keySeal", "key": key, "nonce": NONCE, "name": "n", "bundle": what }).to_string(), &frame(&[&KEY]));
+
+    assert!(seal(&data, bundle.clone()).is_ok());
+    assert!(seal(&data, wrapping.clone()).unwrap_err().contains("wrong_key_purpose"), "the passphrase gate's wrapping key cannot leave");
+    assert!(seal(&data, data.clone()).unwrap_err().contains("wrong_key_purpose"), "a data key is not sealed this way");
+    assert!(seal(&data, json!({"$secret": 0})).unwrap_err().contains("not a kept key"), "bytes are not a kept key");
+    assert!(seal(&data, json!(hex(&KEY))).unwrap_err().contains("not a kept key"), "nor is hex");
+    assert!(seal(&wrapping, bundle.clone()).unwrap_err().contains("wrong_key_purpose"), "a wrapping key does not seal it");
+    assert!(seal(&bundle, bundle.clone()).unwrap_err().contains("wrong_key_purpose"), "nor does a bundle key");
+}

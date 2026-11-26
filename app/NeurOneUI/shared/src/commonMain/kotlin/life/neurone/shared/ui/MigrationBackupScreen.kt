@@ -135,15 +135,7 @@ fun MigrationBackupScreen(
             is BackupStep.ChooseMethod -> {
                 Text(stringResource(Res.string.migration_backup_method_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
-                if (unattended && s.preview.kind == BackupKind.UHDR) {
-                    var keep by remember { mutableStateOf(model.keepAutomatic) }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = keep, onCheckedChange = { keep = it; model.keepAutomatic = it })
-                        Text(stringResource(Res.string.migration_backup_auto_option))
-                    }
-                    Text(stringResource(Res.string.migration_backup_auto_option_note), style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(12.dp))
-                }
+                if (unattended && s.preview.kind == BackupKind.UHDR) AutomaticBackupChoice(model)
                 Button(onClick = { model.useRecoveryCode() }) { Text(stringResource(Res.string.migration_backup_method_code)) }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { model.usePassphrase() }) {
@@ -276,6 +268,27 @@ internal fun ItemList(title: StringResource, codes: List<String>) {
 internal fun words(group: MessageGroup, code: String): String {
     val res = MigrationBackupModel.messageKey(group, code)?.let(::migrationText)
     return if (res != null) stringResource(res) else code
+}
+
+/**
+ * The choice to keep backing up, for a health-data backup into a place the app can write unattended. Offered only where the run keeps the
+ * code or passphrase sealed; elsewhere the screen says why it is not (`SWR-MG-13` (e)), and the backup itself is still made.
+ */
+@Composable
+internal fun AutomaticBackupChoice(model: MigrationBackupModel) {
+    if (!model.automaticAvailable) {
+        // The storage is not sealed on this run, so the code or passphrase would be kept in the clear.
+        Text(stringResource(Res.string.migration_backup_auto_unavailable_unsealed), style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(12.dp))
+        return
+    }
+    var keep by remember { mutableStateOf(model.keepAutomatic) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = keep, onCheckedChange = { keep = it; model.keepAutomatic = it })
+        Text(stringResource(Res.string.migration_backup_auto_option))
+    }
+    Text(stringResource(Res.string.migration_backup_auto_option_note), style = MaterialTheme.typography.bodySmall)
+    Spacer(Modifier.height(12.dp))
 }
 
 /** Whether the automatic backup is on and when it last ran, with the way to turn it off. Draws nothing when it is off. */

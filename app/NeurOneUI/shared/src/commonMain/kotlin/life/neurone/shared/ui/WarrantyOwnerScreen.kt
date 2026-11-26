@@ -53,9 +53,13 @@ import org.jetbrains.compose.resources.stringResource
 // protocol families, and the pause limit is a number of minutes. A choice made for one person is in that person's records.
 // The screen cannot tell the owner from anyone else holding the phone; a change to the helmet's setting asks the person to
 // confirm that it is for everyone who uses the helmet.
+// The offered set is kept in the owner's store, per helmet, never in the person's archive, which travels with the person's
+// protocols (REQ-SHDR-10, OI-PRIV-60). Nothing here says whether a protocol has been run: which protocols the wearer has run is
+// the wearer's (CLAUDE.md §5.1), and the owner may be a clinic. Whether a clinic may see it with the wearer's consent is a
+// decision not yet made (docs/human-input/oi-priv-60-owner-sees-usage.md).
 
-/** One family of protocols, as the owner sees it: a name, how many versions it has and whether it has been used. */
-private class FamilyRow(val key: String, val first: NPProtocolEntry, val versions: Int, val used: Boolean, val archived: Boolean)
+/** One family of protocols, as the owner sees it: a name, how many versions it has, and whether the owner offers it on this helmet. */
+private class FamilyRow(val key: String, val first: NPProtocolEntry, val versions: Int, val offered: Boolean)
 
 @Composable
 fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
@@ -81,9 +85,10 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
 
     val offeredLabel = stringResource(Res.string.warranty_owner_offered_switch)
 
-    val families = remember(version) {
+    val families = remember(version, hub) {
+        val withdrawn = app.warrantyOwnerStore.withdrawnFamilies(hub)
         library.allProtocols.filter { it.isRunnable }.groupBy { it.familyKey() }.map { (key, members) ->
-            FamilyRow(key, members.first(), members.size, members.any { library.isUsed(it) }, library.isArchived(members.first()))
+            FamilyRow(key, members.first(), members.size, key !in withdrawn)
         }.sortedBy { it.first.name.lowercase() }
     }
 
@@ -96,7 +101,10 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
         Text(stringResource(Res.string.warranty_owner_offered_title), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(Res.string.warranty_owner_offered_body), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        if (families.isEmpty()) {
+        if (hub == null) {
+            // The offered set is a helmet's (SWR-WO-01): with no helmet there is none to show or change.
+            Text(stringResource(Res.string.warranty_owner_offered_no_helmet), style = MaterialTheme.typography.bodyMedium)
+        } else if (families.isEmpty()) {
             Text(stringResource(Res.string.warranty_owner_no_protocols))
         } else {
             families.forEach { row ->
@@ -107,18 +115,17 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(row.first.name, style = MaterialTheme.typography.bodyLarge)
-                        val detail = buildList {
-                            if (row.versions > 1) add(stringResource(Res.string.warranty_owner_variants, row.versions.toString()))
-                            if (row.used) add(stringResource(Res.string.warranty_owner_used))
-                        }.joinToString(" · ")
-                        if (detail.isNotEmpty()) Text(detail, style = MaterialTheme.typography.bodySmall)
+                        if (row.versions > 1) {
+                            Text(stringResource(Res.string.warranty_owner_variants, row.versions.toString()), style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     Switch(
                         // Named for a screen reader: the row's own text is a separate element.
                         modifier = Modifier.semantics { contentDescription = "$offeredLabel: ${row.first.name}" },
-                        checked = !row.archived,
+                        checked = row.offered,
                         onCheckedChange = { offered ->
-                            if (offered) library.unarchiveFamily(row.first) else library.archiveFamily(row.first)
+                            // The owner's record for this helmet, never the person's archive (OI-PRIV-60).
+                            hub?.let { app.warrantyOwnerStore.setOffered(it, row.key, offered) }
                             version++
                         },
                     )

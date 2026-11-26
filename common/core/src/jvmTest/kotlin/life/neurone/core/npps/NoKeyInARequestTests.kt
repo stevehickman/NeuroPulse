@@ -92,6 +92,45 @@ class NoKeyInARequestTests {
         }) { key -> listOf(passphrase, "another passphrase entirely", "not the passphrase at all", hex(passphrase.encodeToByteArray()), hex(key), hex(key).take(16)) }
     }
 
+    /**
+     * The automatic backup's kept key (SWR-MG-32 (i), OI-PRIV-65 (2)): sealed under the data key and opened back into a new handle,
+     * which opens what the first sealed. Neither the passphrase nor the data key is in a request, and both handles are released.
+     */
+    // @verifies SWR-MG-32#i
+    @Test
+    fun aKeptBackupKeyIsSealedUnderTheDataKeyAndOpensBackIntoAKeyThatOpensWhatTheFirstSealed() {
+        val passphrase = "correct horse battery staple"
+        val dataKeys = InMemorySecretKeyStore()
+        val store = EncryptedKeyValueStore(InMemoryKeyValueStore(), dataKeys, emptySet(), random)
+        recording({
+            val typed = BundleKeyDerivation.passphraseSecret(passphrase)
+            assertIs<BundleSecretResult.Ok>(typed)
+            val kdf = BundleKeyDerivation.newKdf(BundleKeyMethod.PASSPHRASE, random)
+            val key = BundleKeyDerivation.deriveKey(typed.secret, kdf)
+            typed.secret.destroy()
+            val sealedRecording = try {
+                val sealed = store.sealKept("np.backup.auto-secret", key)!!
+                val again = store.openKept("np.backup.auto-secret", sealed)!!
+                try {
+                    val archive = RecordingArchive.seal(ByteArray(1000) { it.toByte() }, key, "recording:r1", random, kdf)
+                    assertIs<ArchiveOpened.Ok>(RecordingArchive.open(archive, again, "recording:r1"), "the key that came back is the same key")
+                    assertEquals(null, store.openKept("np.backup.other", sealed), "bound to its name")
+                    assertEquals(null, EncryptedKeyValueStore(InMemoryKeyValueStore(), InMemorySecretKeyStore(), emptySet(), random).openKept("np.backup.auto-secret", sealed), "and to this data key")
+                    // A store whose earlier key sealed it (an install that turned the presence gate on since) still opens it.
+                    val gated = InMemorySecretKeyStore().also { it.store(ByteArray(32) { 9 }) }
+                    val moved = EncryptedKeyValueStore(InMemoryKeyValueStore(), gated, emptySet(), random, legacy = dataKeys)
+                    moved.openKept("np.backup.auto-secret", sealed)!!.destroy()
+                    sealed
+                } finally {
+                    again.destroy()
+                }
+            } finally {
+                key.destroy()
+            }
+            sealedRecording
+        }) { listOf(passphrase, hex(passphrase.encodeToByteArray()), hex(dataKeys.load()!!), hex(dataKeys.load()!!).take(16)) }
+    }
+
     // @verifies SWR-MG-32#e
     @Test
     fun aRecoveryCodeAPassphraseAndTheBackupKeyAreInNoRequestWhenARecordingIsSealedAndOpened() {

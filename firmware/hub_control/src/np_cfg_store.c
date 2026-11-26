@@ -37,6 +37,9 @@ typedef struct {
 
 static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     [NP_CFG_FILE_NPMP] = { NP_CFG_POLICY_REBUILD,       { "npmp.bin", NULL } },
+    /* NP-FW-NVRAM-001 §8.5: the per-session Map 3 journal was retired before a row was written; Map 3 is
+     * NP_CFG_FILE_MODULE_USAGE below.  Nothing in production appends to or reads this file.  It stays the store's
+     * one tail-additive file, which the journal tests exercise, until OI-NVRAM-21 decides whether it goes. */
     [NP_CFG_FILE_MAP3] = { NP_CFG_POLICY_TAIL_ADDITIVE, { "map3.jrn", NULL } },
     [NP_CFG_FILE_UKMD] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/ukmd.rec",
@@ -87,8 +90,8 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
     /* REQ-FWHUB-74: the cervical VNS cardiac cutoff's sensitivity level.  One 2-byte record, rewritten only when the owner
      * changes it, so REPLICATED costs nothing and one lost entry does not silently turn a setting back to its default.  It
      * bounds no emission (REQ-LFS-01): the cutoff is the safety MCU's. */
-    /* REQ-FWHUB-93, NP-FW-NVRAM-001 §8.5: the per-module running totals (sessions present and the time present,
-     * sessions used and the time used, faults per code).  Nothing re-answers them, and a total that went backwards
+    /* REQ-FWHUB-93, NP-FW-NVRAM-001 §8.5: Map 3, the per-module running totals (sessions present and the time present,
+     * sessions used and the time used, faults per code, mate cycles, dose, throttles, fault flags, detail_lost).  Nothing re-answers them, and a total that went backwards
      * after a torn write would understate a module's wear, so REPLICATED.  One fixed-size record, rewritten once per
      * session end: upserted, never appended (an appended row per session would be a per-session history).  It bounds
      * no emission (REQ-LFS-01). */
