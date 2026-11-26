@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 22
+**Revision:** 23
 **Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -124,7 +124,7 @@ R-4  Hub suspends all active sessions and closes all open file handles
 R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), meant
      to unmap it; the purge is R-7a (Rev 9). JESD84-B51 §6.6.9: the erase's impact
      "should be simply moving the mapped host address range to the unmapped host
-     address range" (Rev {NP-FW-EMMC-002 to})
+     address range" (Rev 23)
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
@@ -208,7 +208,7 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > bits and **(d), whether ERASE unmaps**. Until then R-5 stays an ERASE, and nothing here shows that TRIM or DISCARD
 > is needed. Neither datasheet states a SANITIZE time, so `UC-202` is unchanged.
 >
-> **Rev {NP-FW-EMMC-002 to} (2026-11-26): JESD84-B51 read, which settles `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) and (d).**
+> **Rev 23 (2026-11-26): JESD84-B51 read, which settles `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) and (d).**
 > Source: JEDEC JESD84-B51, *Embedded Multi-Media Card (e•MMC) Electrical Standard (5.1)*, February 2015. The
 > principal supplied a copy on 2026-11-26. It is a licensed JEDEC document and is not committed. **The
 > sequence above is the one the standard recommends, and the code matches it. No change is needed.**
@@ -1463,6 +1463,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
 | 21 | 2026-11-26 | **§B.3: a callout records the sources read for `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) (c) to (e), with quotes and URLs. NIST SP 800-88r1 is withdrawn (CSRC, 2025-09-26) and superseded by Rev 2, which names no eMMC or flash technique and defers Purge techniques to IEEE 2883 (unread), so R-7a is now "meant as a Purge" under Rev 2 §3.1.2. Transcend EMC210 and Alliance Memory eMMC 5.1 datasheets confirm SANITIZE_START at EXT_CSD[165], SEC_FEATURE_SUPPORT at [231] (55h, bit 6 set) and that SANITIZE removes data from the unmapped user address space. They do not settle CMD6, the bit names, the R1 error bits, a SANITIZE time (`UC-202` unchanged) or whether ERASE unmaps, so R-5 now says its unmapping is unconfirmed. Code unchanged.** |
 | 22 | 2026-11-26 | **§B.2: new Rev note recording the answers to brief §12 Q7 and Q8 (brief §15). A profile records its person's current-device key id and is marked not current by a verified superseded notice; a helmet that sees none keeps the profile current. The owner learns that a person moved, and the key id links one person's profiles across helmets, not to a name (both accepted; never in SHDR). The owner's app records each profile's label at creation; the helmet stores no name (§C.8.2). Not built (`OI-PRIV-27`, NP-PRIV-ANALYSIS-004, #955).** |
+| 23 | 2026-11-26 | **§B.3: R-5 cites JESD84-B51 §6.6.9 for ERASE moving its range to the unmapped space, and a callout quotes JESD84-B51 against the sequence. ERASE then SANITIZE is the standard's recommendation (§6.6.13). DISCARD is not to be used (§6.6.12). The CMD6 Write Byte to [165], bit 6 of [231] and `NP_EMMC_R1_ERROR_MASK` match Tables 6, 36, 116 and 68. An interrupted SANITIZE must be re-run, as both resume paths do (§6.6.11). No SANITIZE time is defined (§7.4.31), so `UC-202` is unchanged. New for part selection: an erase group larger than 1 MiB would carry Config's erase into the Safety MCU staging partition, and `SECURE_REMOVAL_TYPE` is left at the part's default (`OI-PRIV-27` (f), (g)). No code change.** |
 
 Open items created by this document:
 
