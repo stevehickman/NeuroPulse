@@ -1,6 +1,6 @@
 # OI-NVRAM-22 (c): does Map 3's `dose_accum` reach the fleet at all, and is it one sum over a tile's wavelengths or one total per wavelength?
 
-**Status:** ANSWERED 2026-11-26 (the principal, in two messages the same day; §7). Q1: A, delivered dose never reaches the fleet. Q2: B, one dose total per wavelength, for the person's own app. SHDR gets emitter use per emitter and the working environment instead, under the warranty owner's consent. The principal answered the two readings put back in `OI-NVRAM-25` the same day (§7.1): per emitter is per drive channel, accessory ports included, and either of the warranty owner's consents admits the new fields, with a prompt for general SHDR consent when the characterisation window ends.
+**Status:** ANSWERED 2026-11-26 (the principal, in several messages the same day; §7 to §7.2). Q1: A, delivered dose never reaches the fleet. Q2: B, one dose total per wavelength, for the person's own app. SHDR gets emitter use per emitter and the working environment instead, under the warranty owner's consent. The principal answered the two readings put back in `OI-NVRAM-25` the same day (§7.1): per emitter is per drive channel, accessory ports included, and, as refined in §7.2, general SHDR consent covers what predictive maintenance needs, which the §7.4 review gate sets; until then the new SHDR fields flow only from opted-in helmets within the characterisation window, and the owner is prompted at the window's end and again when the analysis is done.
 **GitHub issue:** none yet. Rule 7 of `docs/human-input/README.md` asks for one; the session that wrote this did not open an issue unasked. The finding comes from working `OI-NVRAM-22`, raised by pull request [stevehickman/NeuroPulse#1072](https://github.com/stevehickman/NeuroPulse/pull/1072).
 **Sender:** the session that worked on `OI-NVRAM-22` (a Claude agent), drafted 2026-11-26.
 **Addressee:** the Principal, with the Privacy Lead and Firmware.
@@ -133,7 +133,7 @@ With dose moved off Config, emitter use alone needs 24 − 4 = **20 B against 19
 
 - **(a) Per emitter means per drive channel.** A session count is the number of sessions in which that channel was driven. It does not count individual pulses.
 - **Accessory ports are counted.** Emitters in accessory ports are counted per drive channel, as a tile's are: for example the intranasal probe's 660 and 808 nm channels on each side.
-- **(b) Either consent admits the new SHDR fields.** The new fields are on-time per channel, sessions per channel and the 5 °F temperature bands. They flow while **either** of two consents is in force:
+- *(Replaced the same day by §7.2: the principal said general consent covers only what predictive maintenance needs, which the §7.4 review gate sets.)* ~~**(b) Either consent admits the new SHDR fields.**~~ The new fields are on-time per channel, sessions per channel and the 5 °F temperature bands. They flow while **either** of two consents is in force:
   - the warranty owner's general SHDR consent (per helmet, `REQ-SHDR-08`);
   - `NP-MOD-ID-001` §7.5's characterisation opt-in, while its window is open.
 
@@ -145,13 +145,13 @@ With dose moved off Config, emitter use alone needs 24 − 4 = **20 B against 19
   - It concerns the warranty owner only. `SHDRUploader` stays independent of `ConsentStore` (`REQ-CONSENT-01`).
 
   Written as `REQ-SHDR-12` (`docs/reference/data-architecture-detail.md` §5.4), untested until it is built (`OI-NVRAM-26`).
-- **`throttle_count` is read under "Generally".** "Generally, …" states the rule for the characterisation opt-in as a whole. So `throttle_count`, which rode on the §7 opt-in alone, now also flows under either consent. That is this session's reading of "generally", not the principal's words.
+- *(Replaced the same day by §7.2: the principal said general consent covers only what predictive maintenance needs, which the §7.4 review gate sets.)* ~~**`throttle_count` is read under "Generally".**~~ "Generally, …" states the rule for the characterisation opt-in as a whole. So `throttle_count`, which rode on the §7 opt-in alone, now also flows under either consent. That is this session's reading of "generally", not the principal's words.
 
 **What this reading does not reach, and why [E].** The words "generally" could also be read to cover the per-socket, per-session fields that `NP-MOD-ID-001` §7.2 admits (`emitter_on_seconds`, `thermal_seconds_over_threshold`, `throttle_event_count`, `peak_ntc_celsius`). They could also cover `NP-FW-EMMC-002` §H's accelerometer programme. Under §7.3 and §H.3.4 those fields stop at the window's end by a firmware gate, and §7.5 argues that admitting an 80-socket duty map under warranty registration would be bundled consent. Reading "generally" that widely would move a per-socket, per-session duty map to every consenting device. The principal's answer was given about the Map 3 totals, so this record applies it to them and to `throttle_count`, and leaves §7.2's per-socket set and §H as they are. Whether the ruling reaches them is put to the principal in `OI-NVRAM-27` (a).
 
-**A conflict this exposes [E].** `REQ-SHDR-09` (a) refuses characterisation enrolment for a helmet whose general SHDR consent is not open, and (b) ends the enrolment when that consent is revoked. So a helmet inside its characterisation window always has general consent open as well. In practice "either consent" therefore means general consent. At expiry the owner already has general consent, so the prompt gives them a chance to reconsider. The answer does not say what an unanswered prompt does to the consent the owner already gave: leave it as it was, or let it lapse. Until the principal rules (`OI-NVRAM-27` (b)), `REQ-SHDR-12` makes an unanswered prompt change nothing. It records no grant and no revoke.
+**A conflict this exposes [E].** `REQ-SHDR-09` (a) refuses characterisation enrolment for a helmet whose general SHDR consent is not open, and (b) ends the enrolment when that consent is revoked. So a helmet inside its characterisation window always has general consent open as well. In practice "either consent" therefore means general consent. At expiry the owner already has general consent, so the prompt gives them a chance to reconsider. The answer does not say what an unanswered prompt does to the consent the owner already gave: leave it as it was, or let it lapse. Until the principal rules (`OI-NVRAM-27` (b), answered in §7.2: silence leaves the consent as it was), `REQ-SHDR-12` makes an unanswered prompt change nothing. It records no grant and no revoke.
 
-**Where this supersedes `NP-MOD-ID-001` [E].** For the Map 3 totals and `throttle_count`, the ruling supersedes two things in `NP-MOD-ID-001`: §7.3's stop at the window's end, and §7.5's bundled-consent argument. Both are kept in that document, with a note pointing to `NP-FW-NVRAM-001` §8.5 and D-39. They still govern §7.2's own per-socket set until `OI-NVRAM-27` (a) is answered.
+*(Replaced the same day by §7.2: the principal said general consent covers only what predictive maintenance needs, which the §7.4 review gate sets.)* ~~**Where this supersedes `NP-MOD-ID-001` [E].**~~ For the Map 3 totals and `throttle_count`, the ruling supersedes two things in `NP-MOD-ID-001`: §7.3's stop at the window's end, and §7.5's bundled-consent argument. Both are kept in that document, with a note pointing to `NP-FW-NVRAM-001` §8.5 and D-39. They still govern §7.2's own per-socket set until `OI-NVRAM-27` (a) is answered.
 
 **Room in the Map 3 row, accessory channels included [E].** The record has one row layout for tiles and accessory ports alike, so a row has to hold the most channels any module drives. Each channel takes 8 B (a 32-bit on-time and a 32-bit session count):
 
@@ -167,3 +167,53 @@ The record leaves 19 B per row, and dropping `dose_accum` from Config frees 4 B.
 **Open items:** `OI-NVRAM-25` is closed. `OI-NVRAM-23` now covers accessory-port channels. `OI-NVRAM-26` (raised) builds the app's expiry prompt. `OI-NVRAM-27` (raised) asks the principal the two questions above.
 
 **What changed where (2026-11-26, second change):** `NP-FW-NVRAM-001` §3.3.1.6, §8.1, §8.5, D-38, D-39 and §13; `NP-MOD-ID-001` §7.2, §7.3 and §7.5; `NP-FW-HUB-001` §6.11; `docs/reference/data-architecture-detail.md` §5.1 and `REQ-SHDR-12`.
+
+### 7.2 Ruling (b) refined, and the answer to `OI-NVRAM-27` (the principal, 2026-11-26)
+
+**The principal's words, verbatim, in order.** The first message:
+
+> general consent is not time bounded. When the characterization period ends, the general consent continues for the content level needed for predictive maintenance. Having said that, we will not know until after the characterization period how much content we need on an ongoing basis to properly predict maintenance issues. The general consent may end up requiring as much data as the characterization period used - or it may not - we will know once the data from the characterization period is analyzed.
+
+The coordinating session then set out a reading, below, and asked about a timing gap: the window can end before the analysis is done. The principal answered the gap:
+
+> Timing gap: prompt when the period ends. Prompt again when notified that analysis is done
+
+**The reading the principal was given, and did not object to.** It is recorded as that, not as the principal's words.
+
+- **Two consents with different content.**
+  - **General SHDR consent** has no time limit (per helmet, `REQ-SHDR-08`). Its content is what predictive maintenance needs on an ongoing basis.
+  - **The characterisation opt-in** (`NP-MOD-ID-001` §7.5) covers the extended set for a fixed window. Its purpose is to find out what that ongoing content must be.
+- **The §7.4 review gate sets the content of general consent**, from the characterisation data. The result may be everything characterisation collected, the baseline only, or something in between.
+- **Until the gate rules, general consent covers the baseline only:** the device-condition fields it covers today. The following flow **only from opted-in helmets, within the window**:
+  - the per-channel on-time and per-channel session counts, for tiles and accessory ports;
+  - the 5 °F temperature bands;
+  - `throttle_count`;
+  - `NP-MOD-ID-001` §7.2's per-socket, per-session fields.
+
+  This replaces §7.1's "either consent" reading for those fields. §7.3's firmware-enforced stop at the window's end and §7.5's bundled-consent argument **stand** for the extended content.
+- **General consent grows only by asking.** An owner agreed to a content level. If the gate adds content, the owner is told in plain words what is added, and is asked. Silence keeps them at what they agreed. Nothing grows without an answer.
+- **Two prompts.**
+  - **(1) When the window ends.** The warranty owner is asked about general SHDR consent. The content shown is what general consent covers at that moment: the baseline, because the gate has not ruled yet.
+  - **(2) When an app update carries the gate's result** (the analysis-done broadcast below). The owner is asked again. The content shown is general consent as the gate set it, with what is added named in plain words.
+
+  At both prompts:
+  - It is a fresh question, and the default is no change.
+  - Silence keeps the existing consent exactly at its current content level. This answers `OI-NVRAM-27` (b).
+  - "Never asked" stays distinct from "said stop" (`CLAUDE.md` §6.0).
+  - Characterisation is never re-enrolled (`REQ-SHDR-09`).
+  - The question is the warranty owner's alone (`REQ-CONSENT-01`).
+
+  Written into `REQ-SHDR-12`, which stays untested until it is built (`CLAUDE.md` §21).
+- **`OI-NVRAM-27` is closed.** (a) The gate decides for §7.2's per-socket fields too. Nothing changes before it rules. (b) Silence leaves the consent as it was.
+
+**The analysis-done notice (the principal, 2026-11-26, verbatim):**
+
+> Analysis done would be broadcast through an app update mechanism to all warranty owners
+
+Ruled. The notice is a broadcast through the app update mechanism, the same to every warranty owner, and it is not targeted. It carries the general-consent content set the review gate fixed, and each owner's app then shows prompt (2). It follows `CLAUDE.md` §6.3's pattern, where NeurOne publishes the same thing to every device and filters nothing, and it needs no per-owner channel. Left to build, not designed here (`OI-NVRAM-28`): how the content set ships in an app update, and how the app knows to show prompt (2) once.
+
+**Why §7.1's reading is replaced.** §7.1 read "both consents cover it" as both consents admitting the new fields. The principal has since said that general consent covers only what predictive maintenance needs on an ongoing basis, and that this will not be known until the characterisation data is analysed. So until then the new fields belong to the characterisation set. §7.1's text is struck through in place and kept as the trail.
+
+**Open items:** `OI-NVRAM-27` is closed. `OI-NVRAM-26` now builds both prompts. `OI-NVRAM-28` (raised) links general consent's ongoing content to the §7.4 gate, and builds the app-update broadcast that carries it. `OI-NVRAM-23`'s build items are unchanged; their fleet path is opt-in only until the gate rules.
+
+**What changed where (2026-11-26, third change):** `NP-FW-NVRAM-001` §8.1, §8.5, D-39 and §13; `NP-MOD-ID-001` §7.2, §7.3 and §7.5; `NP-FW-HUB-001` §6.11; `docs/reference/data-architecture-detail.md` §5.1 and `REQ-SHDR-12`.

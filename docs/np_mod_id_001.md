@@ -414,11 +414,13 @@ describes what the schema *may* carry, not what any given device *does* carry.
 > users. That is already this opt-in's subject (§7.5.1). `NP-FW-NVRAM-001` §8.5 records the totals per emitter
 > channel in the module's Map 3 row, as drive time of the class of `emitter_on_seconds` above, in Map 3's narrower
 > shape: running totals per module, never per socket per session (`NP-FW-NVRAM-001` D-18). Specified, not built
-> (`OI-NVRAM-23`). **They ride on either consent** (the principal, 2026-11-26, `OI-NVRAM-25` (b);
-> `NP-FW-NVRAM-001` D-39): the warranty owner's general SHDR consent, or this opt-in while its window is open, and the
-> Map 3 `throttle_count` likewise, by the reading of the principal's "generally". They are Map 3 totals, not
-> additions to the list above, which is unchanged. Whether the ruling also reaches this list's per-socket, per-session
-> fields is put to the principal (`OI-NVRAM-27` (a)); until then they stay under this opt-in alone.
+> (`OI-NVRAM-23`). **Rev {NP-MOD-ID-001 to}: they flow under this opt-in, within its window, with the Map 3 `throttle_count` and the
+> list above** (the principal, 2026-11-26, `NP-FW-NVRAM-001` D-39). General SHDR consent has no time limit and covers
+> what predictive maintenance needs on an ongoing basis. The §7.4 review gate sets that from this programme's data, and
+> until it rules general consent covers the baseline only. The gate decides for the list above too, and nothing
+> changes before it rules (`OI-NVRAM-27`, closed). They are Map 3 totals, not additions to the list above, which is
+> unchanged. *(The Rev 4 reading the same day, that they ride on either consent, is replaced: the principal said general
+> consent covers only what predictive maintenance needs, which is not known until this programme's data is analysed.)*
 
 ### 7.3 Time-box and fail-closed expiry (CHAR-2)
 
@@ -439,11 +441,15 @@ asymmetry is the reason the window is bounded at adoption rather than reviewed
 > "just a time limited version of consent that, once the characterisation period ends, changes consent from 'yes' to
 > 'no'". The window's end is therefore a transition from yes to no, and it prompts the warranty owner for general SHDR
 > consent, because they may have changed their mind (`REQ-SHDR-12`, `docs/reference/data-architecture-detail.md` §5.4;
-> app build `OI-NVRAM-26`). The prompt starts at no, an unanswered prompt grants nothing, and it never re-enrols
-> characterisation (`REQ-SHDR-09`). **Superseded in part:** for Map 3's per-emitter-channel totals, temperature bands
-> and `throttle_count`, which flow under either consent, nothing stops at the window's end while general consent is in
-> force. The firmware stop above still governs §7.2's own fields, unless the principal rules otherwise (`OI-NVRAM-27`
-> (a)).
+> app build `OI-NVRAM-26`). The default is no change, an unanswered prompt keeps the consent at its current content level, and it never re-enrols
+> characterisation (`REQ-SHDR-09`). **Rev {NP-MOD-ID-001 to}: the firmware stop above stands** for the whole extended content: §7.2's list,
+> Map 3's per-emitter-channel totals and temperature bands, and `throttle_count`. General SHDR consent has no time limit,
+> but until the §7.4 review gate rules it covers the baseline only; the gate then sets its ongoing content, and the
+> owner is asked again, with what is added named in plain words, when an app update, broadcast alike to all warranty owners, carries the gate's result. Silence at
+> either prompt keeps the consent at its current content level, and general consent grows only by asking
+> (`NP-FW-NVRAM-001` D-39, `OI-NVRAM-28`). *(Replaced the same day: the Rev 4 form of this note said these Map 3 fields
+> flowed past the window's end under either consent; the principal said general consent covers only what predictive
+> maintenance needs, which this programme's data has to show.)*
 
 ### 7.4 The review gate and its decision rule
 
@@ -497,12 +503,12 @@ would have been bundled consent for a purpose the registrant never contemplated.
 A separate, affirmative, granular, revocable opt-in with a stated benefit is what
 the same reasoning asks for.
 
-> **Rev 4 (2026-11-26) — superseded in part by the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The
-> argument above is kept. For Map 3's per-emitter-channel totals, temperature bands and `throttle_count`, the principal
-> ruled that both of the warranty owner's consents admit them, so they flow under the general SHDR consent given at
-> warranty registration as well as under this opt-in. Those totals are per module and running, not a per-socket,
-> per-session duty map, but a module usually stays in one socket. Whether the ruling also reaches §7.2's per-socket set,
-> which is what this argument was made about, is `OI-NVRAM-27` (a).
+> **Rev {NP-MOD-ID-001 to} (2026-11-26) — the argument above stands (`NP-FW-NVRAM-001` §8.5, D-39).** It covers Map 3's
+> per-emitter-channel totals, temperature bands and `throttle_count` as well as §7.2's list: they flow only under this
+> opt-in, within its window. General SHDR consent, given at registration, has no time limit and covers what predictive
+> maintenance needs on an ongoing basis. The §7.4 review gate sets that, and the owner is asked before it grows
+> (the principal, 2026-11-26). *(Replaced the same day: the Rev 4 form of this note recorded this argument as superseded
+> for those Map 3 fields, on a reading that either consent admitted them; the principal's refinement restored it.)*
 
 The reciprocity is genuine rather than decorative, and it should be described as
 the honest exchange it is: the fleet model cannot personalise for a device whose
