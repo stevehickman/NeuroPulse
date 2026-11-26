@@ -24,7 +24,9 @@
  * user includes np_lfs_instance.h first. */
 #define MEDIA_BYTES ((size_t)NP_LFS_CFG_BLOCK_SIZE * NP_LFS_CFG_BLOCK_COUNT)
 
-/* 32-byte self-checking journal record — NP-FW-NVRAM-001 §4.2 D-5. */
+/* 32-byte self-checking record, the log scenarios' unit.  It was also the
+ * Map 3 journal's (NP-FW-NVRAM-001 §4.2 D-5) until the journal was removed
+ * (OI-NVRAM-21). */
 #define REC_SIZE    32U
 
 /* The session-log file name the log scenarios append to. */

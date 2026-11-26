@@ -42,10 +42,13 @@
  *
  *   REQ-LFS-01 no emission-bounding value under a tail-additive policy.  Every
  *              file carries its policy in one table, and the policy decides
- *              which API may touch it: a rebuild-cache file cannot be appended
- *              to and a tail-additive journal cannot be read through the
- *              rebuild-cache reader.  Who may call the journal reader at all is
- *              the OI-LFS-03 gate's business, not this file's.
+ *              which API may touch it: a rebuild-cache file cannot be written
+ *              as a replicated record, nor a replicated record as one entry.
+ *              There is no tail-additive policy at all: its one file, the
+ *              per-session Map 3 journal map3.jrn, was never written and was
+ *              removed with its append and read API (OI-NVRAM-21).  The
+ *              OI-LFS-03 gate admits only REBUILD and REPLICATED rows, so one
+ *              cannot return without a decision on the record.
  *
  * ── What this file is NOT ─────────────────────────────────────────────────────
  * The block device.  read/prog/erase/sync over the XTS-mounted partition are
@@ -75,7 +78,6 @@
  */
 typedef enum {
     NP_CFG_FILE_NPMP = 0,   /* "NPMP" module-map blob — np_module_map        */
-    NP_CFG_FILE_MAP3,       /* retired Map 3 journal, never written — NP-FW-NVRAM-001 §4.2(b), OI-NVRAM-21 */
     NP_CFG_FILE_UKMD,       /* ukmd.rec — NP-FW-EMMC-002 §C.3, D-22          */
     NP_CFG_FILE_SESSION_COUNT, /* device session count — EMMC-SHDR-09, OI-LFS-12 */
     NP_CFG_FILE_WARRANTY_TOKEN, /* warranty token — NP-FW-EMMC-002 §A.2, OI-WA-03 */
@@ -94,14 +96,13 @@ typedef enum {
      * becomes an empty one.  The only policy under which a value that bounds
      * an emission may be stored. */
     NP_CFG_POLICY_REBUILD = 0,
-    /* A RECORD of facts nothing will re-answer.  Appended, never rewritten,
-     * never truncated (D-5).  REQ-LFS-01: nothing stored under it may ever be
-     * read as a limit. */
-    NP_CFG_POLICY_TAIL_ADDITIVE,
+    /* 1 was NP_CFG_POLICY_TAIL_ADDITIVE: a record appended, never rewritten,
+     * whose one file (the per-session Map 3 journal) was never written.  It
+     * was removed with that file (OI-NVRAM-21), and its value is not reused. */
     /* A fixed-size record whose loss is unrecoverable and whose integrity the
      * store cannot judge by meaning (ukmd.rec's GCM tag needs the user's key).
      * Two copies in two metadata pairs, each in a checksummed envelope. */
-    NP_CFG_POLICY_REPLICATED,
+    NP_CFG_POLICY_REPLICATED = 2,
     /* Returned for a file id outside the table.  Matches no API. */
     NP_CFG_POLICY_INVALID = -1,
 } np_cfg_policy_t;
@@ -116,19 +117,6 @@ np_cfg_policy_t np_cfg_store_policy(np_cfg_file_t file);
 
 /* Whole-content check for a REBUILD file: the blob CRC, magic, length. */
 typedef bool (*np_cfg_verify_fn)(const uint8_t *buf, size_t len, void *ctx);
-
-/* Per-record check for a TAIL_ADDITIVE journal.  Called once per fixed-size
- * record, in order; the first record that fails ends the valid prefix. */
-typedef bool (*np_cfg_record_verify_fn)(const uint8_t *rec, size_t rec_len,
-                                        uint32_t index, void *ctx);
-
-/* Per-record check for a journal whose records describe their own length
- * (OI-NVRAM-16).  `left` is the number of bytes from `rec` to the end of the
- * journal.  Returns the length of the verified record that starts at `rec`,
- * or 0 when no verified record starts there.  A return of 0, or of more than
- * `left`, ends the valid prefix. */
-typedef size_t (*np_cfg_record_step_fn)(const uint8_t *rec, size_t left,
-                                        uint32_t index, void *ctx);
 
 /* ── Lifecycle ─────────────────────────────────────────────────────────────────
  *
@@ -195,48 +183,6 @@ np_hub_status_t np_cfg_store_read(np_cfg_file_t file, uint8_t *buf, size_t cap,
 
 np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
                                      size_t len);
-
-/* ── TAIL_ADDITIVE journals ────────────────────────────────────────────────────
- *
- * np_cfg_store_journal_append: O_APPEND, write one record, close (which
- * syncs).  One flush per record, D-5.
- *
- * np_cfg_store_journal_read: read the whole journal and run `verify` over each
- * `rec_len`-byte record in order.  `*out_count` is the length of the valid
- * prefix, in records; a torn tail ends the prefix and is not an error (L-4:
- * a torn write costs one record).  The bytes past the valid prefix in `buf`
- * are unspecified and must not be read.
- *
- * np_cfg_store_journal_read_rows: the same, for a journal whose records are
- * not all one length (OI-NVRAM-16).  The store steps by the length `step`
- * returns for each record, never by a length fixed at the call, so a row that
- * a later firmware version grew neither misaligns every record after it nor
- * ends the scan.  `*out_count` is the valid prefix in records and
- * `*out_bytes` the same prefix in bytes.  It was written for the per-session
- * Map 3 journal (NP-FW-NVRAM-001 D-24, D-25), which was retired unwritten
- * (§8.5): Map 3 is now the upserted NP_CFG_FILE_MODULE_USAGE record, and no
- * production code reads or appends a journal.  Whether the journal API and
- * map3.jrn stay is OI-NVRAM-21.
- *
- * REQ-LFS-01: the output of both readers is HISTORY.  It must never become
- * the source of a limit.  scripts/check-lfs-caller-rules.ts restricts who may
- * call either one, and each permitted caller is listed there with the reason
- * it reads history rather than a bound.
- */
-np_hub_status_t np_cfg_store_journal_append(np_cfg_file_t file,
-                                            const uint8_t *rec, size_t rec_len);
-
-np_hub_status_t np_cfg_store_journal_read(np_cfg_file_t file, uint8_t *buf,
-                                          size_t cap, size_t rec_len,
-                                          uint32_t *out_count,
-                                          np_cfg_record_verify_fn verify,
-                                          void *ctx);
-
-np_hub_status_t np_cfg_store_journal_read_rows(np_cfg_file_t file, uint8_t *buf,
-                                               size_t cap, uint32_t *out_count,
-                                               size_t *out_bytes,
-                                               np_cfg_record_step_fn step,
-                                               void *ctx);
 
 /* ── REPLICATED records ────────────────────────────────────────────────────────
  *

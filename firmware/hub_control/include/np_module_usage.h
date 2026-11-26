@@ -36,7 +36,8 @@
  *
  * This table IS Map 3 (NP-FW-NVRAM-001 §8.5, OI-NVRAM-20): one running-total row
  * per module, upserted.  The per-session journal (map3.jrn, np_map3_record) it
- * replaced was retired before a row was written, and its codec is removed.
+ * replaced was retired before a row was written; its codec is removed, and the
+ * file and the Config store's journal API with it (OI-NVRAM-21).
  *
  * Who may see which field (§8.5, §8.1): the person's app reads every field at
  * a download and keeps the previous snapshot in Map 2.  The fleet gets the
