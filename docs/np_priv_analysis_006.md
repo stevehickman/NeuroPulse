@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 4
-**Date:** 2026-11-25  
+**Revision:** 5
+**Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -339,7 +339,7 @@ F-12 to F-16 follow these.
 >
 > **Rev 4.** F-05 repaired in the Compose app, which closes `OI-PRIV-61`.
 >
-> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
+> **Rev 5 (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
 > decision (`OI-PRIV-60` stays open for it).
 
 | Finding | Repair | Requirement | Tests | What remains |
@@ -378,3 +378,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 2 | 2026-11-25 | NeurOne Software Engineering | **§8 added: F-07, F-09, F-10 and F-11 repaired in the Compose app and the React web app, with their requirements, tests and what remains; `OI-PRIV-77` raised from F-09.** |
 | 3 | 2026-11-25 | NeurOne Software Engineering | **New §8.1: where F-08 and F-13 are now tracked, each checked against `main`. F-08 is point (6) of `OI-CONSENT-08`, with a proposed minimum per use case (Q6 of its brief, register row `UC-212`). F-13 is new `OI-PRIV-78` (GitHub #1060, brief `oi-priv-78-phone-erase.md`). The iOS Keychain residue on the shared host is the data key and the gated key only, and the analytics ID and the cloud grant are left behind on both phones. §1, §3 and the header point to them.** |
 | 4 | 2026-11-25 | NeurOne Software Engineering | **§8: F-05 repaired in the Compose app (`SWR-MG-13` (c), (e)), with its tests and what remains; closes `OI-PRIV-61`.** |
+| 5 | 2026-11-26 | NeurOne Software Engineering | **§8: F-04 repaired in the Compose app and the shared core (the offered set in the owner's store per helmet, the used marker removed), with what remains: the principal's answer on whether a clinic owner may see usage.** |
