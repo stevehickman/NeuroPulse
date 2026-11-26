@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -342,7 +342,7 @@ F-12 to F-16 follow these.
 > **Rev 5 (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
 > decision (`OI-PRIV-60` stays open for it).
 >
-> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-25).** The remaining Low findings: F-12 in the Compose app and its Android and iOS hosts,
+> **Rev 6 (2026-11-25).** The remaining Low findings: F-12 in the Compose app and its Android and iOS hosts,
 > F-14 and the open F-16 items in the React web app and the Compose app. Two questions are raised rather than decided: whether the
 > React app's backup files should be sealed (`OI-PRIV-79`, the principal's design) and whether withdrawing the EEG release must
 > destroy the recordings (`OI-PRIV-80`). The F-16 rows for the iOS pasteboard and the privacy manifest went with the SwiftUI app
@@ -392,3 +392,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 3 | 2026-11-25 | NeurOne Software Engineering | **New §8.1: where F-08 and F-13 are now tracked, each checked against `main`. F-08 is point (6) of `OI-CONSENT-08`, with a proposed minimum per use case (Q6 of its brief, register row `UC-212`). F-13 is new `OI-PRIV-78` (GitHub #1060, brief `oi-priv-78-phone-erase.md`). The iOS Keychain residue on the shared host is the data key and the gated key only, and the analytics ID and the cloud grant are left behind on both phones. §1, §3 and the header point to them.** |
 | 4 | 2026-11-25 | NeurOne Software Engineering | **§8: F-05 repaired in the Compose app (`SWR-MG-13` (c), (e)), with its tests and what remains; closes `OI-PRIV-61`.** |
 | 5 | 2026-11-26 | NeurOne Software Engineering | **§8: F-04 repaired in the Compose app and the shared core (the offered set in the owner's store per helmet, the used marker removed), with what remains: the principal's answer on whether a clinic owner may see usage.** |
+| 6 | 2026-11-26 | NeurOne Software Engineering | **§8: F-12, F-14 and the open F-16 items repaired in the Compose app, its Android and iOS hosts and the React web app, with their requirements, tests and what remains; `OI-PRIV-79` (sealing the web backup files) and `OI-PRIV-80` (whether an EEG withdrawal must destroy the recordings) raised.** |

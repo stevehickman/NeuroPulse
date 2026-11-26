@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 222
-**Date:** 2026-11-24  
+**Revision:** 223
+**Date:** 2026-11-26  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -929,3 +929,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 220 | 2026-11-25 | NeurOne Software Engineering | **§6.3: `SWR-MG-13` (e) added and built: the automatic backup's code or passphrase (`np.backup.auto-secret`) is kept only on a run whose storage is sealed; elsewhere `ScheduledBackup.turnOn` keeps nothing, a copy in the clear an earlier run left is removed, the backup screen says why the automatic backup is not offered, and the backup is still made under what the person types. (c) now reaches every host that keeps state on disk, phones included: the `reportsUnsealedStorage` switch, set only by the desktop apps, is removed. Tests: `ScheduledBackupTest`, `AutomaticBackupSealingTest`, `StorageNoticeTest` (`OI-PRIV-61`, `NP-PRIV-ANALYSIS-006` F-05).** |
 | 221 | 2026-11-26 | NeurOne Software Engineering | **§6.3 `SWR-WO-01`: the owner's offered set is kept in the warranty owner's record for each helmet, apart from the person's own archive (`SWR-FM-05`), and neither changes the other; the owner page shows no usage. Status records the move, the tests and the decision still open (`OI-PRIV-60`).** |
 | 222 | 2026-11-24 | NeurOne Software Engineering | **`SWR-MG-32` (i): `keySeal` and `keyUnseal` let a kept bundle key leave the core only sealed under a data key; the automatic backup keeps that, derived under one salt (a fixed `kdf` for the backup flow), never the code or passphrase; an unsealed run keeps nothing; the earlier form is destroyed unread (`OI-PRIV-65` (2)). `SWR-MG-13` (e) names the kept key, not the code or passphrase.** |
+| 223 | 2026-11-26 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-36` (recovery code not selectable; screens kept out of capture; Android `FLAG_SECURE`; iOS app-switcher cover), `REQ-SW03-37` (the EEG withdrawal says what stays and offers to delete the recordings on this device), `REQ-SW03-38` (the condition-link confirmation shows the whole address) and `REQ-SW03-39` (the React web app's Content-Security-Policy, no referrer, and a dev server that serves only the project and the shared code), from NP-PRIV-ANALYSIS-006 F-12, F-14 and F-16.** |
