@@ -731,7 +731,7 @@ unknown if either cannot be read (D-7). A full table gives up a row of its own k
 (§8.5, D-41, `OI-NVRAM-29`).
 
 **Where the channel totals come from.** For a tile, the dose meter counts each tick in which a channel was lit:
-enabled, with a current and a duty above zero, and not latched off (`np_mod_pbm_socket_lit_channels()`,
+enabled, with a current and a duty above zero in the driver's setpoints, and not latched off (`np_mod_pbm_socket_lit_channels()`,
 `np_pst_channel_usage()`). The tick that latches a channel still counts it. For an accessory, each accepted drive tells
 `np_mu_slot_on()` which channels the driver lit (`np_mod_intranasal_lit_channels()`; the 1170 nm unit's one channel
 whenever its slot is driven). A change of mask closes the intervals of channels that went dark and opens new ones; a
@@ -739,7 +739,14 @@ stop, a pause or the session end closes them all. A channel's session count is o
 driven at all. Seconds are rounded per session, as `used_s` is.
 
 **Cost.** The store's static RAM is unchanged (3 × 12,304 B). `np_module_usage.c` holds both images, 12,288 + 4,849 =
-17,137 B (was 12,288). Writes are 2 × 12,304 + 2 × (12 + 4,849 + 4) = 34,338 B per session end. That is 1/734 of the
+17,137 B (was 12,288), and **the images are the only copy of the rows**. A row is decoded into a local when it is
+folded or reported, and encoded straight back in place. Until then the module also kept every row decoded (147 ×
+96 B with the channel slots). The application's `.bss` sits in the bootloader's 440 KiB STAGING reservation, which
+`firmware-cross-build.yml` holds to 75 %, and that copy took the build past it. Without it, the module's `.bss` is
+about 2.6 KB smaller than before this change. The other per-channel state is the dose meter's tick counts (3 × 32 bits
+per tracked socket, 1,536 B) and the pending channel times. A smart tile's lit channels are read from its driver slot,
+not from a copy of the command. Measured on host objects of the changed files, the change's net `.bss` is about
+1.1 KB below `main`'s. Writes are 2 × 12,304 + 2 × (12 + 4,849 + 4) = 34,338 B per session end. That is 1/734 of the
 25.2 MB per session §3.5 found would wear Config out in 4.6 years. No unit has shipped and no record exists, so nothing
 is migrated.
 

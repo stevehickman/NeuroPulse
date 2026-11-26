@@ -89,6 +89,9 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot, np_pbm_drv_slot_t *drv,
     g_startup_mask   = preset->channel_mask;
     g_startup_freq_mhz = preset->freq_mhz;
     drv->ch_enable   = preset->channel_mask;
+    /* As np_pbm_drive_startup() keeps them: the currents from the preset, every duty 0 until set_duty. */
+    drv->cur[0] = preset->cur_a; drv->cur[1] = preset->cur_b; drv->cur[2] = preset->cur_c;
+    drv->duty[0] = drv->duty[1] = drv->duty[2] = 0U;
     drv->initialized = true;
     return NP_PBM_OK;
 }
@@ -104,7 +107,8 @@ np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot, np_pbm_drv_slot_t *drv,
 np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot, np_pbm_drv_slot_t *drv,
                                       uint8_t ch_mask, uint8_t duty)
 {
-    (void)slot; (void)drv;
+    (void)slot;
+    for (uint8_t c = 0U; c < 3U; c++) { if ((ch_mask & (1U << c)) != 0U) { drv->duty[c] = duty; } }   /* as the driver does */
     g_duty_mask = ch_mask;
     g_duty_last = duty;
     g_duty_writes++;
@@ -125,6 +129,7 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot, np_pbm_drv_slot_t *drv)
 {
     (void)slot;
     drv->ch_enable = 0U;
+    drv->duty[0] = drv->duty[1] = drv->duty[2] = 0U;   /* as np_pbm_drive_disable_all() */
     return NP_PBM_OK;
 }
 

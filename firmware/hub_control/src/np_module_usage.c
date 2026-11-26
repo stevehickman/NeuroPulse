@@ -4,9 +4,14 @@
  *
  * Two kinds of state:
  *   s_tab[]  the stored totals, one table per key kind (tiles by UID, ports by
- *            slot and type), each with one row per module.  Touched only by
- *            the boot path and the runner (np_mu_load, np_mu_session_end,
- *            np_mu_snapshot), never concurrently, so they need no lock.
+ *            slot and type), each with one row per module.  The rows live only
+ *            in the table's record image, in their stored layout: a row is
+ *            decoded into a local np_mu_row_t when it is folded or reported
+ *            and encoded straight back, so no decoded copy of the tables is
+ *            kept resident (the hub's STAGING budget, firmware-cross-build.yml;
+ *            OI-NVRAM-23).  Touched only by the boot path and the runner
+ *            (np_mu_load, np_mu_session_end, np_mu_snapshot), never
+ *            concurrently, so they need no lock.
  *   s_pend   work not yet committed — this session's presence, use, drive
  *            time and channel drive time, and the faults, mates and throttles
  *            since the last commit — keyed by module, so it is independent of
@@ -69,7 +74,8 @@ typedef struct {
     uint32_t          ch_since[NP_MU_PORT_CH];
 } slot_t;
 
-/* One stored table: its rows, its record's image and how it is laid out. */
+/* One stored table: its record's image, which holds its rows, and how it is
+ * laid out.  Row i is at img + NP_MU_HDR_BYTES + i * img_row_len. */
 typedef struct {
     np_cfg_file_t file;
     uint8_t       kind;       /* the key kind of every row */
@@ -78,31 +84,25 @@ typedef struct {
     uint8_t       row_max;    /* longest row the record holds */
     size_t        cap;        /* rows */
     size_t        bytes;      /* record length */
-    np_mu_row_t  *rows;
     uint8_t      *img;
-    bool         *fresh;      /* row created since the image was read: tail zeroed at commit */
     size_t        n;
     bool          loaded;
     uint8_t       img_ver;    /* the image header's version and row length */
     uint8_t       img_row_len;
 } table_t;
 
-static np_mu_row_t s_tile_rows[NP_MU_TILE_ROWS];
-static np_mu_row_t s_port_rows[NP_MU_PORT_ROWS];
-static uint8_t     s_tile_img[NP_MU_TILE_TABLE_BYTES];
-static uint8_t     s_port_img[NP_MU_PORT_TABLE_BYTES];
-static bool        s_tile_fresh[NP_MU_TILE_ROWS];
-static bool        s_port_fresh[NP_MU_PORT_ROWS];
+static uint8_t s_tile_img[NP_MU_TILE_TABLE_BYTES];
+static uint8_t s_port_img[NP_MU_PORT_TABLE_BYTES];
 
 static table_t s_tab[NP_MU_TABLE_COUNT] = {
     [NP_MU_TABLE_TILES] = { NP_CFG_FILE_MODULE_USAGE, (uint8_t)NP_MU_KEY_UID, (uint8_t)NP_MU_TILE_CH,
                             (uint8_t)NP_MU_TILE_ROW_BYTES, (uint8_t)NP_MU_TILE_ROW_MAX_BYTES,
                             NP_MU_TILE_ROWS, NP_MU_TILE_TABLE_BYTES,
-                            s_tile_rows, s_tile_img, s_tile_fresh, 0U, false, 0U, 0U },
+                            s_tile_img, 0U, false, 0U, 0U },
     [NP_MU_TABLE_PORTS] = { NP_CFG_FILE_MODULE_PORTS, (uint8_t)NP_MU_KEY_PORT, (uint8_t)NP_MU_PORT_CH,
                             (uint8_t)NP_MU_PORT_ROW_BYTES, (uint8_t)NP_MU_PORT_ROW_MAX_BYTES,
                             NP_MU_PORT_ROWS, NP_MU_PORT_TABLE_BYTES,
-                            s_port_rows, s_port_img, s_port_fresh, 0U, false, 0U, 0U },
+                            s_port_img, 0U, false, 0U, 0U },
 };
 
 static uint32_t  s_dropped;
@@ -174,38 +174,6 @@ static bool has_pending(const np_mu_key_t *key)
         if (s_pend[i].key.kind != (uint8_t)NP_MU_KEY_EMPTY && key_eq(&s_pend[i].key, key)) { return true; }
     }
     return false;
-}
-
-/* The stored row for `key` in table `t`, created if absent.  A full table
- * gives up the row of the module with the fewest sessions present that has
- * nothing pending (UC-208), and the newcomer's row starts with detail_lost
- * set: the helmet has forgotten a module, so it cannot say this one's totals
- * start here for the first time (NP-FW-NVRAM-001 §6.3).  t->cap if every row
- * is pending.  Runner only, called with the critical section held so the
- * pending table it consults stands still. */
-static size_t row_for(table_t *t, const np_mu_key_t *key)
-{
-    for (size_t i = 0U; i < t->n; i++) {
-        if (key_eq(&t->rows[i].key, key)) { return i; }
-    }
-    size_t at = t->n;
-    bool gave_up = false;
-    if (t->n >= t->cap) {
-        at = t->cap;
-        for (size_t i = 0U; i < t->n; i++) {
-            if (has_pending(&t->rows[i].key)) { continue; }
-            if (at == t->cap || t->rows[i].sessions_present < t->rows[at].sessions_present) { at = i; }
-        }
-        if (at == t->cap) { return t->cap; }
-        gave_up = true;
-    } else {
-        t->n++;
-    }
-    memset(&t->rows[at], 0, sizeof t->rows[at]);
-    t->rows[at].key = *key;
-    t->rows[at].detail_lost = gave_up ? 1U : 0U;
-    t->fresh[at] = true;
-    return at;
 }
 
 /* ── Codec ─────────────────────────────────────────────────────────────────── */
@@ -350,30 +318,74 @@ bool np_mu_decode(np_mu_table_t t, const uint8_t *in, np_mu_row_t *rows, size_t 
     return true;
 }
 
-/* Bring the table's image up to date with its rows: each row's version-1
- * fields in place at the image's row length, a row created since the read
- * zeroed first, and everything past the last row zero.  The header keeps the
- * higher of the stored version and this firmware's, because the tails it
- * carries are that version's. */
+/* Row i of the table, in its image at the image's row length. */
+static uint8_t *row_at(const table_t *tb, size_t i)
+{
+    return &tb->img[NP_MU_HDR_BYTES + i * tb->img_row_len];
+}
+
+/* Whether row `r` (in an image) is `key`'s. */
+static bool row_is(const uint8_t *r, const np_mu_key_t *key)
+{
+    return r[OFF_KIND] == key->kind && memcmp(&r[OFF_ID], key->id, NP_MU_ID_LEN) == 0;
+}
+
+/* The stored row for `key` in table `t`, created if absent.  A full table
+ * gives up the row of the module with the fewest sessions present that has
+ * nothing pending (UC-208), and the newcomer's row starts with detail_lost
+ * set: the helmet has forgotten a module, so it cannot say this one's totals
+ * start here for the first time (NP-FW-NVRAM-001 §6.3).  A row created here
+ * is zeroed at the image's row length first, so whatever a newer firmware's
+ * version keeps after the version-1 fields starts at zero (§7.2).  t->cap if
+ * every row is pending.  Runner only, called with the critical section held
+ * so the pending table it consults stands still. */
+static size_t row_for(table_t *t, const np_mu_key_t *key)
+{
+    for (size_t i = 0U; i < t->n; i++) {
+        if (row_is(row_at(t, i), key)) { return i; }
+    }
+    size_t at = t->n;
+    bool gave_up = false;
+    if (t->n >= t->cap) {
+        at = t->cap;
+        uint32_t least = 0U;
+        for (size_t i = 0U; i < t->n; i++) {
+            const uint8_t *r = row_at(t, i);
+            np_mu_key_t k;
+            k.kind = r[OFF_KIND];
+            memcpy(k.id, &r[OFF_ID], NP_MU_ID_LEN);
+            if (has_pending(&k)) { continue; }
+            const uint32_t present = get32(&r[OFF_SP]);
+            if (at == t->cap || present < least) { at = i; least = present; }
+        }
+        if (at == t->cap) { return t->cap; }
+        gave_up = true;
+    } else {
+        t->n++;
+    }
+    uint8_t *r = row_at(t, at);
+    memset(r, 0, t->img_row_len);
+    r[OFF_KIND] = key->kind;
+    memcpy(&r[OFF_ID], key->id, NP_MU_ID_LEN);
+    r[OFF_LOST] = gave_up ? 1U : 0U;
+    return at;
+}
+
+/* Finish the table's image for a write: everything past the last row zero,
+ * and the header.  The header keeps the higher of the stored version and this
+ * firmware's, because the tails it carries are that version's. */
 static void image_update(table_t *tb)
 {
-    const size_t rl = tb->img_row_len;
-    for (size_t i = 0U; i < tb->n; i++) {
-        uint8_t *r = &tb->img[NP_MU_HDR_BYTES + i * rl];
-        if (tb->fresh[i]) { memset(r, 0, rl); tb->fresh[i] = false; }
-        put_row(r, &tb->rows[i], tb->n_ch);
-    }
-    const size_t used = NP_MU_HDR_BYTES + tb->n * rl;
+    const size_t used = NP_MU_HDR_BYTES + tb->n * tb->img_row_len;
     memset(&tb->img[used], 0, tb->bytes - used);
     put_hdr(tb->img, (tb->img_ver > (uint8_t)NP_MU_VERSION) ? tb->img_ver : (uint8_t)NP_MU_VERSION,
-            (uint8_t)rl, tb->n);
+            tb->img_row_len, tb->n);
 }
 
 /* An empty image at this firmware's version and row length. */
 static void image_empty(table_t *tb)
 {
     memset(tb->img, 0, tb->bytes);
-    memset(tb->fresh, 0, sizeof(bool) * tb->cap);
     tb->img_ver     = (uint8_t)NP_MU_VERSION;
     tb->img_row_len = tb->v1_row;
 }
@@ -384,7 +396,6 @@ void np_mu_init(void)
 {
     for (size_t t = 0U; t < NP_MU_TABLE_COUNT; t++) {
         table_t *tb = &s_tab[t];
-        memset(tb->rows, 0, sizeof(np_mu_row_t) * tb->cap);
         image_empty(tb);
         tb->n = 0U;
         tb->loaded = false;
@@ -416,11 +427,9 @@ static np_hub_status_t load_table(table_t *tb)
             image_empty(tb);
             return NP_HUB_ERR_STORE_INTEGRITY;
         }
-        for (size_t i = 0U; i < n; i++) { get_row(&tb->img[NP_MU_HDR_BYTES + i * row_len], &tb->rows[i], tb->n_ch); }
-        tb->n           = n;
+        tb->n           = n;          /* the rows stay where they are, in the image */
         tb->img_ver     = ver;
         tb->img_row_len = row_len;
-        memset(tb->fresh, 0, sizeof(bool) * tb->cap);
     }
     tb->loaded = true;                /* anything pending is in s_pend and is kept */
     return NP_HUB_OK;
@@ -696,7 +705,15 @@ np_hub_status_t np_mu_session_end(uint32_t session_ms)
         table_t *tb = table_of(p->key.kind);
         if (!tb->loaded) { continue; }               /* held, marked lost, for the next commit */
         const size_t at = row_for(tb, &p->key);
-        if (at < tb->cap) { fold(&tb->rows[at], p, session_s, tb->n_ch); }
+        if (at < tb->cap) {
+            /* Decode the one row, fold, and encode it straight back in place: its version-1 fields
+             * only, so a newer firmware's tail after them is carried through (§7.2). */
+            np_mu_row_t r;
+            uint8_t *stored = row_at(tb, at);
+            get_row(stored, &r, tb->n_ch);
+            fold(&r, p, session_s, tb->n_ch);
+            put_row(stored, &r, tb->n_ch);
+        }
         memset(p, 0, sizeof *p);
     }
     CRIT_EXIT();
@@ -720,7 +737,7 @@ np_hub_status_t np_mu_snapshot(np_mu_row_t *out, size_t cap, size_t *n_out)
     for (size_t t = 0U; t < NP_MU_TABLE_COUNT; t++) {
         const table_t *tb = &s_tab[t];
         const size_t n = (tb->n < cap - k) ? tb->n : cap - k;
-        memcpy(&out[k], tb->rows, sizeof(np_mu_row_t) * n);
+        for (size_t i = 0U; i < n; i++) { get_row(row_at(tb, i), &out[k + i], tb->n_ch); }
         k += n;
     }
     *n_out = k;

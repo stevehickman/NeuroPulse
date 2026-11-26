@@ -343,7 +343,6 @@ static np_pbm_drv_slot_t s_sock_drv[NP_HEXMAP_MAX_SOCKETS];
  */
 static np_mod_pbm_base_params_t s_sock_base[NP_HEXMAP_MAX_SOCKETS];
 static uint8_t                  s_sock_ch_off[NP_HEXMAP_MAX_SOCKETS];
-static np_mod_pbm_smart_params_t s_sock_smart[NP_HEXMAP_MAX_SOCKETS];   /* a smart tile's last accepted command */
 
 #define NP_MOD_PBM_BASE_CH_MASK  (NP_PBM_CH_A_EN | NP_PBM_CH_B_EN)
 
@@ -431,8 +430,7 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
             .duty         = duty,
             .channel_mask = mask,
         };
-        s_sock_type[socket_id]       = NP_MOD_PBM_SMART;
-        s_sock_smart[socket_id]      = *p;
+        s_sock_type[socket_id] = NP_MOD_PBM_SMART;
         if (np_pbm_drive_startup(addr, drv, &preset) != NP_PBM_OK ||
             np_pbm_drive_set_duty(addr, drv, mask, duty) != NP_PBM_OK) {
             return socket_drive_fault(mod_type);
@@ -513,15 +511,15 @@ uint8_t np_mod_pbm_socket_lit_channels(uint16_t socket_id)
     uint8_t lit = 0U;
     switch (s_sock_type[socket_id]) {
     case NP_MOD_PBM_SMART: {
-        const np_pbm_drv_slot_t         *drv = &s_sock_drv[socket_id];
-        const np_mod_pbm_smart_params_t *p   = &s_sock_smart[socket_id];
-        if (p->duty == 0U) {
-            return 0U;
+        /* What the driver wrote to the IC: CH_ENABLE (the command's mask less any latch), and each channel's
+         * current and duty setpoints.  Read from the driver slot, not a copy of the command. */
+        const np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
+        for (uint8_t c = 0U; c < 3U; c++) {
+            const uint8_t bit = (uint8_t)(1U << c);
+            if ((drv->ch_enable & bit) != 0U && drv->cur[c] != 0U && drv->duty[c] != 0U) {
+                lit |= bit;
+            }
         }
-        if (p->cur_a != 0U) { lit |= NP_PBM_CH_A_EN; }
-        if (p->cur_b != 0U) { lit |= NP_PBM_CH_B_EN; }
-        if (p->cur_c != 0U) { lit |= NP_PBM_CH_C_EN; }
-        lit &= drv->ch_enable;   /* what the driver IC has enabled: the command's mask less any latch */
         break;
     }
     case NP_MOD_PBM_BASE: {
