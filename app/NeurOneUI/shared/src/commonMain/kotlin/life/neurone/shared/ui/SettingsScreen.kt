@@ -77,6 +77,8 @@ fun SettingsScreen(
     var showLinkSend by remember { mutableStateOf(false) }
     var showLinkReceive by remember { mutableStateOf(false) }
     var showCloud by remember { mutableStateOf(false) }
+    // Set when the person withdraws the EEG release: the dialog says what stays and offers to delete it (REQ-SW03-37).
+    var eegRevoked by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -171,31 +173,35 @@ fun SettingsScreen(
             store = app.consentStore,
             onComplete = { showResearch = false },
         )
-        else -> SettingsContent(
-            app = app,
-            eegGranted = eegGranted,
-            onManageEeg = { showBipa = true },
-            onRevokeEeg = {
-                app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, false)
-                app.protocolLibrary.updateEEGConsent(false)
-                eegGranted = false
-            },
-            onManageResearch = { showResearch = true },
-            onManageFirmware = { showOta = true },
-            onDeviceSetup = { showSetup = true },
-            onManageLimits = { showLimits = true },
-            onManageWavelengthRules = { showWavelengthRules = true },
-            onManageZones = { showZones = true },
-            onManageProfiles = { showProfiles = true },
-            onManageOwner = { showOwner = true },
-            onManageMigration = { showMigration = true },
-            onRestore = { showRestore = true },
-            onClear = { showClear = true },
-            onLinkSend = { showLinkSend = true },
-            onLinkReceive = { showLinkReceive = true },
-            onManageCloud = { showCloud = true },
-            modifier = modifier,
-        )
+        else -> {
+            if (eegRevoked) EegRevokedDialog(app.platform.uhdrFolder, onDismiss = { eegRevoked = false })
+            SettingsContent(
+                app = app,
+                eegGranted = eegGranted,
+                onManageEeg = { showBipa = true },
+                onRevokeEeg = {
+                    app.keyValueStore.putBoolean(OnboardingKeys.BIPA_ACCEPTED, false)
+                    app.protocolLibrary.updateEEGConsent(false)
+                    eegGranted = false
+                    eegRevoked = true
+                },
+                onManageResearch = { showResearch = true },
+                onManageFirmware = { showOta = true },
+                onDeviceSetup = { showSetup = true },
+                onManageLimits = { showLimits = true },
+                onManageWavelengthRules = { showWavelengthRules = true },
+                onManageZones = { showZones = true },
+                onManageProfiles = { showProfiles = true },
+                onManageOwner = { showOwner = true },
+                onManageMigration = { showMigration = true },
+                onRestore = { showRestore = true },
+                onClear = { showClear = true },
+                onLinkSend = { showLinkSend = true },
+                onLinkReceive = { showLinkReceive = true },
+                onManageCloud = { showCloud = true },
+                modifier = modifier,
+            )
+        }
     }
 }
 

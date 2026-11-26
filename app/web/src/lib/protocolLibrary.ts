@@ -64,6 +64,7 @@ export class ProtocolLibrary {
   private _cloneSources = new Map<string, string>();
   private _predefinedProtocols: NPProtocolEntry[] = [];
   private _predefinedLoaded = false;
+  private _predefinedLoadFailed = false;
   private _deviceTier: DeviceTier = 'none';
   private _has1064SmartModules: boolean = false;
   private _listeners: Array<() => void> = [];
@@ -71,15 +72,40 @@ export class ProtocolLibrary {
   constructor(private readonly storage: KeyValueStorage | null = defaultStorage()) {
     this.load();
     // Start async load of predefined protocols from .npps files
-    loadPredefinedProtocols().then(protocols => {
-      this._predefinedProtocols = protocols;
-      this._predefinedLoaded = true;
-      this.notify();
-    });
+    this.loadPredefined();
+  }
+
+  private loadPredefined(): void {
+    loadPredefinedProtocols().then(
+      protocols => {
+        this._predefinedProtocols = protocols;
+        this._predefinedLoaded = true;
+        this._predefinedLoadFailed = false;
+        this.notify();
+      },
+      // The loader has reported which files failed. The library loads whole or not at all (REQ-NPPS-34),
+      // so no predefined protocol is offered until a retry succeeds.
+      () => {
+        this._predefinedLoadFailed = true;
+        this.notify();
+      },
+    );
   }
 
   get isLoaded(): boolean {
     return this._predefinedLoaded;
+  }
+
+  /** The last load of the predefined library failed; `retryPredefinedLoad` tries again. */
+  get predefinedLoadFailed(): boolean {
+    return this._predefinedLoadFailed;
+  }
+
+  retryPredefinedLoad(): void {
+    if (this._predefinedLoaded) return;
+    this._predefinedLoadFailed = false;
+    this.notify();
+    this.loadPredefined();
   }
 
   get allProtocols(): NPProtocolEntry[] {

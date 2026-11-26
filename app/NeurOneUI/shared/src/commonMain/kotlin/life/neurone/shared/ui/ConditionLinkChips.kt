@@ -35,7 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 
 // Condition chips and the "leaving the app" confirmation (NP-COND-LINK-001 §4), ported from the web ConditionLinkDialog and the
 // iOS ConditionLinkView. Choosing a condition never navigates directly: the destination host is a third party that would learn the
-// person looked up that condition, so they see the host and decide. A link reaches the system browser only after it passed
+// person looked up that condition, so they see the host and the whole address, and decide. A link reaches the system browser only after it passed
 // NPConditionLinkPolicy, and only from this dialog.
 //
 // Nothing here logs. Which conditions a person looks up is health-adjacent, so UHDR-class under the §5.1 boundary rule ("when in
@@ -108,9 +108,11 @@ fun ConditionLinkConfirmation(condition: NPResolvedCondition, onDismiss: () -> U
                 if (verdict.allowed) {
                     Text(stringResource(Res.string.ui_condition_leaving_notice), style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(12.dp))
-                    // The host, not the whole address: the host is the security-relevant part.
+                    // The host first: it is the security-relevant part. Then the whole address, so a query string or fragment that
+                    // could carry a tracking identifier is seen before the person leaves (REQ-SW03-38; NP-COND-LINK-001 §4).
                     Text(stringResource(Res.string.condition_link_destination), style = MaterialTheme.typography.labelSmall)
                     Text(verdict.host ?: "", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 2.dp))
+                    Text(verdict.url ?: "", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
                 } else {
                     val reason = blockedText(verdict.reason)?.let { stringResource(it) } ?: ""
                     val missing = if (condition.definition == null) " " + stringResource(Res.string.condition_link_not_in_registry) else ""
