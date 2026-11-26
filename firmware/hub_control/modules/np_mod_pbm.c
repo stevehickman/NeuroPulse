@@ -343,6 +343,7 @@ static np_pbm_drv_slot_t s_sock_drv[NP_HEXMAP_MAX_SOCKETS];
  */
 static np_mod_pbm_base_params_t s_sock_base[NP_HEXMAP_MAX_SOCKETS];
 static uint8_t                  s_sock_ch_off[NP_HEXMAP_MAX_SOCKETS];
+static np_mod_pbm_smart_params_t s_sock_smart[NP_HEXMAP_MAX_SOCKETS];   /* a smart tile's last accepted command */
 
 #define NP_MOD_PBM_BASE_CH_MASK  (NP_PBM_CH_A_EN | NP_PBM_CH_B_EN)
 
@@ -430,7 +431,8 @@ np_hub_status_t np_mod_pbm_socket_drive(uint16_t          socket_id,
             .duty         = duty,
             .channel_mask = mask,
         };
-        s_sock_type[socket_id] = NP_MOD_PBM_SMART;
+        s_sock_type[socket_id]       = NP_MOD_PBM_SMART;
+        s_sock_smart[socket_id]      = *p;
         if (np_pbm_drive_startup(addr, drv, &preset) != NP_PBM_OK ||
             np_pbm_drive_set_duty(addr, drv, mask, duty) != NP_PBM_OK) {
             return socket_drive_fault(mod_type);
@@ -493,6 +495,48 @@ np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch
     default:
         return NP_HUB_OK;
     }
+}
+
+/*
+ * Channels this socket is driving now (NP_PBM_CH_*_EN bits), for the per-channel
+ * running totals (REQ-FWHUB-93 (j), NP-FW-NVRAM-001 OI-NVRAM-23): a channel is
+ * lit when it is enabled, its current and the duty are not zero, and it is not
+ * latched off.  A base tile has no CH_C.  A stopped or undriven socket lights
+ * nothing.
+ */
+uint8_t np_mod_pbm_socket_lit_channels(uint16_t socket_id)
+{
+    if (socket_id >= NP_HEXMAP_MAX_SOCKETS) {
+        return 0U;
+    }
+    const uint8_t off = s_sock_ch_off[socket_id];
+    uint8_t lit = 0U;
+    switch (s_sock_type[socket_id]) {
+    case NP_MOD_PBM_SMART: {
+        const np_pbm_drv_slot_t         *drv = &s_sock_drv[socket_id];
+        const np_mod_pbm_smart_params_t *p   = &s_sock_smart[socket_id];
+        if (p->duty == 0U) {
+            return 0U;
+        }
+        if (p->cur_a != 0U) { lit |= NP_PBM_CH_A_EN; }
+        if (p->cur_b != 0U) { lit |= NP_PBM_CH_B_EN; }
+        if (p->cur_c != 0U) { lit |= NP_PBM_CH_C_EN; }
+        lit &= drv->ch_enable;   /* what the driver IC has enabled: the command's mask less any latch */
+        break;
+    }
+    case NP_MOD_PBM_BASE: {
+        const np_mod_pbm_base_params_t *p = &s_sock_base[socket_id];
+        if (p->duty == 0U) {
+            return 0U;
+        }
+        if (p->cur_a != 0U) { lit |= NP_PBM_CH_A_EN; }
+        if (p->cur_b != 0U) { lit |= NP_PBM_CH_B_EN; }
+        break;
+    }
+    default:
+        return 0U;
+    }
+    return (uint8_t)(lit & (uint8_t)~off);
 }
 
 /* Channels latched off on this socket this session (NP_PBM_CH_*_EN bits). */

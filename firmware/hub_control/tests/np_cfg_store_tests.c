@@ -578,6 +578,18 @@ static void test_the_module_usage_table_is_one_replicated_record_and_only_it_is_
            && memcmp(r, w, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD) == 0,
            "the full table survives a reboot byte for byte");
     ASSERT(raw_exists("ra/modusage.rec") && raw_exists("rb/modusage.rec"), "on two entries, like every replicated record");
+
+    /* The accessory ports' table (OI-NVRAM-23): the same policy and the same limit, in files of its own. */
+    ASSERT(np_cfg_store_policy(NP_CFG_FILE_MODULE_PORTS) == NP_CFG_POLICY_REPLICATED,
+           "the ports' usage table is kept REPLICATED too");
+    ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_PORTS, w, 4849U) == NP_HUB_OK,
+           "the ports' table takes its 4,849-byte record");
+    ASSERT(np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_PORTS, w, NP_CFG_REPLICA_TABLE_MAX_PAYLOAD + 1U)
+               == NP_HUB_ERR_INVALID_ARG, "and refuses one past the table limit");
+    ASSERT(np_cfg_store_replicated_read(NP_CFG_FILE_MODULE_PORTS, r, 4849U) == NP_HUB_OK
+           && memcmp(r, w, 4849U) == 0, "the ports' table reads back byte for byte");
+    ASSERT(raw_exists("ra/modports.rec") && raw_exists("rb/modports.rec"),
+           "on two entries of its own, apart from the tiles' table");
 }
 
 /* ── 6. OI-LFS-08 — ukmd.rec on two entries ───────────────────────────────── */

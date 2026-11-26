@@ -259,6 +259,38 @@ static void test_base_disable_zeroes_only_that_channel(void)
           "the latch reports CH_A");
 }
 
+/* @verifies REQ-FWHUB-93#j */
+static void test_lit_channels_follow_the_command_the_latch_and_the_stop(void)
+{
+    printf("\n[lit channels: what the socket is driving now]\n");
+    setup();
+    check(np_mod_pbm_socket_lit_channels(20U) == 0U, "an undriven socket lights nothing");
+    (void)drive_base(20U);
+    check(np_mod_pbm_socket_lit_channels(20U) == (NP_PBM_CH_A_EN | NP_PBM_CH_B_EN),
+          "a base tile driven at both currents lights 660 and 808 nm, never 1064");
+    (void)np_mod_pbm_socket_disable_channel(20U, NP_PBM_CH_A_EN);
+    check(np_mod_pbm_socket_lit_channels(20U) == NP_PBM_CH_B_EN, "a latched channel is dark");
+    (void)np_mod_pbm_socket_stop(20U);
+    check(np_mod_pbm_socket_lit_channels(20U) == 0U, "a stopped socket lights nothing");
+
+    (void)drive_smart(21U, NP_PBM_CH_B_EN | NP_PBM_CH_C_EN);
+    check(np_mod_pbm_socket_lit_channels(21U) == (NP_PBM_CH_B_EN | NP_PBM_CH_C_EN),
+          "a smart tile lights the channels its command enabled");
+    (void)np_mod_pbm_socket_disable_channel(21U, NP_PBM_CH_C_EN);
+    check(np_mod_pbm_socket_lit_channels(21U) == NP_PBM_CH_B_EN, "and not one latched since");
+
+    np_mod_pbm_smart_params_t p = smart_params(NP_PBM_CH_ALL_EN);
+    p.cur_b = 0U;
+    (void)np_mod_pbm_socket_drive(22U, NP_MOD_PBM_SMART, &p, sizeof p);
+    check(np_mod_pbm_socket_lit_channels(22U) == (NP_PBM_CH_A_EN | NP_PBM_CH_C_EN),
+          "an enabled channel at zero current is dark");
+    p = smart_params(NP_PBM_CH_ALL_EN);
+    p.duty = 0U;
+    (void)np_mod_pbm_socket_drive(23U, NP_MOD_PBM_SMART, &p, sizeof p);
+    check(np_mod_pbm_socket_lit_channels(23U) == 0U, "a duty of zero lights nothing");
+    check(np_mod_pbm_socket_lit_channels(NP_HEXMAP_MAX_SOCKETS) == 0U, "an address past the domain lights nothing");
+}
+
 /* @verifies REQ-FWHUB-59 */
 static void test_base_latch_survives_redrive_and_stop(void)
 {
@@ -504,6 +536,7 @@ int main(void)
 {
     printf("=== np_mod_pbm per-channel disable latch (OI-PBMCH-03) ===\n");
     test_base_disable_zeroes_only_that_channel();
+    test_lit_channels_follow_the_command_the_latch_and_the_stop();
     test_base_latch_survives_redrive_and_stop();
     test_base_both_channels_off();
     test_base_has_no_ch_c();
