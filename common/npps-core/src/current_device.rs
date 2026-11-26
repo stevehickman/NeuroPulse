@@ -3,8 +3,10 @@
 //! When a person moves to a new device, the new device publishes a signed notice naming the key id of the person's
 //! current-device key and a count that rises with each move. Every other device that holds that key checks the
 //! notice against the public key it already has, and stops being current for the person if the count is higher than
-//! the one it knows. The server holds no key and verifies nothing, so this file is the only place the form, the
-//! signature and the ordering are decided, and every platform reaches it through `migration_json`.
+//! the one it knows. The server holds no key of its own; the notice carries the public key, and the server runs the
+//! same `supersededNoticeVerify` before it stores one (the principal, 2026-11-26, `OI-PRIV-68` option B), so a notice
+//! nobody signed cannot displace a real one. This file is the only place the form, the signature and the ordering are
+//! decided, and every platform and the server reach it through `migration_json`.
 //!
 //! The signed bytes are length-prefixed, not delimited (`NP-SW-PORTAL-API-001` §4a gives the reason), and the first
 //! line is the domain separator:

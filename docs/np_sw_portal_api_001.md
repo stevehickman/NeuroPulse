@@ -228,8 +228,9 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 > JSON are not specified (§7).
 
 **What the server keeps, and nothing else:** the push channels of subscribed devices (platform and token), and the
-superseded notices it has been sent (key id, count, signature), each with a sequence number, and never expires one
-(ruled 2026-11-21, `OI-PRIV-68`). No user, no consent, no study, no history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
+superseded notices it has been sent (public key, key id, count, signature), each with a sequence number: for each
+key id, the notice with the highest count that verified (ruled 2026-11-26, `OI-PRIV-68`, option B). It never expires
+one (ruled 2026-11-21). No user, no consent, no study, no history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
 database.
 
 **Five calls, all with fixed response shapes (§5).**
@@ -254,9 +255,14 @@ database.
     verifies against the key the device holds and carries a higher count than the device knows. A device records its
     own move's count before it fetches, so its own notice, an equal count, retires no one.
 4. **`supersede`** (device to server, then broadcast to every subscribed channel): the signed form below. The
-   person's current-device key signs it. The server holds no key and does not verify it; it stores it and
-   broadcasts it. A device that holds the key checks the signature and the count; a notice that does not verify is
-   ignored.
+   person's current-device key signs it, and the notice carries the public key beside the signed fields. **The server
+   verifies before it stores** (ruled 2026-11-26, `OI-PRIV-68`, option B): the key id must be the SHA-256 of the public
+   key sent and the signature must be valid under the strict check, the same check the devices run
+   (`supersededNoticeVerify` in `common/npps-core`, `SWR-MG-34` (c); `CLAUDE.md` §22). A notice that fails is refused
+   and never stored. Of those that pass, it keeps the highest count per key id, gives it a sequence number and
+   broadcasts it. The server holds no key of its own: the public key arrives in the notice, and the key id the server
+   already keeps is a hash of it, so it links no more than the key id does. A device that holds the key still checks
+   the signature and the count itself; a notice that does not verify is ignored.
 
 ```
 NP-SUPERSEDED-V1\n
@@ -271,14 +277,14 @@ notice with a count no higher than a device knows changes nothing. There is no d
 
 **Ruled 2026-11-21 (`OI-PRIV-68`), written into the calls above (Rev {NP-SW-PORTAL-API-001 to}):** the server keeps notices with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
-the notices after its cursor before it extracts (the device's half is built in the core, `SWR-MG-35`). **Open
-(found 2026-11-25, `OI-PRIV-68`; brief `docs/human-input/oi-priv-68-forged-high-count.md`):** the ruling also says the server
-keeps **only the highest-count notice per key id** and drops one a higher count replaces. The server holds no key and
-cannot verify, and every key id is broadcast to every subscribed device, so anyone who has seen one can send a junk
-notice for it with a count at the top of the range; the server keeps the junk and drops the person's real notice, and
-every later move by that person is dropped in turn, so their old device is never retired. That contradicts the
-ruling that a real notice is never lost. Until it is ruled, nothing here says which notices per key id the server
-keeps. Junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
+the notices after its cursor before it extracts (the device's half is built in the core, `SWR-MG-35`). **Ruled
+2026-11-26 (`OI-PRIV-68`, option B; brief `docs/human-input/oi-priv-68-forged-high-count.md`), written into call 4:**
+"only the highest-count notice per key id" is kept, but only among notices the server has verified. As first ruled,
+a server that could not verify would keep a junk notice with a count at the top of the range for any key id it had
+seen broadcast, drop the person's real notice, and drop every later move of theirs, so their old device would never
+be retired. Verifying first means only the holder of a person's private key can displace their notice. What remains
+is a flood of notices for keys made for the purpose, which verify; that stays bounded by the relay limit and the
+store's total below. Junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
 flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own); (all four
 limits now read at their sources: APNs, WNS, RFC 8030, and FCM's 4096 bytes on Firebase's "message types" page,
 2026-11-25); and the

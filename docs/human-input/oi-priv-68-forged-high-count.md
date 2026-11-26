@@ -1,10 +1,17 @@
 # Question for the principal: OI-PRIV-68, a forged high count can stop a person's moves from retiring their old device
 
-**Status:** DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED 2026-11-26: option B, recommendation accepted (the principal). Originally DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** none yet; to be filed when this is sent
 **From:** NeurOne Software Engineering (`OI-PRIV-68` in `docs/status/pending-decisions.md`; found 2026-11-25 while building the device's catch-up, `SWR-MG-35`)
 **To:** the principal (the Privacy Lead and a cryptography reviewer may advise)
 **Response needed:** an option, a short rationale, anything that would reopen it, and your name, role and the date.
+
+## Answer
+
+**Option B** (the principal, 2026-11-26): each notice carries the public key, and the server verifies before it stores,
+keeping the highest verified count per key id. Rationale: the recommendation as written in §3, accepted. Recorded in
+`NP-SW-PORTAL-API-001` §6a (call 4), `data-architecture-detail.md` §5.3 step 1a and `OI-PRIV-68`. Nothing stated would
+reopen it beyond what §3 lists as unsolved (a flood of notices for fresh keys).
 
 ## 1. The question
 
