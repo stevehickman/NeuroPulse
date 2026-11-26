@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 /**
  * check-lfs-caller-rules.ts — the littlefs caller rules stay true of the code.
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-lfs-caller-rules.ts --self-test
+ * CI-Scans: every littlefs call site in firmware/, and the Config store's file table and its policies
+ * CI-Scan-Paths: firmware/** scripts/check-lfs-caller-rules.ts
+ *   (declared here, inside check-gate-coverage's 80-line header window)
  *
  * ── Why this file exists ─────────────────────────────────────────────────────
  *
@@ -79,11 +84,6 @@
  *
  * Exits 1 listing each violation; exits 2 rather than passing vacuously if the
  * store, its file table, its opener or its enum cannot be found.
- *
- * CI-Kind: gate
- * CI-Self-Test: bun scripts/check-lfs-caller-rules.ts --self-test
- * CI-Scans: every littlefs call site in firmware/, and the Config store's file table and its policies
- * CI-Scan-Paths: firmware/** scripts/check-lfs-caller-rules.ts
  */
 
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
