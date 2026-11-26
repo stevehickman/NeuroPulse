@@ -121,14 +121,16 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      read back from a fresh mount, and the reset starts only if it reads PRESENT;
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
-R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), which
-     unmaps it; the purge is R-7a (Rev 9)
+R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), meant
+     to unmap it; the purge is R-7a (Rev 9). That ERASE unmaps is not yet confirmed
+     from a primary source (Rev {NP-FW-EMMC-002 to})
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
      then CMD13 polling until the card is in TRAN, ready for data, with no error bit
-     → NIST SP 800-88 "Purge" of every unmapped block: the UHDR blocks R-5 unmapped
-     and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
+     → meant as a Purge (NIST SP 800-88r2 §3.1.2; whether SANITIZE qualifies is IEEE
+     2883's to say, not yet read, Rev {NP-FW-EMMC-002 to}) of every unmapped block: the
+     UHDR blocks R-5 erased and the stale copies R-6 and R-7 left in wear-levelled blocks. If the part does
      not advertise SANITIZE (EXT_CSD[231] bit 6), the card reports an error, or it does
      not finish within its bound, the reset fails here and stays in progress
      (Rev 9)
@@ -174,6 +176,36 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > challenge of `OI-PRIV-31` (NP-PRIV-ANALYSIS-004), carries one signed entry per profile marked exported or destroy, and
 > is refused unless every exported profile's digest matches an export the hub sent on the same link, so the hub itself
 > holds §B.2's rule that a failed export erases nothing. Built with §C.8 or after it.
+>
+> **Rev {NP-FW-EMMC-002 to} (2026-11-26): the sources read, `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) to (e).**
+> **NIST SP 800-88 Rev 1 is withdrawn, and the citation is now Rev 2. Rev 2 names no eMMC technique.** The CSRC
+> page for Rev 1 (https://csrc.nist.gov/pubs/sp/800/88/r1/final) reads "Withdrawn on September 26, 2025" and
+> "Superseded by" SP 800-88r2. Rev 2 (https://doi.org/10.6028/NIST.SP.800-88r2, September 2025) reads "Supersedes NIST
+> SP 800-88r1 (Revision 1) (December 2014)". Rev 2 §3.1 says "Except for cryptographic erase (see Sec. 3.2),
+> technology-specific sanitization techniques are out of scope for this document". §3.1.2 says "IEEE 2883 [13] should
+> be consulted to determine acceptable purge sanitization techniques, which can include overwrite, block erase, and
+> cryptographic erase using dedicated, standardized device sanitize commands". Appendix D says the media-specific
+> appendices "were removed to improve the document's longevity". So the spec cites Rev 2 for what Purge means
+> (§3.1.2: recovery "infeasible using state-of-the-art laboratory techniques"). Whether eMMC SANITIZE is an
+> acceptable Purge technique is for IEEE 2883, which has not been read: it is not free to download. Rev 1's rows that
+> named eMMC (Table A-3, Android and Windows Phone) said a purge "should use the eMMC Secure Erase or Secure Trim
+> command". Its "Embedded Flash Memory" row (Table A-8) gave Purge as "N/A". Neither binds now.
+>
+> **Two public eMMC datasheets confirm the register bytes and what SANITIZE acts on.** They do not confirm the
+> CMD6 mechanism, the bit, the R1 error bits or what ERASE leaves behind. Transcend EMC210 (eMMC 4.51,
+> https://cdn.transcend-info.com/products/images/modelpic/698/No3109_Datasheet_TS8-32GEMC210_formal%20version%20V10.pdf):
+> "The use of sanitize operation requires EMC210 to physically remove data from the unmapped user address space. For
+> more details, refer to section 6.6.13 of the JEDEC Standard". Its EXT_CSD table lists `SEC_FEATURE_SUPPORT` R `55h`
+> `[231]` and `SANITIZE_START` W/E_P `0h` `[165]`. Alliance Memory 64–512 GB eMMC 5.1, Rev 1.1, July 2026
+> (https://www.alliancememory.com/wp-content/uploads/AllianceMemory_eMMC_64GB_128GB_256GB_512GB_RevA_Datasheet_rev1.1_July2026.pdf)
+> lists the same two bytes, the same `55h`, and "Trim, Sanitize, Discard, Secure Erase, Secure Trim" among its
+> features. `55h` has bit 6 set, which agrees with `SEC_SANITIZE BIT(6)` in Linux. Neither datasheet names the bits.
+> Both refer to JESD84 for the behaviour, and neither says whether a plain ERASE leaves its range unmapped. Transcend
+> says only that Trim and Discard let the device "erase the data if necessary during background erase events".
+>
+> **Still open.** JESD84-B51 is behind a JEDEC login, so it remains to read the command, the bit, the R1 error
+> bits and **(d), whether ERASE unmaps**. Until then R-5 stays an ERASE, and nothing here shows that TRIM or DISCARD
+> is needed. Neither datasheet states a SANITIZE time, so `UC-202` is unchanged.
 
 ### B.4 Power-loss resilience
 

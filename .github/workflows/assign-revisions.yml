@@ -86,6 +86,8 @@ jobs:
             IFS=$'\t' read -r an ae subj < <(git log -1 --diff-filter=A --format='%an%x09%ae%x09%s' -- "$frag")
             bun scripts/assign-revisions.ts --next
             # CLAUDE.md is at the root: a fragment's `## CLAUDE.md` section sets its revision line.
+            # What the App may commit is also `allowed_paths` in ci/main-ruleset.json; change both together
+            # (check-main-pushes.ts fails a PR where they differ, NP-SW-CI-001 §6.21.6).
             git add -A docs CLAUDE.md
             GIT_AUTHOR_NAME="$an" GIT_AUTHOR_EMAIL="$ae" git commit -q \
               -m "Assign revisions for: ${subj}" \

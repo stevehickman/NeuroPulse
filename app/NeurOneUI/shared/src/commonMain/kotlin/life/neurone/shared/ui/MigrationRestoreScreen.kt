@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import life.neurone.core.data.BundleKeyMethod
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.AppServices
 import life.neurone.shared.migration.BackupKind
 import life.neurone.shared.migration.MessageGroup
@@ -45,6 +46,8 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun MigrationRestoreScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     val transfer = app.platform.rememberFileTransfer()
     val hostPlace by app.backupPlace.collectAsState()
     val portable = remember(transfer, hostPlace == null) { if (hostPlace == null && transfer != null) PortableFilePlace(transfer) else null }

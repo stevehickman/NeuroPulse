@@ -59,6 +59,9 @@ class NeurOneApplication : Application() {
     /** Whether an activity is on screen: the presence lock's background timeout reads it (`REQ-PRES-03`). */
     private val foreground = AndroidAppForeground()
 
+    /** `FLAG_SECURE` while a screen that shows the recovery code, a backup, consent or the history is on show (`REQ-SW03-36` (c)). */
+    private val screenCapture = AndroidScreenCaptureBlocker()
+
     val keyValueStore: KeyValueStore get() = services.keyValueStore
     val researchAnalyticsGate: ResearchAnalyticsGate get() = services.researchAnalyticsGate
     val warrantyAnalyticsGate: WarrantyAnalyticsGate get() = services.warrantyAnalyticsGate
@@ -91,6 +94,7 @@ class NeurOneApplication : Application() {
         // until then, so the manager's auto-scan-on-ON path is inert at startup).
         bleCentral = AndroidBleCentral(this)
         foreground.register(this)
+        screenCapture.register(this)
         services = AppServices(
             platform = AndroidPlatformServices(
                 SharedPrefsKeyValueStore(this), bleCentral, Ed25519ProtocolSigner(), secretKeyStore = AndroidSecretKeyStore(this),
@@ -106,6 +110,7 @@ class NeurOneApplication : Application() {
                 // Dark: the gated key is built but not offered until installs that already hold sealed UHDR can be moved to it (REQ-PRES-07).
                 gatedKeyStore = if (OFFER_PRESENCE_GATE) AndroidGatedSecretKeyStore(this) else null,
                 appInForeground = foreground.inForeground,
+                screenCaptureBlocker = screenCapture,
             ),
             scope = bleScope,
         )

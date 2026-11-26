@@ -8,15 +8,18 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import life.neurone.core.protocol.NPBundledConditions
+import life.neurone.core.protocol.NPConditionLinkPolicy
+import life.neurone.core.protocol.NPResolvedCondition
 import life.neurone.shared.resources.*
 import life.neurone.shared.ui.ConditionChips
+import life.neurone.shared.ui.ConditionLinkConfirmation
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** A condition chip asks before it leaves the app, shows only the host, and opens nothing the link policy refused (NP-COND-LINK-001). */
+/** A condition chip asks before it leaves the app, shows the host and the whole address, and opens nothing the link policy refused (NP-COND-LINK-001). */
 @OptIn(ExperimentalTestApi::class)
 class ConditionChipsTest {
 
@@ -48,7 +51,8 @@ class ConditionChipsTest {
         onNodeWithText(registered.name, substring = true).performClick()
         assertTrue(recorder.opened.isEmpty())
         val host = registered.link.removePrefix("https://").substringBefore('/')
-        onNodeWithText(host, substring = true).assertExists()
+        onNodeWithText(host).assertExists()
+        onNodeWithText(registered.link).assertExists()
 
         onNodeWithText(text(Res.string.ui_condition_open_in_browser)).performClick()
         assertEquals(listOf(registered.link), recorder.opened)
@@ -65,5 +69,21 @@ class ConditionChipsTest {
         onNodeWithText(text(Res.string.ui_condition_open_in_browser)).assertDoesNotExist()
         onNodeWithText(text(Res.string.common_close)).performClick()
         assertTrue(recorder.opened.isEmpty())
+    }
+
+    // @verifies REQ-SW03-38
+    @Test
+    fun theConfirmationShowsTheWholeAddressSoAQueryStringIsSeenBeforeLeaving() = runComposeUiTest {
+        val link = "https://en.wikipedia.org/wiki/Migraine?utm_source=np&ref=a1b2c3#Signs"
+        val condition = NPResolvedCondition("Migraine", null, NPConditionLinkPolicy.evaluate(link))
+        val recorder = Recorder()
+        setContent {
+            strings = used.associateWith { stringResource(it) }
+            CompositionLocalProvider(LocalUriHandler provides recorder) { ConditionLinkConfirmation(condition, onDismiss = {}) }
+        }
+        onNodeWithText("en.wikipedia.org").assertExists()
+        onNodeWithText(link).assertExists()
+        onNodeWithText(text(Res.string.ui_condition_open_in_browser)).performClick()
+        assertEquals(listOf(link), recorder.opened, "what is opened is the address shown")
     }
 }
