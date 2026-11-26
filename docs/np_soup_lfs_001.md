@@ -18,6 +18,19 @@
 
 ---
 
+> **Rev {NP-SOUP-LFS-001 to} (2026-11-26) — `OI-LFS-15`: caller rule R8 keeps every emission-limit consumer from
+> reading a `REPLICATED` record. `REQ-LFS-01`'s scope stays open.**
+>
+> Map 3's running totals would be a real hazard path if a limit consumer used one as a bound: a rolled-back, stale
+> or lost replica gives a smaller total, and no integrity check sees an older valid copy (§13.18, E4). None does
+> today: `np_session_runner.c` only feeds Map 3. **`check-lfs-caller-rules.ts` R8 now enforces that:** a listed
+> emission-limit consumer never calls `np_cfg_store_replicated_read()`, names a `REPLICATED` file id only to write
+> it, and uses an owner module's API only as listed for it, as a writer or as a reader with the reason the value
+> bounds no emission (§13.5). It is keyed on the policy and the owner, not on any record's layout. **`REQ-LFS-01`
+> is unchanged.** Whether to widen it to every policy but `REBUILD`, and what to do about the photoparoxysmal
+> override (a `REPLICATED` owner setting that lifts a refusal once evidence is raised, pushed to its consumer
+> where R8 cannot see), are Firmware's and Risk's: `docs/human-input/oi-lfs-15-replicated-records-and-emission.md`.
+
 > **Rev 18 (2026-11-26) — `OI-NVRAM-21`: the Config store has no tail-additive file. `L-4` is retired, R4
 > narrowed, R5 and R6 retired, and `OI-LFS-15` raised.**
 >
@@ -494,6 +507,10 @@ file is which.** The rule that falls out is a requirement, not an observation:
 > tail-additive policy left. `REQ-LFS-01` stands as written and holds by construction: `check-lfs-caller-rules.ts`
 > R4 admits only `REBUILD` and `REPLICATED`. The sentence above, that Map 3 "must never become the source of a
 > limit", is still true of Map 3, but no gate enforces it for the record Map 3 now is: **`OI-LFS-15`**.
+>
+> **Rev {NP-SOUP-LFS-001 to} (`OI-LFS-15`).** A gate now enforces it: R8 keeps every listed emission-limit consumer
+> from reading any `REPLICATED` record, Map 3's included, and lets `np_session_runner.c` keep writing the totals
+> (§13.5). `REQ-LFS-01`'s text is not widened here; that is Firmware's decision, still open on `OI-LFS-15`.
 
 ### 6.3 What the old verification cell was worth
 
@@ -682,7 +699,7 @@ of the component is recorded, compiled and tested; that `L-5` is enforced rather
 | ~~`OI-LFS-11`~~ | **✅ CLOSED 2026-09-24 (Rev 7, §13.10).** The log backend's one append file per partition could not pass littlefs's 2 GiB `file_max` on the 6,903 MiB UHDR partition. **Decided:** the layout `NP-FW-EMMC-001` already specified — UHDR one file per session (`EMMC-UHDR-12`/`-13`, `/uhdr/sessions/<count>`), created exclusively, opened at session start and closed at session end; SHDR one file, which cannot reach `file_max` because its partition is 512 MiB. A single session file is capped at `file_max` (≈49 h at 12 kB/s) and fails that session closed. New seam `np_log_hal_part_close()` | — (closed) | — |
 | ~~`OI-LFS-12`~~ | **✅ CLOSED 2026-09-24 (Rev 9, §13.13).** The device session count was incremented at session start but never persisted. **Done:** it is a Config file kept `REPLICATED` by `np_cfg_store` (`np_session_count`), committed at session start before the session's UHDR file is created, and loaded at boot. `np_hal_get_device_session_count()` retired (census 99 → 98); the cervical fault summary now records the current session's count | — (closed) | — |
 | ~~`OI-LFS-13`~~ | **✅ CLOSED 2026-09-27 (Rev 14, §13.18). A caller broke littlefs's file-config lifetime rule** (raised Rev 11, §13.15): `cfg_open()` passed `lfs_file_opencfg()` a stack config, read at every close and dirty sync. Code fixed #472; (2) prevention: R7 and a sanitized CI leg (Rev 13, §13.17); (3) evidence re-run under ASan + UBSan (Rev 12, §13.16). **(1) consequence, answered in §13.18:** the forged tags can reach only USERATTR, GLOBALS and CRC-class types, never name, struct, splice or tail. The new failure class is **E4, rollback of an acknowledged write** to that file's previous valid content, which no integrity check sees. §6.1's Class B stands: the emission-path file (`npmp.bin`) has no writer yet, and once written, E4 gives only the same module's earlier record, given the power-on poll, now **`REQ-LFS-02`**. §5.3 amended. Non-emission instances (reset marker half-reset, warranty token re-provisioned, counts regressing) raised as **`RISK-LFS-09`**. Exposure: none — no target build ran the store | — (closed) | — |
-| **`OI-LFS-15`** | **Does `REQ-LFS-01`'s guard reach Map 3's record?** (raised 2026-11-26, Rev 18, from `OI-NVRAM-21`.) `REQ-LFS-01` forbids a limit under a *tail-additive* policy, and R6 of `check-lfs-caller-rules.ts` kept every emission-limit consumer from naming the journal. Map 3 has been the `REPLICATED` record `NP_CFG_FILE_MODULE_USAGE` since `OI-NVRAM-20`, R6 never named it, and with the journal removed R6 is retired. Every `REPLICATED` row in `np_cfg_store.c` says in a comment that it bounds no emission (`REQ-LFS-01`), but only a comment says so. §6.2's argument needs every emission-bounding value to be in the `REBUILD` cache, whatever the other policy is called. Decide: widen `REQ-LFS-01` to "no value that bounds an emission is stored under any policy but `REBUILD`" and give it a gate that does not fail on a writer (`np_session_runner.c`, a listed limit consumer, commits the totals at session end), or record why the comments are enough. **Closes when** `REQ-LFS-01`'s scope is decided and the gate matches it | Firmware (this document's owner) | Nothing today: no limit consumer reads a `REPLICATED` record as a limit |
+| **`OI-LFS-15`** | **Does `REQ-LFS-01`'s guard reach Map 3's record?** (raised 2026-11-26, Rev 18, from `OI-NVRAM-21`.) `REQ-LFS-01` forbids a limit under a *tail-additive* policy, and R6 of `check-lfs-caller-rules.ts` kept every emission-limit consumer from naming the journal. Map 3 has been the `REPLICATED` record `NP_CFG_FILE_MODULE_USAGE` since `OI-NVRAM-20`, R6 never named it, and with the journal removed R6 is retired. Every `REPLICATED` row in `np_cfg_store.c` says in a comment that it bounds no emission (`REQ-LFS-01`), but only a comment says so. §6.2's argument needs every emission-bounding value to be in the `REBUILD` cache, whatever the other policy is called. Decide: widen `REQ-LFS-01` to "no value that bounds an emission is stored under any policy but `REBUILD`" and give it a gate that does not fail on a writer (`np_session_runner.c`, a listed limit consumer, commits the totals at session end), or record why the comments are enough. **Closes when** `REQ-LFS-01`'s scope is decided and the gate matches it. **Rev {NP-SOUP-LFS-001 to}: the gate is built, the scope is not decided.** R8 (§13.5) keeps every listed emission-limit consumer from reading a `REPLICATED` record and allows the session runner's writes; the two reads it lists (the pause limit, the cardiac cutoff sensitivity) carry why they bound no emission. Left: Q1, whether to widen `REQ-LFS-01` (R8 would be its gate unchanged), and Q2, the photoparoxysmal override, a `REPLICATED` owner setting that lifts the 3 to 60 Hz refusal once evidence is BENCH and that R8 cannot see, because its owner pushes it to `np_ppx_policy`. Brief: `docs/human-input/oi-lfs-15-replicated-records-and-emission.md` | Firmware (this document's owner); Risk for the override | Nothing today: no limit consumer reads a `REPLICATED` record as a limit (R8), and the override lifts nothing while the evidence level is NONE. Raising that level is blocked on Q2 |
 | ~~`OI-LFS-14`~~ | **✅ RAISED AND CLOSED 2026-09-27 (Rev 12, §13.16).** Every sweep verifier checked atomicity, never durability: a cut had to leave *a* consistent state, not the one already acknowledged, so a rollback past a flush that had returned passed, and `L-1`'s durable half was never asserted. **Done:** a durability floor in every verifier in §12, §13.1 and the store suite (flushes, appends, rename, replace, replicated write, count commit, reset marker); 16 flushes instead of 4 in the §13.1 log workload; `rmw_exposed` in the tear model, required > 0 before a loss is required. RMW sweeps: 8 caught of 8 exposed (was 1 of 2); every control 0 under the floor. Falsified both ways | — (closed) | — |
 
 ---
@@ -1231,6 +1248,7 @@ vacuity path refuses (21 cases):
 | R4 | every file has a row, and every row's policy is `REBUILD` or `REPLICATED`: no Config file is tail-additive. *Narrowed at Rev 18 (`OI-NVRAM-21`); was: the `TAIL_ADDITIVE` rows are exactly `NP_CFG_FILE_MAP3`* | `REQ-LFS-01` |
 | ~~R5~~ | ~~`np_cfg_store_journal_read()` is called only from `JOURNAL_READERS`, each with why it reads history (none yet — Map 3 has no consumer)~~ **Retired Rev 18 (`OI-NVRAM-21`):** both journal readers are removed, and R4 admits no policy a reader could read | `REQ-LFS-01` |
 | ~~R6~~ | ~~no emission-limit consumer names the journal — its id, its API or its path — and every listed consumer exists~~ **Retired Rev 18 (`OI-NVRAM-21`):** the journal's id, API and path no longer exist, and R4 forbids its policy. Whether Map 3's `REPLICATED` record needs such a guard is `OI-LFS-15` | `REQ-LFS-01` |
+| R8 | **an emission-limit consumer feeds a `REPLICATED` record and never reads one** (Rev {NP-SOUP-LFS-001 to}). (a) It never calls `np_cfg_store_replicated_read()`, and names a file id whose row is `REPLICATED` only as the first argument of `np_cfg_store_replicated_write()`. (b) Each name it uses from an owner module's header is listed for it in `REPLICATED_API_USES`, as `write` (it feeds the record, or is a pure helper over the caller's own values) or as `read` with why the value bounds no emission. An owner is any firmware file outside the consumers that calls `np_cfg_store_replicated_read()` or `_write()`; its API is its same-named header. An entry nothing uses fails, and so does a `LIMIT_CONSUMERS` entry that names nothing. Keyed on the policy and the owner, not on a record's layout | `REQ-LFS-01`, `OI-LFS-15` |
 
 **Its reach, stated narrowly:** textual, like its siblings. It sees a direct call and a direct name,
 not a value handed through a helper — which is why a `JOURNAL_READERS` entry must carry its reason:
@@ -1238,6 +1256,30 @@ the gate forces the question where a reader is added, the one place a text check
 *(Rev 18: with R5 and R6 retired, R4 reads the policy each row names and nothing else. Its self-test
 proves it refuses a tail-additive row, the removed `map3.jrn` coming back, and a policy nobody admitted
 under any name, and accepts a new `REPLICATED` file: 28 cases in all.)*
+
+**R8 (Rev {NP-SOUP-LFS-001 to}, `OI-LFS-15`).** Map 3 became the `REPLICATED` record `NP_CFG_FILE_MODULE_USAGE`, which R6
+never named, and every `REPLICATED` row in `np_cfg_store.c` says in a comment that it bounds no emission. §6.2 needs
+that to be true: a `REPLICATED` record survives one lost copy, but E4 (§13.18) and a stale replica both give an
+older valid copy, so a running total used as a bound would be met late or never, and no integrity check fires. R8
+holds the emission-limit consumers to it. Its population is R6's `LIMIT_CONSUMERS`, widened from two hub modules to
+every hub module (`firmware/hub_control/modules/`) and the two stimulation libraries (`firmware/cervical_vns/`,
+`firmware/sloreta_hdtdcs/`). At this revision it finds 8 owner modules over 9 `REPLICATED` records, and lists 14
+uses in two consumers. `np_session_runner.c` has 13: Map 3's and the consumables' writers, and one read, the pause
+limit, which is taken with every enable withdrawn and whose expiry ends a session that is emitting nothing.
+`np_mod_cvns.c` has one read, the cardiac cutoff sensitivity, relayed to the safety MCU, where level 0 is the
+validated cutoff and no level is less sensitive. **Its reach:** the names a consumer uses, called or taken as a
+pointer, and an owner's `extern` objects. It does not follow a value an owner pushes into another module, and it does not follow a value relayed through
+a file outside the list. `np_ppx_config.c` sets the photoparoxysmal override in `np_ppx_policy` that way. That, and
+whether `REQ-LFS-01` is widened to every policy but `REBUILD`, stay open on `OI-LFS-15`
+(`docs/human-input/oi-lfs-15-replicated-records-and-emission.md`). **Self-test (46 cases):** it rejects a limit
+consumer reading Map 3's totals through `np_mu_snapshot()`, the same read taken as a function pointer, an owner's
+`extern` object, `np_cfg_store_replicated_read()`, a `REPLICATED` id handed to another reader, a writer used by a
+consumer it is not listed for, a reader of a new owner found by its store calls, an owner with no header, a stale
+entry and a missing consumer. It accepts the session runner's writes and a direct `np_cfg_store_replicated_write()`,
+and accepts the `REBUILD` cache read by `np_hexmap_nvram.c` until that row is made `REPLICATED`, when the same read
+fails. It refuses to pass when `REPLICATED` rows exist and no owner does. Falsified by hand: with the listed-use
+check made to allow every name, 6 cases fail; with the direct-read check removed, 1 fails. Against a copy of the tree
+with `np_mu_snapshot()` added to `np_session_runner.c`, the gate exits 1 at that line.
 
 ### 13.6 Falsification record — `NP-CONV-001` §8
 
@@ -1842,7 +1884,7 @@ acknowledgement. The analysis is per file, and is against the writers that exist
 | File | Writer in the tree | E4 gives | Emission path? | Result |
 |---|---|---|---|---|
 | `npmp.bin` (REBUILD) | **none** — `np_hexmap_nvram_write()` is an unimplemented extern (`OI-HEXMAP-01`) | when written: the same device's earlier blob | **yes — the only one** | bounded by the power-on poll, **`REQ-LFS-02`** below |
-| `map3.jrn` (TAIL_ADDITIVE) | none | acknowledged records lost | no — `REQ-LFS-01`, enforced by R4–R6 | history loss. `L-4`'s bound is broken from above, not below. `RISK-LFS-09`. *(Rev 18: the file is removed, never written, `OI-NVRAM-21`. Map 3 is `modusage.rec`, `REPLICATED`, so E4 gives the previous session end's totals, like the other replicated rows; whether it is guarded from limit consumers is `OI-LFS-15`)* |
+| `map3.jrn` (TAIL_ADDITIVE) | none | acknowledged records lost | no — `REQ-LFS-01`, enforced by R4–R6 | history loss. `L-4`'s bound is broken from above, not below. `RISK-LFS-09`. *(Rev 18: the file is removed, never written, `OI-NVRAM-21`. Map 3 is `modusage.rec`, `REPLICATED`, so E4 gives the previous session end's totals, like the other replicated rows; whether it is guarded from limit consumers is `OI-LFS-15`; Rev {NP-SOUP-LFS-001 to}: it is, by R8, §13.5)* |
 | `ukmd.rec` (REPLICATED) | none in `firmware/` yet | two pairs, and the newer generation wins (`np_cfg_store.c:681`). One pair rolled back is **repaired** from the other; both rolled back gives the old envelope | no | the same as a power loss before the write. §5.1's `RISK-LFS-07` covers its absence |
 | `sesscnt.rec` (REPLICATED) | `np_session_count.c` | the count repeats | no (`REQ-LFS-01`, §13.13) | the logger steps past an existing session file (§13.10). **SHDR's only time-like reference can repeat**: `RISK-LFS-09` |
 | consumables (REPLICATED) | `np_consumables.c` | per-kind session counts go back | no | exposure-count prompts (CLAUDE.md §2.3) are **delayed**, by up to every increment since the last durable write. Under systematic E4 they never fire. `RISK-LFS-09` |
