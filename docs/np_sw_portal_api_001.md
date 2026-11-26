@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-PORTAL-API-001
-**Revision:** 4
-**Date:** 2026-11-21
+**Revision:** 5
+**Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -275,7 +275,7 @@ made for this form can be read as nothing else the key signs. The signature is E
 each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
 notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Ruled 2026-11-21 (`OI-PRIV-68`), written into the calls above (Rev {NP-SW-PORTAL-API-001 to}):** the server keeps notices with
+**Ruled 2026-11-21 (`OI-PRIV-68`), written into the calls above (Rev 5):** the server keeps notices with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
 the notices after its cursor before it extracts (the device's half is built in the core, `SWR-MG-35`). **Ruled
 2026-11-26 (`OI-PRIV-68`, option B; brief `docs/human-input/oi-priv-68-forged-high-count.md`), written into call 4:**
@@ -326,3 +326,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 3 | 2026-11-19 | NeurOne Software Engineering | **§4a: the canonical form a study descriptor is signed over is `NP-STUDY-DESCRIPTOR-V2`, which adds the expiry day as its last field (`REQ-CONSENT-09` i). No V1 descriptor was ever issued.** |
 | 4 | 2026-11-21 | NeurOne Software Engineering | **§4a: the study audit trail is UHDR, held on the device, never in SHDR (OI-PRIV-07); §3 amended for study requests (subscribe and publish, not pull; clinician requests stay pull-only); new §6a (DRAFT): the subscribe, unsubscribe, publish, fetch and supersede calls and the NP-SUPERSEDED-V1 form, all through the Oblivious HTTP relay (OI-PRIV-68, OI-PRIV-69).** |
+| 5 | 2026-11-26 | NeurOne Software Engineering | **§6a: notices are kept with a sequence number and never expire (the earlier "until they expire" is corrected); the fetch call states the catch-up rule and the extract gate (SWR-MG-35); supersede: the notice carries the public key and the server verifies it with the core's check before storing, keeping the highest verified count per key id, because otherwise a junk notice with a top count would hide every later real move (OI-PRIV-68 option B, the principal, 2026-11-26); all four push limits now read at their sources; web eligibility ruled 2026-11-22 noted.** |

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 224
+**Revision:** 225
 **Date:** 2026-11-26  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
@@ -932,3 +932,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 222 | 2026-11-24 | NeurOne Software Engineering | **`SWR-MG-32` (i): `keySeal` and `keyUnseal` let a kept bundle key leave the core only sealed under a data key; the automatic backup keeps that, derived under one salt (a fixed `kdf` for the backup flow), never the code or passphrase; an unsealed run keeps nothing; the earlier form is destroyed unread (`OI-PRIV-65` (2)). `SWR-MG-13` (e) names the kept key, not the code or passphrase.** |
 | 223 | 2026-11-26 | NeurOne Software Engineering | **§5.3.1: new `REQ-SW03-36` (recovery code not selectable; screens kept out of capture; Android `FLAG_SECURE`; iOS app-switcher cover), `REQ-SW03-37` (the EEG withdrawal says what stays and offers to delete the recordings on this device), `REQ-SW03-38` (the condition-link confirmation shows the whole address) and `REQ-SW03-39` (the React web app's Content-Security-Policy, no referrer, and a dev server that serves only the project and the shared code), from NP-PRIV-ANALYSIS-006 F-12, F-14 and F-16.** |
 | 224 | 2026-11-26 | NeurOne Software Engineering | **§6.3 SWR-UP-02 and the photoparoxysmal-detector settings: the helmet's photic refusal and its manual override cover 3 to 60 Hz, not 3 to 30 (OI-FWHUB-37).** |
+| 225 | 2026-11-26 | NeurOne Software Engineering | **§6.3 new SWR-MG-35: a device keeps a notice cursor, skips notices at or below it, moves past junk without retiring anyone, is retired only by a verified higher count, and extracts for no one while behind the latest sequence; built in current_device.rs as supersededCatchUp (OI-PRIV-68, the principal, 2026-11-21). SWR-MG-33 status: notice order and retention ruled.** |
