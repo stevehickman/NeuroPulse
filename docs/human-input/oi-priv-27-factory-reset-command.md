@@ -1,10 +1,10 @@
 # Question for the principal: OI-PRIV-27 (NP-PRIV-ANALYSIS-004), who starts a factory reset, and how
 
-**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). The wire format is specified, not built (2026-11-25, `NP-FW-HUB-001` §4.7, §13 below), and asks Q9 and Q10 (§13). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). The wire format is specified, not built (2026-11-25, `NP-FW-HUB-001` §4.7, §13 below); Q9 and Q10 answered 2026-11-26 (§14). Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#955](https://github.com/stevehickman/NeuroPulse/issues/955)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding H7)
 **To:** the principal (a wire and design change); Firmware and Software to implement
-**Response needed:** answers to Q7 and Q8 (§12), and Q9 and Q10 (§13). Everything else is answered (§8, §11).
+**Response needed:** answers to Q7 and Q8 (§12). Everything else is answered (§8, §11, §14).
 
 ## 1. The question
 
@@ -198,4 +198,15 @@ recommendation is **yes**: the warranty owner registers the helmet (`CLAUDE.md` 
 may remove the others, so the owner's role on the helmet and the admin role are the same thing. If the answer is no,
 the hub needs a separate owner mark on one pairing entry, and a rule for who sets it. Either answer fixes the
 `UNKNOWN_SIGNER` check (`NP-FW-HUB-001` §4.7.4 step 4); until one is given, no hub accepts a reset.
+
+## 14. Answers received (the principal, 2026-11-26)
+
+| Q | Answer | What follows |
+|---|--------|--------------|
+| Q9 | **Option A, accepted.** | The warranty owner's app makes an Ed25519 key pair at pairing and sends the public key inside the SPAKE2-authenticated channel, with its X25519 key. The hub keeps it in that pairing's table entry, and the reset blob's `signer_key` must equal it. The blob stays verifiable on its own, whatever channel carried it. Recorded in `NP-FW-HUB-001` §4.7.3 and in the `OI-SIMFW-71` record (`NP-SIM-FW-001`; secure-channel brief §14 addendum) |
+| Q10 | **Yes, accepted.** | The warranty owner is the admin pairing of `OI-SIMFW-71` Q8. A pairing that is not the admin, including any user's, cannot sign a reset (`NP-FW-HUB-001` §4.7.4 step 4). This also answers the same question `OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks for the warranty token; which release rule the token gets is still that item's decision |
+
+Name, role, date: the principal, 2026-11-26 (in the session that wrote §13). **Nothing is built.** The reset still waits
+on the `OI-SIMFW-71` secure channel (the pairing table that holds the key), the `OI-PRIV-31` challenge, per-person
+profiles and their export (`NP-FW-EMMC-002` §C.8). Q7 and Q8 of §12 remain.
 
