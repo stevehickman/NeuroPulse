@@ -187,7 +187,7 @@ The mechanism those protocols claim is **network-wide coherent rhythmic drive** 
 **Two further classes degrade:**
 
 - **Closed-loop EEG-adaptive protocols** adapt to a global brain state. If 1/10 of the head is lit at any instant, the loop regulates against a signal it is largely not driving.
-- **Multi-modal phase-locked protocols.** `15-full-t1-immersive.npps` runs PBM, audio, tACS and visual **all at 40 Hz**. Cascading the PBM breaks the cross-modal phase relationship that is the protocol's entire premise.
+- **Multi-modal phase-locked protocols.** `15-full-t1-immersive.npps` runs PBM, audio and tACS **all at 40 Hz** (its 40 Hz visual block was removed on 2026-11-26: the goggles refuse photic driving at 3–60 Hz until the Oz detector exists, `OI-NPPS-LIMITS-01`). Cascading the PBM breaks the cross-modal phase relationship that is the protocol's entire premise.
 
 **Consequence: cascading needs a per-protocol declaration of whether time-multiplexing is admissible**, and it must default to *no*. A cascade primitive without that field is a mechanism for silently invalidating the strongest protocols in the library. **`OI-SESPWR-04`.**
 

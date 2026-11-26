@@ -1088,7 +1088,7 @@
      "protocol": {
       "id": "10000001-0000-0000-0000-000000000000",
       "name": "Gamma Focus",
-      "description": "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol.",
+      "description": "Simultaneous 40Hz entrainment across audio and PBM channels, with gamma-band closed-loop EEG neurofeedback, for focus and attention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -1153,20 +1153,6 @@
         "interval": {
          "intervalOffSeconds": 0,
          "intervalOnSeconds": 0
-        }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 30,
-         "intervalOnSeconds": 60
         }
        },
        {
@@ -2350,7 +2336,7 @@
      "protocol": {
       "id": "1000000D-0000-0000-0000-000000000000",
       "name": "Focus Prime",
-      "description": "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention.",
+      "description": "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES and binaural audio. BES runs in 30-on/30-off intervals for habituation prevention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -2442,20 +2428,6 @@
          "intervalOffSeconds": 0,
          "intervalOnSeconds": 0
         }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 20,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 120,
-         "intervalOnSeconds": 300
-        }
        }
       ],
       "isReadOnly": true,
@@ -2475,7 +2447,7 @@
      "protocol": {
       "id": "1000000E-0000-0000-0000-000000000000",
       "name": "Gamma + Theta Coupled",
-      "description": "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.",
+      "description": "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, and BES. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -2594,20 +2566,6 @@
         }
        },
        {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 0,
-         "intervalOnSeconds": 0
-        }
-       },
-       {
         "type": "bes_tacs",
         "enabled": true,
         "params": {
@@ -2638,7 +2596,7 @@
      "protocol": {
       "id": "1000000F-0000-0000-0000-000000000000",
       "name": "Full T1 Immersive",
-      "description": "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.",
+      "description": "Seven of the eight T1 modalities running simultaneously with balanced settings. The visual goggles are left out: the helmet does not drive them between 3 and 60 Hz until it can watch for a seizure response. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -2769,20 +2727,6 @@
          "isochronicTonesHz": 40,
          "noiseType": "pink",
          "volumeDb": 70
-        },
-        "interval": {
-         "intervalOffSeconds": 0,
-         "intervalOnSeconds": 0
-        }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
         },
         "interval": {
          "intervalOffSeconds": 0,
@@ -9629,7 +9573,7 @@
      "protocol": {
       "id": "10000001-0000-0000-0000-000000000000",
       "name": "Gamma Focus",
-      "description": "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol.",
+      "description": "Simultaneous 40Hz entrainment across audio and PBM channels, with gamma-band closed-loop EEG neurofeedback, for focus and attention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -9694,20 +9638,6 @@
         "interval": {
          "intervalOffSeconds": 0,
          "intervalOnSeconds": 0
-        }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 30,
-         "intervalOnSeconds": 60
         }
        },
        {
@@ -10795,7 +10725,7 @@
      "protocol": {
       "id": "1000000D-0000-0000-0000-000000000000",
       "name": "Focus Prime",
-      "description": "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention.",
+      "description": "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES and binaural audio. BES runs in 30-on/30-off intervals for habituation prevention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -10887,20 +10817,6 @@
          "intervalOffSeconds": 0,
          "intervalOnSeconds": 0
         }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 20,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 120,
-         "intervalOnSeconds": 300
-        }
        }
       ],
       "isReadOnly": true,
@@ -10912,7 +10828,7 @@
      "protocol": {
       "id": "1000000E-0000-0000-0000-000000000000",
       "name": "Gamma + Theta Coupled",
-      "description": "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.",
+      "description": "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, and BES. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -11031,20 +10947,6 @@
         }
        },
        {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
-        },
-        "interval": {
-         "intervalOffSeconds": 0,
-         "intervalOnSeconds": 0
-        }
-       },
-       {
         "type": "bes_tacs",
         "enabled": true,
         "params": {
@@ -11067,7 +10969,7 @@
      "protocol": {
       "id": "1000000F-0000-0000-0000-000000000000",
       "name": "Full T1 Immersive",
-      "description": "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.",
+      "description": "Seven of the eight T1 modalities running simultaneously with balanced settings. The visual goggles are left out: the helmet does not drive them between 3 and 60 Hz until it can watch for a seizure response. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session.",
       "author": "NeurOne",
       "version": "1.0",
       "tags": [
@@ -11198,20 +11100,6 @@
          "isochronicTonesHz": 40,
          "noiseType": "pink",
          "volumeDb": 70
-        },
-        "interval": {
-         "intervalOffSeconds": 0,
-         "intervalOnSeconds": 0
-        }
-       },
-       {
-        "type": "visual_stimulation",
-        "enabled": true,
-        "params": {
-         "emdrCadenceHz": 1,
-         "enableModeF": false,
-         "frequencyHz": 40,
-         "mode": "binocular"
         },
         "interval": {
          "intervalOffSeconds": 0,

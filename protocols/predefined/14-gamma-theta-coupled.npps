@@ -1,7 +1,7 @@
 protocol "Gamma + Theta Coupled" {
     id: "1000000E-0000-0000-0000-000000000000"
     family_id: "3a952e64-b1c4-4045-8310-47505327e871"
-    description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES."
+    description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, and BES. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response."
     author: "NeurOne"
     version: "1.0"
     readonly: true
@@ -60,11 +60,13 @@ protocol "Gamma + Theta Coupled" {
         bone_conduction_pacer: false
     }
 
-    visual_stimulation {
-        frequency: 40Hz
-        mode: binocular
-        emdr_cadence: 1Hz
-    }
+    # No visual_stimulation block (the principal, 2026-11-26, OI-NPPS-LIMITS-01): the goggles
+    # refuse photic driving at 3-60 Hz until the Oz photoparoxysmal detector is built and
+    # validated (REQ-FWHUB-65, -66; OI-FWHUB-29), and the hub refuses the whole protocol at upload
+    # if any block drives inside that zone. The former block drove the goggles at 40 Hz,
+    # binocular, continuous. It was removed, not retuned to a frequency outside the zone, because
+    # no evidence supports the stimulus at another rate. Restore it only by a new ruling once the
+    # detector is armed.
 
     bes_tacs {
         frequency: 40Hz

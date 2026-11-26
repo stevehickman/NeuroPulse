@@ -532,7 +532,7 @@ As of this writing that's **65 protocols** — the 15 numbered T1/T2 presets (`0
 | Protocol | Tier | Duration | Target zone(s) | Wavelengths | Frequency | Modalities |
 |----------|------|----------|-----------------|-------------|-----------|-----------|
 | **Alpha Calm** | T1 | 20 min | Vault (excl. Occipital) | 660, 808 nm | 10 Hz | PBM · EEG · Audio |
-| **Gamma Focus** | T1 | 20 min | Vault (excl. Occipital) | 660, 808 nm | 40 Hz | PBM · EEG · Visual · Audio |
+| **Gamma Focus** | T1 | 20 min | Vault (excl. Occipital) | 660, 808 nm | 40 Hz | PBM · EEG · Audio |
 | **Deep Sleep** | T1 | 30 min | Posterior | 660, 808 nm | 2 Hz | PBM · EEG · BES · Audio |
 | **PBM — Cognitive Enhancement 1064nm** | T1 | 20 min | Frontal Right (excl. midline) | 660, 808, 1064 nm | varies | PBM · EEG |
 | **PBM — Parkinson's (transcranial)** | T1 | 20 min | Motor / SMA | 660, 808 nm | 40 Hz | PBM |

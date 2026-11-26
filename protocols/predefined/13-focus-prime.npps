@@ -1,7 +1,7 @@
 protocol "Focus Prime" {
     id: "1000000D-0000-0000-0000-000000000000"
     family_id: "449fe64e-1391-4ff5-bb86-a9b6a96a1fc9"
-    description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention."
+    description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES and binaural audio. BES runs in 30-on/30-off intervals for habituation prevention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response."
     author: "NeurOne"
     version: "1.0"
     readonly: true
@@ -53,13 +53,12 @@ protocol "Focus Prime" {
         bone_conduction_pacer: false
     }
 
-    visual_stimulation {
-        frequency: 20Hz
-        mode: binocular
-        emdr_cadence: 1Hz
-        interval_on: 300s
-        interval_off: 120s
-        repeat: until_end
-    }
+    # No visual_stimulation block (the principal, 2026-11-26, OI-NPPS-LIMITS-01): the goggles
+    # refuse photic driving at 3-60 Hz until the Oz photoparoxysmal detector is built and
+    # validated (REQ-FWHUB-65, -66; OI-FWHUB-29), and the hub refuses the whole protocol at upload
+    # if any block drives inside that zone. The former block drove the goggles at 20 Hz,
+    # binocular, 300 s on / 120 s off. It was removed, not retuned to a frequency outside the
+    # zone, because no evidence supports the stimulus at another rate. Restore it only by a new
+    # ruling once the detector is armed.
 
 }

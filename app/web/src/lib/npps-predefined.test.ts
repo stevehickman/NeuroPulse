@@ -8,6 +8,7 @@ import {
 } from '../../../../common/lib/nppsParser';
 import { validateProtocol } from '../../../../common/lib/protocolValidator';
 import type { NPLimitsSet } from '../../../../common/types/limits';
+import { NPHardwareLimits as hw } from '../../../../common/lib/constants.generated';
 
 // Load the predefined library straight off disk and prove the whole set parses
 // and cross-references cleanly.
@@ -208,6 +209,38 @@ describe('predefined NPPS library', () => {
 
     expect(failures, `protocols over a charge ceiling:\n  ${failures.join('\n  ')}`)
       .toEqual([]);
+  });
+
+  // Hardware validation above treats the photoparoxysmal zone as a warning (OI-NPPS-PHOTIC-01), while the hub refuses
+  // the WHOLE protocol at upload when any block drives the goggles photically inside it (REQ-FWHUB-66, reason 30), so
+  // the check above cannot see it. Four predefined protocols (01, 13, 14, 15) and the two composites that layer them
+  // were offered as runnable and refused by the helmet until their visual blocks were removed (the principal,
+  // 2026-11-26, OI-NPPS-LIMITS-01). This holds the library to the hub's rule: modes 0 (`binocular`) and 3 (`mode_f`),
+  // the frequency rounded to whole hertz as the compiler encodes it, inside the shared zone constants. Composites need
+  // no check of their own: a layer names a single protocol checked here.
+  // @verifies REQ-NPPS-18
+  it('no shipped protocol drives the goggles photically inside the zone the helmet refuses', () => {
+    const PHOTIC_MODES = new Set(['binocular', 'mode_f']);   // hub modes 0 and 3 (compiler.rs encode_visual)
+    const inZone = (hz: number) => {
+      const whole = Math.round(hz);
+      return whole >= hw.VISUAL_HIGH_RISK_MIN_HZ && whole <= hw.VISUAL_HIGH_RISK_MAX_HZ;
+    };
+    let visualBlocks = 0;
+    const refused: string[] = [];
+    for (const entry of namespace.entries) {
+      if (entry.kind !== 'single') continue;
+      for (const m of entry.protocol.modalities) {
+        if (!m.enabled || m.modalityParams.type !== 'visual_stimulation') continue;
+        visualBlocks++;
+        const v = m.modalityParams.params;
+        if (PHOTIC_MODES.has(v.mode) && inZone(v.frequencyHz)) {
+          refused.push(`${entry.protocol.name}: ${v.mode} at ${v.frequencyHz} Hz`);
+        }
+      }
+    }
+    // The library still has visual blocks outside the zone (EMDR at 1 Hz, Mode F at 0 Hz), so the check is not vacuous.
+    expect(visualBlocks).toBeGreaterThan(0);
+    expect(refused, `shipped protocols the helmet refuses at upload:\n  ${refused.join('\n  ')}`).toEqual([]);
   });
 
   // @verifies REQ-NPPS-18

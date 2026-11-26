@@ -61,5 +61,7 @@ The principal ruled: **pick option A and then C.** Recorded in `docs/status/comp
   is built.
 - **One protocol is affected:** `protocols/predefined/13-focus-prime.npps` drives its visual block at 20 Hz and is now refused at the
   hub. It is a clinical protocol and is not edited here (`OI-NPPS-LIMITS-01`). **Update 2026-11-05:** the hub now also refuses it when it is sent
-  (`NP_HUB_ERR_PHOTIC_ZONE`, `REQ-FWHUB-66`), so the person is told at upload and not when the session runs.
+  (`NP_HUB_ERR_PHOTIC_ZONE`, `REQ-FWHUB-66`), so the person is told at upload and not when the session runs. **Update 2026-11-26:** the zone is
+  3 to 60 Hz since 2026-11-25 (`OI-FWHUB-37`), which added `01-gamma-focus`, `14-gamma-theta-coupled` and `15-full-t1-immersive` at 40 Hz;
+  the principal ruled (`OI-NPPS-LIMITS-01`) that all four lose their visual block and run the rest.
 - **C is owed:** the detector. Its first need is the criterion only Clinical can define: `docs/human-input/oi-fwhub-29-c-detection-criterion.md`.

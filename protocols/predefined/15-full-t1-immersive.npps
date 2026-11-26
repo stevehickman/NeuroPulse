@@ -1,7 +1,7 @@
 protocol "Full T1 Immersive" {
     id: "1000000F-0000-0000-0000-000000000000"
     family_id: "9d2b5837-567e-419d-893e-abb71e8bedd5"
-    description: "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session."
+    description: "Seven of the eight T1 modalities running simultaneously with balanced settings. The visual goggles are left out: the helmet does not drive them between 3 and 60 Hz until it can watch for a seizure response. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session."
     author: "NeurOne"
     version: "1.0"
     readonly: true
@@ -76,11 +76,13 @@ protocol "Full T1 Immersive" {
         bone_conduction_pacer: true
     }
 
-    visual_stimulation {
-        frequency: 40Hz
-        mode: binocular
-        emdr_cadence: 1Hz
-    }
+    # No visual_stimulation block (the principal, 2026-11-26, OI-NPPS-LIMITS-01): the goggles
+    # refuse photic driving at 3-60 Hz until the Oz photoparoxysmal detector is built and
+    # validated (REQ-FWHUB-65, -66; OI-FWHUB-29), and the hub refuses the whole protocol at upload
+    # if any block drives inside that zone. The former block drove the goggles at 40 Hz,
+    # binocular, continuous. It was removed, not retuned to a frequency outside the zone, because
+    # no evidence supports the stimulus at another rate. Restore it only by a new ruling once the
+    # detector is armed.
 
     tdcs {
         intensity: 1.0mA

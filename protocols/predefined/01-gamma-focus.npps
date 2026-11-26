@@ -1,7 +1,7 @@
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
     family_id: "76445389-393d-494f-bed5-b3e45482e8e6"
-    description: "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol."
+    description: "Simultaneous 40Hz entrainment across audio and PBM channels, with gamma-band closed-loop EEG neurofeedback, for focus and attention. No visual flicker: the helmet does not drive the goggles between 3 and 60 Hz until it can watch for a seizure response."
     author: "NeurOne"
     version: "1.0"
     readonly: true
@@ -40,14 +40,13 @@ protocol "Gamma Focus" {
         bone_conduction_pacer: false
     }
 
-    visual_stimulation {
-        frequency: 40Hz
-        mode: binocular
-        emdr_cadence: 1Hz
-        interval_on: 60s
-        interval_off: 30s
-        repeat: until_end
-    }
+    # No visual_stimulation block (the principal, 2026-11-26, OI-NPPS-LIMITS-01): the goggles
+    # refuse photic driving at 3-60 Hz until the Oz photoparoxysmal detector is built and
+    # validated (REQ-FWHUB-65, -66; OI-FWHUB-29), and the hub refuses the whole protocol at upload
+    # if any block drives inside that zone. The former block drove the goggles at 40 Hz,
+    # binocular, 60 s on / 30 s off. It was removed, not retuned to a frequency outside the zone,
+    # because no evidence supports the stimulus at another rate. Restore it only by a new ruling
+    # once the detector is armed.
 
     eeg_neurofeedback {
         band: gamma
