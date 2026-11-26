@@ -9,6 +9,8 @@
  *   - common/lib/constants.generated.ts                                          (web app, simulator bundle)
  *   - common/core/src/commonMain/kotlin/life/neurone/core/protocol/NppsConstants.generated.kt
  *   - common/npps-ffi/include/neurone_npps_status.h                              (the C ABI's return codes)
+ *   - firmware/common/include/np_app_wire_constants.h                            (the hub firmware: GATT ids and sizes, and the
+ *                                                                                constants marked `firmware`, such as the photic zone)
  *
  * It also writes the control bounds, from common/npps/bounds.json: every range the web and Compose apps apply
  * to a parameter, a clinician limit or a timing field, in one file (the principal, 2026-11-15):
@@ -29,7 +31,7 @@ const ROOT = join(import.meta.dir, '..');
 const SOURCE = 'common/npps/constants.json';
 
 type Target = 'ts' | 'kotlin' | 'c' | 'rust';
-interface Constant { name: string; value: number | string; int?: boolean; hex?: number; types?: Partial<Record<Target, string>>; cName?: string; hub?: boolean; required?: boolean; note?: string }
+interface Constant { name: string; value: number | string; int?: boolean; hex?: number; types?: Partial<Record<Target, string>>; cName?: string; firmware?: boolean; hub?: boolean; required?: boolean; note?: string }
 interface Group { name: string; rust?: string; cPrefix?: string; uuidBase?: string; hexWidth?: number; firmwareHeader?: boolean; targets: Target[]; intTypes?: Partial<Record<Target, string>>; note?: string; constants: Constant[] }
 const groups = (JSON.parse(readFileSync(join(ROOT, SOURCE), 'utf8')) as { groups: Group[] }).groups;
 
@@ -42,6 +44,13 @@ const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
     if (prior) fail(`${c.name} is in both ${prior} and ${g.name}: one name, one meaning`);
     seen.set(c.name, g.name);
     if (c.int && !Number.isInteger(c.value)) fail(`${g.name}.${c.name} is marked int and is ${c.value}`);
+    // `firmware` sends one constant of a group the firmware does not otherwise read into np_app_wire_constants.h, so
+    // the hub has no hand-written copy to drift (OI-FWHUB-38). The firmware compares it as an unsigned whole number.
+    if (c.firmware) {
+      if (g.targets.includes('c')) fail(`${g.name}.${c.name}: firmware is for a constant whose group has no c target`);
+      if (!c.cName || !UPPER_SNAKE.test(c.cName)) fail(`${g.name}.${c.name}: a firmware constant names its C macro in an UPPER_SNAKE_CASE cName`);
+      if (typeof c.value !== 'number' || !Number.isInteger(c.value) || c.value < 0) fail(`${g.name}.${c.name}: a firmware constant is a non-negative whole number, and is ${c.value}`);
+    }
   }
 }
 
@@ -149,14 +158,17 @@ function c(): string {
 }
 
 /** The hub firmware's view of the constants it shares with the apps: GATT ids, the characteristics marked `hub`, and the base UUID in the order the ATT wire uses (least-
- *  significant byte first), so the firmware writes neither. */
+ *  significant byte first), so the firmware writes neither; and the single constants marked `firmware` from groups C does not otherwise get (the goggles'
+ *  photic refusal zone, OI-FWHUB-38), as unsigned whole numbers. */
 function cGatt(): string {
   const g = groups.find(x => x.uuidBase && x.targets.includes('c'))!;
   const bytes = g.uuidBase!.replace(/-/g, '').match(/../g)!.reverse().map(b => `0x${b}u`);
   const ids = g.constants.filter(k => k.hub).map(k => `${cComment(k.note)}#define ${g.cPrefix}${k.name} ${literal(k, g)}u\n`).join('');
   const sizes = forTarget('c').filter(x => x.firmwareHeader).map(x => x.constants.map(k => `${cComment(k.note)}#define ${k.cName ?? `${x.cPrefix}${k.name}`} ${literal(k, x)}U\n`).join('')).join('');
+  const single = groups.filter(x => !x.targets.includes('c')).flatMap(x => x.constants.filter(k => k.firmware))
+    .map(k => `${cComment(`${k.name} in ${SOURCE}: ${k.note ?? ''}`)}#define ${k.cName} ${k.value}U\n`).join('');
   const base = `${cComment(`${g.uuidBase}, least-significant byte first. The id of a characteristic replaces the two bytes at NP_GATT_UUID_ID_OFFSET.`)}#define NP_GATT_UUID_BASE_INIT { ${bytes.join(', ')} }\n#define NP_GATT_UUID_ID_OFFSET 10\n`;
-  return `/* ${BANNER} */\n#ifndef NP_APP_WIRE_CONSTANTS_H\n#define NP_APP_WIRE_CONSTANTS_H\n\n${base}\n${ids}\n${sizes}\n#endif /* NP_APP_WIRE_CONSTANTS_H */\n`;
+  return `/* ${BANNER} */\n#ifndef NP_APP_WIRE_CONSTANTS_H\n#define NP_APP_WIRE_CONSTANTS_H\n\n${base}\n${ids}\n${sizes}${single ? `\n${single}` : ''}\n#endif /* NP_APP_WIRE_CONSTANTS_H */\n`;
 }
 
 // ─── Control bounds (common/npps/bounds.json) ────────────────────────────────
