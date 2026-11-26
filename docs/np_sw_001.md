@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** 221
-**Date:** 2026-11-26  
+**Revision:** 222
+**Date:** 2026-11-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -924,3 +924,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | 219 | 2026-11-25 | NeurOne Software Engineering | **§6.3.7 `SWR-MG-16` (a): the sealed set is every listed key except `hostPlain`, the presence gate's own two records (`REQ-PRES-11` (a), `OI-PRIV-62`).** |
 | 220 | 2026-11-25 | NeurOne Software Engineering | **§6.3: `SWR-MG-13` (e) added and built: the automatic backup's code or passphrase (`np.backup.auto-secret`) is kept only on a run whose storage is sealed; elsewhere `ScheduledBackup.turnOn` keeps nothing, a copy in the clear an earlier run left is removed, the backup screen says why the automatic backup is not offered, and the backup is still made under what the person types. (c) now reaches every host that keeps state on disk, phones included: the `reportsUnsealedStorage` switch, set only by the desktop apps, is removed. Tests: `ScheduledBackupTest`, `AutomaticBackupSealingTest`, `StorageNoticeTest` (`OI-PRIV-61`, `NP-PRIV-ANALYSIS-006` F-05).** |
 | 221 | 2026-11-26 | NeurOne Software Engineering | **§6.3 `SWR-WO-01`: the owner's offered set is kept in the warranty owner's record for each helmet, apart from the person's own archive (`SWR-FM-05`), and neither changes the other; the owner page shows no usage. Status records the move, the tests and the decision still open (`OI-PRIV-60`).** |
+| 222 | 2026-11-24 | NeurOne Software Engineering | **`SWR-MG-32` (i): `keySeal` and `keyUnseal` let a kept bundle key leave the core only sealed under a data key; the automatic backup keeps that, derived under one salt (a fixed `kdf` for the backup flow), never the code or passphrase; an unsealed run keeps nothing; the earlier form is destroyed unread (`OI-PRIV-65` (2)). `SWR-MG-13` (e) names the kept key, not the code or passphrase.** |
