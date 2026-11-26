@@ -82,6 +82,12 @@ object MigrationFlow {
         random: RandomSource = SystemRandomSource,
         clock: () -> Long = ::epochSeconds,
         secretProvider: (suspend (JsonObject) -> BundleSecret?)? = null,
+        /**
+         * A key already derived and kept sealed, in place of [secret]: the automatic backup (`OI-PRIV-65` (2)). Given the `kdf` the flow
+         * asks for, it answers a kept key for it (a new handle each time, released after the turn like a derived one), or null when it
+         * has none for that `kdf`, which stops the flow. The flow is then started with that `kdf` in its params.
+         */
+        keyFor: ((JsonObject) -> BundleKey?)? = null,
     ): JsonObject {
         val p = buildJsonObject {
             params.forEach { (k, v) -> put(k, v) }
@@ -93,7 +99,7 @@ object MigrationFlow {
         }
         var answer = ask("flow") { put("flow", flow); put("params", p) }
         try {
-            return drive(flow, answer, { answer = it }, host, secret, keys, store, files, link, random, clock, secretProvider)
+            return drive(flow, answer, { answer = it }, host, secret, keys, store, files, link, random, clock, secretProvider, keyFor)
         } finally {
             // A flow over a direct link keeps its two channel keys in the core and names them in its state (SWR-MG-32 (f)).
             // The core wipes them when the flow ends by itself; if this driver stops part-way (the person cancelled, the
@@ -115,6 +121,7 @@ object MigrationFlow {
         random: RandomSource,
         clock: () -> Long,
         secretProvider: (suspend (JsonObject) -> BundleSecret?)?,
+        keyFor: ((JsonObject) -> BundleKey?)?,
     ): JsonObject {
         var answer = first
         repeat(MAX_TURNS) {
@@ -125,7 +132,7 @@ object MigrationFlow {
             // turn answered or threw.
             val held = arrayOfNulls<BundleKey>(1)
             try {
-                val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider, held)
+                val result = perform(turn["effect"]!!.jsonObject, host, secret, keys, store, files, link, random, clock, secretProvider, held, keyFor)
                 answer = ask("flow") { put("flow", flow); put("state", turn["state"]!!); put("result", result) }
                 latest(answer)
             } finally {
@@ -184,6 +191,7 @@ object MigrationFlow {
         clock: () -> Long,
         secretProvider: (suspend (JsonObject) -> BundleSecret?)?,
         held: Array<BundleKey?>,
+        keyFor: ((JsonObject) -> BundleKey?)? = null,
     ): JsonObject = when (val type = e["type"]!!.jsonPrimitive.content) {
         // The pairing code's expiry reads the platform clock (SWR-MG-10).
         "now" -> buildJsonObject { put("seconds", clock()) }
@@ -195,10 +203,14 @@ object MigrationFlow {
         }
         "deriveKey" -> {
             val kdf = e["kdf"]!!.jsonObject
-            // A restore over a link learns how the key was made only from the bundle on the other phone, so it asks for the
-            // secret now (SWR-MG-05); a provider that returns null is the person declining.
-            val given = secret ?: secretProvider?.invoke(kdf) ?: throw SecretDeclined()
-            val key = try { BundleKeyDerivation.deriveKey(given, kdf) } finally { if (secret == null) given.destroy() }
+            val key = if (keyFor != null) {
+                keyFor(kdf) ?: throw IllegalStateException("the kept backup key does not open, or was made under another kdf")
+            } else {
+                // A restore over a link learns how the key was made only from the bundle on the other phone, so it asks for the
+                // secret now (SWR-MG-05); a provider that returns null is the person declining.
+                val given = secret ?: secretProvider?.invoke(kdf) ?: throw SecretDeclined()
+                try { BundleKeyDerivation.deriveKey(given, kdf) } finally { if (secret == null) given.destroy() }
+            }
             held[0] = key
             buildJsonObject { put("key", key.ref()) }
         }

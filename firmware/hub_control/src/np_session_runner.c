@@ -358,9 +358,11 @@ static void mark_fitted_modules(void)
 
 /*
  * REQ-FWHUB-93: close the session's totals.  Each tile the dose meter tracked
- * adds the time it was driven, keyed by the UID in its socket now; then every
- * open accessory interval closes at `total_ms` and the table is written once.
- * Nothing here reaches the SHDR log (np_module_usage.h).
+ * adds the time it was driven, its metered dose (mJ/cm², summed over its
+ * wavelengths) and one throttle if its thermal throttle tripped, keyed by the
+ * UID in its socket now; then every open accessory interval closes at
+ * `total_ms` and the table is written once.  Nothing here reaches the SHDR log
+ * (np_module_usage.h).
  */
 static void commit_module_usage(uint32_t total_ms)
 {
@@ -368,10 +370,17 @@ static void commit_module_usage(uint32_t total_ms)
         uint16_t socket_id;
         uint32_t on_ms;
         np_module_uid_t uid;
-        if (np_pst_usage(i, &socket_id, &on_ms) && on_ms > 0U &&
-            np_module_map_socket_uid(socket_id, &uid) == NP_HUB_OK && !np_module_uid_is_zero(&uid)) {
-            const np_mu_key_t k = np_mu_key_uid(uid.b);
-            np_mu_add_used(&k, on_ms);
+        if (!np_pst_usage(i, &socket_id, &on_ms) ||
+            np_module_map_socket_uid(socket_id, &uid) != NP_HUB_OK || np_module_uid_is_zero(&uid)) {
+            continue;
+        }
+        const np_mu_key_t k = np_mu_key_uid(uid.b);
+        if (on_ms > 0U) { np_mu_add_used(&k, on_ms); }
+        np_pst_socket_record_t rec;
+        if (np_pst_get_record(socket_id, &rec)) {
+            const uint32_t dose = np_mu_dose_mJ_cm2(rec.dose_J_cm2, sizeof rec.dose_J_cm2 / sizeof rec.dose_J_cm2[0]);
+            if (dose > 0U) { np_mu_add_dose(&k, dose); }
+            if ((rec.flags & NP_PST_FLAG_THROTTLED) != 0U) { np_mu_note_throttle(&k); }
         }
     }
     (void)np_mu_session_end(total_ms);

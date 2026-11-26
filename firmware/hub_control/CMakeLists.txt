@@ -227,7 +227,8 @@ if(NP_BUILD_TESTS)
         tests/np_module_registry_tests.c
         src/np_module_registry.c
     )
-    target_include_directories(np_module_registry_tests PRIVATE include)
+    target_include_directories(np_module_registry_tests PRIVATE include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/include)
     target_compile_options(np_module_registry_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
@@ -585,7 +586,6 @@ if(NP_BUILD_TESTS)
         src/np_cfg_store.c
         src/np_session_count.c        # OI-LFS-12: the persisted session count
         src/np_reset_marker.c         # OI-NVRAM-05: the durable factory-reset marker
-        src/np_map3_record.c          # OI-NVRAM-16: rows of differing length
         src/np_hexmap_nvram.c         # OI-HEXMAP-01: npmp.bin through the store
         src/np_module_map.c           # OI-HEXMAP-01: persist/restore end to end
         src/np_lfs_instance.c
@@ -713,8 +713,11 @@ if(NP_BUILD_TESTS)
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
     target_link_libraries(np_consumables_tests PRIVATE np_crypto m)
 
-    # REQ-FWHUB-93: the per-module running totals — presence and use with their
-    # time, faults per code, the upserted record, never over an unreadable one.
+    # REQ-FWHUB-93: the per-module running totals (Map 3, NP-FW-NVRAM-001 §8.5) —
+    # presence and use with their time, faults per code, mates, dose, throttles,
+    # the flags, the upserted record, never over an unreadable one, and the
+    # record's version rule (§7.2), which np_map3_record_tests checked for the
+    # retired journal.
     add_executable(np_module_usage_tests
         tests/np_module_usage_tests.c
         src/np_module_usage.c
@@ -725,19 +728,6 @@ if(NP_BUILD_TESTS)
         $<TARGET_PROPERTY:np_littlefs,INTERFACE_INCLUDE_DIRECTORIES>
     )
     target_compile_options(np_module_usage_tests PRIVATE
-        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
-
-    # OI-NVRAM-08: the Map 3 journal record and its version-tolerant scan.
-    # The CI check that a journal written under version n loses no record
-    # under n+1 (NP-FW-NVRAM-001 Rev 3 §7.2), run against the production
-    # reader and falsified against four readers that break the rule.
-    add_executable(np_map3_record_tests
-        tests/np_map3_record_tests.c
-        src/np_map3_record.c
-    )
-    target_include_directories(np_map3_record_tests PRIVATE include)
-    target_link_libraries(np_map3_record_tests PRIVATE np_crypto)
-    target_compile_options(np_map3_record_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
     # Hub ↔ cervical VNS library integration + cardiac-interlock config.
@@ -807,7 +797,6 @@ set(HUB_SOURCES
     src/np_hexmap_inventory.c     # OI-HEXMAP-02: tile UID + element inventory over the socket seam
     src/np_lfs_instance.c         # OI-LFS-01: EMMC-FS-01 littlefs instance + mount validator
     src/np_cfg_store.c            # OI-LFS-06/-08/-09: Config store — the littlefs caller rules
-    src/np_map3_record.c          # OI-NVRAM-08: Map 3 journal record + version-tolerant scan
     src/np_reset_marker.c         # OI-NVRAM-05: durable factory-reset marker in Config
     src/np_lfs_log_instance.c     # OI-LFS-05: UHDR/SHDR littlefs instances + mount validator
     src/np_session_count.c        # OI-LFS-12: device session count persisted in Config

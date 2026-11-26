@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-MOD-ID-001
-**Revision:** 2
-**Date:** 2026-11-22
+**Revision:** 3
+**Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** TBD — pending principal approval and the two BLOCKING open items in §9
 **Author:** NeurOne Firmware + Data Architecture
@@ -260,6 +260,12 @@ increment, at most once per power-up.
    exists only as `U1`'s running total. What reaches SHDR, and whether
    `*_mate_cycles_observed` should reach it at all, stays the live judgment that
    §8.4 leaves to OI-EMMC2-08. This rule adds no field and no upload.
+   *(Rev 3, 2026-11-25: the principal's ruling recorded in
+   NP-FW-NVRAM-001 §8.5 (2026-11-23) puts a mate-cycle running total in the
+   helmet's per-module Map 3 row, and sends that total to the fleet. That is a
+   total, not an event record, so D-20 holds; the "no Map 3 field" above is
+   superseded for the total only. The helmet counts an accessory port's mates
+   today; a tile's, decided by this rule, wait for the inventory poll.)*
 
 **What the count cannot see.** It is a lower bound, as the field's name says,
 and any consumer must treat it as one.
@@ -883,3 +889,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | 2 | 2026-11-22 | NeurOne Software Engineering | **The date-typed columns row: `manufacture_date` and `module_manufacture_date` are month-truncated since SHDR schema Rev G (`OI-PRIV-58`).** |
+| 3 | 2026-11-26 | NeurOne Firmware Engineering | **§5.3.1 item 5: a note that the principal's ruling in NP-FW-NVRAM-001 §8.5 puts a mate-cycle running total in the helmet's Map 3 row and in the fleet upload; the total, not an event, so D-20 holds.** |

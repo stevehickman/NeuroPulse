@@ -88,6 +88,8 @@ fun ProtocolMenuScreen(
     // A protocol to open the editor on, from the acknowledgement request's way back (SWR-SS-04).
     editRequest: NPProtocolEntry? = null,
     onEditRequestHandled: () -> Unit = {},
+    // The connected helmet, whose owner's offered set the library asks for (SWR-WO-01, OI-PRIV-60); the list is read again when it changes.
+    helmet: String? = null,
 ) {
     // Reflect the current BIPA consent into the library so EEG-adaptive rows gate live.
     library.updateEEGConsent(consentGranted)
@@ -162,9 +164,13 @@ fun ProtocolMenuScreen(
             modifier = modifier,
         )
         null -> {
-            // The warranty owner's set first, then what was archived (kept, and restorable).
-            val offered = remember(version) { library.offeredProtocols.filter { it.isRunnable } }
-            val archived = remember(version) { library.allProtocols.filter { it.isRunnable && library.isArchived(it) } }
+            // What the warranty owner offers on this helmet and the person has not archived first, then what the person archived
+            // (kept, and restorable). A family the owner does not offer is not listed: that is the owner's choice, kept in the owner's
+            // store, and the person's own Archive and Restore never change it (SWR-WO-01, OI-PRIV-60).
+            val offered = remember(version, helmet) { library.offeredProtocols.filter { it.isRunnable } }
+            val archived = remember(version, helmet) {
+                library.allProtocols.filter { it.isRunnable && library.isArchived(it) && library.isOffered(it) }
+            }
             val protocols = offered + archived
             Column(modifier.fillMaxSize()) {
                 Row(

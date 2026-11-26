@@ -44,6 +44,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
 
     // Live BLE state from the app-scoped GATT manager.
     val connectionState by gatt.connectionState.collectAsState()
+    val helmet by gatt.hubIdentifier.collectAsState()
     val session by gatt.session.collectAsState()
     val progress by gatt.progress.collectAsState()
     val holdCause by gatt.holdCause.collectAsState()
@@ -203,6 +204,7 @@ fun SessionTab(services: AppServices, modifier: Modifier = Modifier) {
             onBack = { showMenu = false; programMode = false },
             helmetHardwareVersion = hardwareVersion,
             fileTransfer = fileTransfer,
+            helmet = helmet,
             modifier = modifier,
         )
     } else {
