@@ -61,7 +61,7 @@ Do these once for a new stack, and again for a stack that has been recreated, in
    python3 infra/posthog/apply_event_retention.py --url http://<clickhouse> --apply
    python3 infra/posthog/apply_event_retention.py --url http://<clickhouse> --check
    ```
-   (It reads `CLICKHOUSE_PASSWORD`, and `EVENT_RETENTION_DAYS` from the environment; export both from `.env`.)
+   (It reads `RETENTION_CLICKHOUSE_PASSWORD` and `EVENT_RETENTION_DAYS` from the environment; export both from `.env`. It runs as its own ClickHouse user, `np_retention`, and refuses to run as `posthog`: `NP-ANALYTICS-001` §7.7. Do not give it PostHog's `CLICKHOUSE_PASSWORD`.)
 7. **Person retention, by hand** (`NP-ANALYTICS-001` §3.4, the note under the retention table). Nothing checks it, so record it in the change log.
 8. **Heatmaps, web analytics and the Property Filter app** (`NP-ANALYTICS-001` §3.4 and §4). Not covered by any script; do them by hand and verify the denylist as `NP-ANALYTICS-001` §4.4 says.
 

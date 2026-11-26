@@ -155,12 +155,14 @@ services:
       CLICKHOUSE_USER: posthog
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-      ERASE_CLICKHOUSE_PASSWORD: ${ERASE_CLICKHOUSE_PASSWORD:-}
+      ERASE_CLICKHOUSE_PASSWORD: ${ERASE_CLICKHOUSE_PASSWORD:?Set ERASE_CLICKHOUSE_PASSWORD in .env}
+      RETENTION_CLICKHOUSE_PASSWORD: ${RETENTION_CLICKHOUSE_PASSWORD:?Set RETENTION_CLICKHOUSE_PASSWORD in .env}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_log:/var/log/clickhouse-server
       - ./clickhouse/np-privacy.xml:/etc/clickhouse-server/config.d/np-privacy.xml:ro
       - ./clickhouse/np-erase-user.xml:/etc/clickhouse-server/users.d/np-erase-user.xml:ro
+      - ./clickhouse/np-retention-user.xml:/etc/clickhouse-server/users.d/np-retention-user.xml:ro
     ulimits:
       nofile:
         soft: 262144

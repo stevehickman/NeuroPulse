@@ -1,0 +1,30 @@
+<!--
+  NeurOne PostHog — ClickHouse user for the event-retention script
+  NP-ANALYTICS-001 §7.1 and §7.7 (OI-PRIV-47, REQ-SW03-34 (e))
+  Path: /etc/clickhouse-server/users.d/np-retention-user.xml
+
+  apply_event_retention.py reads each events table's DDL from system.tables and, with apply, changes its TTL. Its user may do
+  those two things and nothing else: it cannot read, insert, delete or drop any row of analytics data. Before OI-PRIV-47 the
+  script ran as PostHog's application user, which reads every table, so a retention run was indistinguishable in any log from
+  a read of every installation's timeline. The separate-users rule of NP-ANALYTICS-001 §7.7 forbids that; the script now refuses
+  to run as `posthog`.
+
+  The password comes from the container's environment (RETENTION_CLICKHOUSE_PASSWORD, set in .env, required by the compose file
+  so the user never exists with an empty password). The table name must match the script's tables option and POSTHOG_VERSION's
+  schema. NOT YET EXERCISED AGAINST A REAL STACK (OI-ANALYTICS-01 (2)): whether MODIFY TTL, which by default also materialises the
+  TTL on existing parts, needs any grant beyond ALTER MODIFY TTL on ClickHouse 23.12 is to be confirmed by NP-MAN-OPS-001 §4.
+-->
+<clickhouse>
+  <users>
+    <np_retention>
+      <password from_env="RETENTION_CLICKHOUSE_PASSWORD"/>
+      <networks><ip>::/0</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <grants>
+        <query>GRANT SELECT(database, name, create_table_query) ON system.tables</query>
+        <query>GRANT ALTER MODIFY TTL ON posthog.sharded_events</query>
+      </grants>
+    </np_retention>
+  </users>
+</clickhouse>
