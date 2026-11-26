@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 49
-**Date:** 2026-11-25  
+**Revision:** 50
+**Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4573,3 +4573,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 47 | 2026-11-24 | NeurOne Software Engineering | **New §6.21: Q1 B (audit of the App's pushes, `check-main-pushes.ts`), Q2 set P (`SHDR Schema Privacy Gate`, `Warranty No-Join Privacy Gate`), Q3 A, Q4 A, Q5 A; the OI-SWCI-54 row updated. The ruleset half of Q2 is the principal's. §7 and §6.15.3: OI-SWCI-51 closed (codeql.yml and dependency-scan.yml keep what they have).** |
 | 48 | 2026-11-25 | NeurOne Software Engineering | **New §6.21.5: the ruleset half of Q2 is in force (read live on 2026-11-25), the App id `5585393` is `RevNumberFixer` (confirmed by the principal), and what is still open. §6.17 and the OI-SWCI-54 row updated. No workflow, script or setting changed.** |
 | 49 | 2026-11-25 | NeurOne Tooling | **§6.20.5: step 2 (the sending account's secrets) and step 3 (a mail rule in Apple Mail and on the iPhone) are done, reported by the principal on 2026-11-25; step 6 stays open. §6.21.5 step 5: the first `main-pushes-audit` run stopped on a `TypeError` in `check-main-pushes.ts` (`jq` writes `previous_filename: null`); the script treats null as absent, with two new self-test cases; the audit's result is the next run after this merges.** |
+| 50 | 2026-11-26 | NeurOne Software Engineering | **§6.21.3, §6.21.5, new §6.21.6 and the OI-SWCI-54 row: the audit's first real read found 3 commits by the revision App that touch CLAUDE.md; the principal decided to allow CLAUDE.md beside docs/. The allowance is `allowed_paths` on the App's bypass in ci/main-ruleset.json, and the offline mode fails a pull request where it differs from the paths assign-revisions.yml stages.** |
