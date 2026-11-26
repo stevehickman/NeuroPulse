@@ -406,6 +406,18 @@ Because collection is opt-in (§7.5), the relaxation is **cohort-scoped**:
 opted in, which will be the large majority of the fleet. The narrowed invariant
 describes what the schema *may* carry, not what any given device *does* carry.
 
+> **Rev {NP-MOD-ID-001 to} (2026-11-26), the principal's ruling on the Map 3 row (`NP-FW-NVRAM-001` §8.5, D-38).**
+> Delivered dose does not matter for SHDR: the helmet's dose totals never reach the fleet, opted in or not, so this
+> section and `DOSE-01` stand unchanged. Dose is kept per wavelength for the person's own app, as UHDR. The principal
+> asked SHDR instead for how much each emitter is used, as totals per emitter, and for session counts per emitter as a
+> measure of on/off switching, with consent for SHDR data coming from the warranty owner and never from individual
+> users. That is already this opt-in's subject (§7.5.1). `NP-FW-NVRAM-001` §8.5 records the totals per emitter
+> channel in the module's Map 3 row, as drive time of the class of `emitter_on_seconds` above, in Map 3's narrower
+> shape: running totals per module, never per socket per session (`NP-FW-NVRAM-001` D-18). Specified, not built
+> (`OI-NVRAM-23`). Whether they ride on this opt-in, which §7.3 time-boxes, or on the warranty owner's SHDR consent at
+> registration is put to the principal (`OI-NVRAM-25` (b)). No field is added to the list above until that is answered
+> and the fields are built.
+
 ### 7.3 Time-box and fail-closed expiry (CHAR-2)
 
 **Window:** ends at the earlier of (a) N devices × M sessions sufficient for the
