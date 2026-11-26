@@ -1,7 +1,7 @@
 # Question for the principal: OI-PRIV-68, a forged high count can stop a person's moves from retiring their old device
 
 **Status:** ANSWERED 2026-11-26: option B, recommendation accepted (the principal). Originally DRAFT, not sent. Not a controlled document; see `docs/human-input/README.md`.
-**GitHub issue:** none yet; to be filed when this is sent
+**GitHub issue:** #1085
 **From:** NeurOne Software Engineering (`OI-PRIV-68` in `docs/status/pending-decisions.md`; found 2026-11-25 while building the device's catch-up, `SWR-MG-35`)
 **To:** the principal (the Privacy Lead and a cryptography reviewer may advise)
 **Response needed:** an option, a short rationale, anything that would reopen it, and your name, role and the date.
