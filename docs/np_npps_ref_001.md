@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 45
-**Date:** 2026-11-24  
+**Revision:** 46
+**Date:** 2026-11-26  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -181,7 +181,7 @@ Every `.npps` file the app loads shares **one flat namespace**. There is exactly
 
 Because the whole tree loads before resolution, definition order and file boundaries do not matter — a protocol may reference a zone or condition defined in a file loaded later. Unresolved references are reported by the loader (`validateNamespaceReferences`) and, for the shipped library, are covered by an automated test.
 
-**A file that does not load is a failed load, not an empty file (Rev {NP-NPPS-REF-001 to}, `REQ-NPPS-34`).** "The whole
+**A file that does not load is a failed load, not an empty file (Rev 46, `REQ-NPPS-34`).** "The whole
 tree loads" is a precondition of resolution, so a runtime that cannot fetch or parse one file of the library has not
 loaded the tree. It reports the load as failed, naming each file, offers nothing from that attempt and starts again on
 the next attempt. It never reads the file as one that defines nothing: a definitions file read that way leaves every
@@ -2025,3 +2025,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 43 | 2026-11-21 | NeurOne Firmware Engineering | **§4.1 frequency row, `REQ-NPPS-33`: a transcranial PBM frequency is 32-bit millihertz (0.75 Hz is 750 mHz); the whole-hertz refusal stays for the intranasal probe and the 1170 nm block; the editor step is 0.5.** |
 | 44 | 2026-11-24 | NeurOne Software Engineering | **§ `audio_entrainment` fields: the `binaural_hz` row now allows 0 Hz (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`); 0 Hz is a steady tone, not an error. The isochronic rate row is unchanged.** |
 | 45 | 2026-11-24 | NeurOne Software Engineering | **§ `audio_entrainment` fields: the `isochronic_hz` row now states that 0 Hz is refused by the validator and the compiler (the principal, 2026-11-24, `OI-NPPS-AUDIO-01`). The `binaural_hz` row (0 Hz allowed) is unchanged.** |
+| 46 | 2026-11-26 | NeurOne Software Engineering | **§1.6, §14: new `REQ-NPPS-34`, the predefined library loads whole or not at all.** "The whole tree loads before resolution" now says what a runtime does when a file does not load: it reports the load as failed, naming each file, offers nothing from that attempt, and starts again on the next attempt; it never reads the file as one that defines nothing, and it parses nothing before its parser is loaded. Found in the web app on 2026-11-25: in about one load in three `00-zones.npps` and `00-conditions.npps` were parsed before the WebAssembly core had loaded, the parse threw, the loader read the throw as an empty file, and the library was offered with every zone and condition unbound. The web loader (`app/web/src/lib/predefinedProtocols.ts`) now awaits the core, refuses a response that is not a success, fails the whole load on any file and caches nothing from it, and the protocol menu says the library did not load and offers to try again; `main.tsx` imports the app only after the core is loaded. Tested in `app/web/src/lib/predefinedProtocols.test.ts`. No grammar, range or limit changes. |
