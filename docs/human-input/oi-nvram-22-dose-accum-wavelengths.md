@@ -1,6 +1,6 @@
 # OI-NVRAM-22 (c): does Map 3's `dose_accum` reach the fleet at all, and is it one sum over a tile's wavelengths or one total per wavelength?
 
-**Status:** ANSWERED 2026-11-26 (the principal, in two messages the same day; §7). Q1: A, delivered dose never reaches the fleet. Q2: B, one dose total per wavelength, for the person's own app. SHDR gets emitter use per emitter and the working environment instead, under the warranty owner's consent. Two readings of the answer await the principal (`OI-NVRAM-25`).
+**Status:** ANSWERED 2026-11-26 (the principal, in two messages the same day; §7). Q1: A, delivered dose never reaches the fleet. Q2: B, one dose total per wavelength, for the person's own app. SHDR gets emitter use per emitter and the working environment instead, under the warranty owner's consent. The principal answered the two readings put back in `OI-NVRAM-25` the same day (§7.1): per emitter is per drive channel, accessory ports included, and either of the warranty owner's consents admits the new fields, with a prompt for general SHDR consent when the characterisation window ends.
 **GitHub issue:** none yet. Rule 7 of `docs/human-input/README.md` asks for one; the session that wrote this did not open an issue unasked. The finding comes from working `OI-NVRAM-22`, raised by pull request [stevehickman/NeuroPulse#1072](https://github.com/stevehickman/NeuroPulse/pull/1072).
 **Sender:** the session that worked on `OI-NVRAM-22` (a Claude agent), drafted 2026-11-26.
 **Addressee:** the Principal, with the Privacy Lead and Firmware.
@@ -97,12 +97,12 @@ The clarification, the same day:
 **What follows from rules already locked [E].**
 
 - **Dose per wavelength cannot be written to Config.** Config's key is NeurOne-derivable, so nothing of UHDR class is written there (`NP-FW-NVRAM-001` §3.2, D-3). Dose is the person's (ruling 2). So the per-wavelength totals need a home on the UHDR side: a record in the UHDR partition, or totals the app builds from the UHDR session files, which already carry dose per socket per wavelength (F2). The choice is `OI-NVRAM-23`'s. **The `dose_accum` sum built today sits in the Config row.** It is never uploaded and no unit has shipped, but under this ruling it is UHDR-class data in a store NeurOne can read. `OI-NVRAM-23` removes it from the Config row when the per-wavelength totals are built.
-- **The §7 opt-in is already the warranty owner's.** `NP-MOD-ID-001` §7.5.1 binds it to the warranty owner, "consistent with the existing SHDR consent subject". Nothing in `NP-MOD-ID-001` §7 or `NP-FW-NVRAM-001` §8.5 makes any field, `throttle_count` included, depend on an individual user's opt-in. What the answer leaves open is which of the warranty owner's two consents gates the new fields: see (b) below.
+- **The §7 opt-in is already the warranty owner's.** `NP-MOD-ID-001` §7.5.1 binds it to the warranty owner, "consistent with the existing SHDR consent subject". Nothing in `NP-MOD-ID-001` §7 or `NP-FW-NVRAM-001` §8.5 makes any field, `throttle_count` included, depend on an individual user's opt-in. What the answer leaves open is which of the warranty owner's two consents gates the new fields: see (b) below, answered in §7.1 (either).
 - **A tile's NTC sits against the scalp.** Its per-socket reading in a session is ruled UHDR, as scalp-contact temperature that marks a lit socket (F7, `docs/reference/data-architecture-detail.md` §5.1). A time-in-band total built from tile NTCs needs `CLAUDE.md` §5.1 rule 1's positive demonstration that it carries no user biology, or it must come from a source that does not touch the scalp (the hub NTCs, or an ambient NTC, `NP-ENV-001` §5). `OI-NVRAM-24` decides which.
 
 **What "per emitter" can mean on this hardware [E].** A tile has 90 emitter sites (`NP-HW-HEXTILE-001` §4.2: T1-A has 45 at 660 nm and 45 at 808 nm; T1-C has 30 each at 660, 808 and 1064 nm). They are wired in series strings per channel (§8.1.1 there). The hub commands and meters a tile per channel (`CH_A`, `CH_B`, `CH_C`; `np_pbm_socket_telem.h`, `dose_J_cm2[3]`), never per site. So the finest "per emitter" the hub can count is **per channel, at most three per tile, one per wavelength**. That is how it is recorded. Counting per site would need hardware that switches each site on its own, and 90 × 8 = 720 B per row.
 
-**Two readings that await the principal (`OI-NVRAM-25`).** They are not ruled.
+**Two readings put to the principal (`OI-NVRAM-25`), answered the same day: see §7.1.** As first put:
 
 - **(a) Per emitter means per drive channel**, as above. A session count is the number of sessions in which the channel was driven, one switch-on and one switch-off each. It does not count the pulses of a pulsed protocol.
 - **(b) Which warranty-owner consent gates the new SHDR fields.** One option is the warranty owner's SHDR consent, given at registration, per helmet (`SHDRUploader`, `REQ-SHDR-08`). The other is `NP-MOD-ID-001` §7.5's separate characterisation opt-in, which the warranty owner also grants. Two facts bear on it. §7.3 stops the §7 fields when its window closes, by a build-time constant. §7.5 holds that folding an 80-socket duty map into warranty registration would be bundled consent. Per-channel totals per module are coarser than that map, but a module usually stays in one socket. `throttle_count` rides on §7's opt-in today and is unchanged until this is answered. Nothing uploads either way: the hub side of the fleet upload is not built (`NP-FW-HUB-001` §2.5).
@@ -119,6 +119,51 @@ The clarification, the same day:
 
 With dose moved off Config, emitter use alone needs 24 − 4 = **20 B against 19**, which is 1 B short. Any temperature band kept per module adds 4 B more for each band. With dose left in the row, the total would be 32 + 4N B. **Nothing fits the record as it stands.** A per-helmet temperature record would sit outside the row, at 4 × N B once. Nothing is resized here. The record length is D-36's and UC-213's, and `OI-NVRAM-23` decides how the fields get room.
 
-**What would reopen it:** for Q1, a fleet model that needs delivered dose. For the 5 °F bands, the first dataset's analysis, as the principal said. For humidity, the outcome of #1086. For (a) and (b), the principal's answer in `OI-NVRAM-25`.
+**What would reopen it:** for Q1, a fleet model that needs delivered dose. For the 5 °F bands, the first dataset's analysis, as the principal said. For humidity, the outcome of #1086. For (a) and (b), see §7.1.
 
 **What changed where (2026-11-26):** `NP-FW-NVRAM-001` §3.3.1.6, §8.1, §8.5, §11 (D-38) and §13; `NP-FW-HUB-001` §6.11 and `REQ-FWHUB-93`'s *Fails without it*; `NP-MOD-ID-001` §7.2; `docs/reference/data-architecture-detail.md` §5.1; `docs/status/unjustified-choices.md` (UC-213 updated, UC-214 retired, UC-215 added); open items `OI-NVRAM-22` (part (c) closed), and `OI-NVRAM-23`, `OI-NVRAM-24` and `OI-NVRAM-25` raised.
+
+### 7.1 The answer to `OI-NVRAM-25` (the principal, 2026-11-26)
+
+**The principal's words, verbatim:**
+
+> (a) 'per emitter' means per drive channel; 'session' means a session in which the channel was driven, not individual pulses; (b) both consents cover it. Generally, characterisation opt-in is just a time limited version of consent that, once the characterisation period ends, changes consent from 'yes' to 'no'. Note that when that period ends and the value changes, the warranty owner should be prompted for general SHDR consent - because they may ave changed their mind at this point.  And yes, emitters in accessory ports are counted
+
+**How it is recorded.** This is the recording session's reading. The rulings are the principal's; the wording is not.
+
+- **(a) Per emitter means per drive channel.** A session count is the number of sessions in which that channel was driven. It does not count individual pulses.
+- **Accessory ports are counted.** Emitters in accessory ports are counted per drive channel, as a tile's are: for example the intranasal probe's 660 and 808 nm channels on each side.
+- **(b) Either consent admits the new SHDR fields.** The new fields are on-time per channel, sessions per channel and the 5 °F temperature bands. They flow while **either** of two consents is in force:
+  - the warranty owner's general SHDR consent (per helmet, `REQ-SHDR-08`);
+  - `NP-MOD-ID-001` §7.5's characterisation opt-in, while its window is open.
+
+  The principal frames the characterisation opt-in as a time-limited form of the same consent, which turns from yes to no when the window ends.
+- **The expiry prompt.** When the characterisation window ends and that consent turns to no, the warranty owner is asked about general SHDR consent for that helmet, because they may have changed their mind. The invariants this keeps:
+  - The prompt is a fresh question. It starts at no consent, and silence is not a yes: a dismissal, a timeout or no answer grants nothing.
+  - "Never asked" and "said stop" stay distinguishable (`CLAUDE.md` §6.0). The end of the window is recorded as its own state. It is not a revoke, and it is not never asked.
+  - `REQ-SHDR-09` stands. Revoking SHDR consent ends characterisation enrolment, and a later grant does not bring the enrolment back. The prompt asks only for general SHDR consent and never re-enrols characterisation.
+  - It concerns the warranty owner only. `SHDRUploader` stays independent of `ConsentStore` (`REQ-CONSENT-01`).
+
+  Written as `REQ-SHDR-12` (`docs/reference/data-architecture-detail.md` §5.4), untested until it is built (`OI-NVRAM-26`).
+- **`throttle_count` is read under "Generally".** "Generally, …" states the rule for the characterisation opt-in as a whole. So `throttle_count`, which rode on the §7 opt-in alone, now also flows under either consent. That is this session's reading of "generally", not the principal's words.
+
+**What this reading does not reach, and why [E].** The words "generally" could also be read to cover the per-socket, per-session fields that `NP-MOD-ID-001` §7.2 admits (`emitter_on_seconds`, `thermal_seconds_over_threshold`, `throttle_event_count`, `peak_ntc_celsius`). They could also cover `NP-FW-EMMC-002` §H's accelerometer programme. Under §7.3 and §H.3.4 those fields stop at the window's end by a firmware gate, and §7.5 argues that admitting an 80-socket duty map under warranty registration would be bundled consent. Reading "generally" that widely would move a per-socket, per-session duty map to every consenting device. The principal's answer was given about the Map 3 totals, so this record applies it to them and to `throttle_count`, and leaves §7.2's per-socket set and §H as they are. Whether the ruling reaches them is put to the principal in `OI-NVRAM-27` (a).
+
+**A conflict this exposes [E].** `REQ-SHDR-09` (a) refuses characterisation enrolment for a helmet whose general SHDR consent is not open, and (b) ends the enrolment when that consent is revoked. So a helmet inside its characterisation window always has general consent open as well. In practice "either consent" therefore means general consent. At expiry the owner already has general consent, so the prompt gives them a chance to reconsider. The answer does not say what an unanswered prompt does to the consent the owner already gave: leave it as it was, or let it lapse. Until the principal rules (`OI-NVRAM-27` (b)), `REQ-SHDR-12` makes an unanswered prompt change nothing. It records no grant and no revoke.
+
+**Where this supersedes `NP-MOD-ID-001` [E].** For the Map 3 totals and `throttle_count`, the ruling supersedes two things in `NP-MOD-ID-001`: §7.3's stop at the window's end, and §7.5's bundled-consent argument. Both are kept in that document, with a note pointing to `NP-FW-NVRAM-001` §8.5 and D-39. They still govern §7.2's own per-socket set until `OI-NVRAM-27` (a) is answered.
+
+**Room in the Map 3 row, accessory channels included [E].** The record has one row layout for tiles and accessory ports alike, so a row has to hold the most channels any module drives. Each channel takes 8 B (a 32-bit on-time and a 32-bit session count):
+
+| Module | Drive channels | Emitter-use bytes |
+|---|---|---|
+| Tile (T1-C) | 3 (660, 808 and 1064 nm; `NP-HW-HEXTILE-001` §4.2) | 24 |
+| Intranasal probe | 4 (two sides, 660 and 808 nm on each; `REQ-NASAL-04`, `cur_660` and `cur_808`) | 32 |
+| 1170 nm deep PBM unit (T2) | 1 | 8 |
+| Visual goggles | Not known. The 12-bit zone mask times 660 and 808 nm would be up to 24, but what the bits mean is open (`OI-FWHUB-35`), and Mode F adds an NIR walk | up to 192 |
+
+The record leaves 19 B per row, and dropping `dose_accum` from Config frees 4 B. A row sized for the intranasal probe therefore needs 32 − 4 = **28 B against 19**. A row sized for the goggles' worst case needs 188 B. Each per-module temperature band adds 4 B. At 147 rows, a 4-channel row makes the record 147 × (64 − 4 + 32) + 4 = 13,528 B, which is already past 12,288. **Nothing fits.** Nothing is resized here. `OI-NVRAM-23` decides the layout, for example a separate record for the 19 port rows, or rows that differ in length by kind.
+
+**Open items:** `OI-NVRAM-25` is closed. `OI-NVRAM-23` now covers accessory-port channels. `OI-NVRAM-26` (raised) builds the app's expiry prompt. `OI-NVRAM-27` (raised) asks the principal the two questions above.
+
+**What changed where (2026-11-26, second change):** `NP-FW-NVRAM-001` §3.3.1.6, §8.1, §8.5, D-38, D-39 and §13; `NP-MOD-ID-001` §7.2, §7.3 and §7.5; `NP-FW-HUB-001` §6.11; `docs/reference/data-architecture-detail.md` §5.1 and `REQ-SHDR-12`.
