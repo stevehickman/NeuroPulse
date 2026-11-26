@@ -32,8 +32,11 @@ interface LimitsContextValue {
   limitsVersion: number;
 }
 
+// The default is read lazily: resolving the limits runs the NPPS core, which a browser has not loaded
+// when this module is evaluated (main.tsx awaits initNppsCore() before rendering). Read eagerly, it threw
+// at load and the built page never started. The provider below always supplies the value in use.
 export const LimitsContext = createContext<LimitsContextValue>({
-  resolvedLimits: limitsStore.resolvedLimits,
+  get resolvedLimits() { return limitsStore.resolvedLimits; },
   limitsVersion: 0,
 });
 

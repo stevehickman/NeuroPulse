@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import life.neurone.core.data.BundleKeyMethod
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.AppServices
 import life.neurone.shared.migration.LinkReceiveModel
 import life.neurone.shared.migration.LinkReceiveStep
@@ -39,6 +40,8 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun MigrationLinkReceiveScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     val model = remember { LinkReceiveModel(app.platform.linkTransport, app.keyValueStore, app.migrationItems) }
     val step by model.step.collectAsState()
     val scope = rememberCoroutineScope()

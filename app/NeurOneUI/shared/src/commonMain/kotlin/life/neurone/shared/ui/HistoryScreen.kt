@@ -29,6 +29,7 @@ import life.neurone.core.session.CompletedSessionSummary
 import life.neurone.core.session.SessionHistoryStore
 import life.neurone.core.session.SessionRecord
 import org.jetbrains.compose.resources.stringResource
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
 
@@ -45,6 +46,8 @@ fun HistoryScreen(
     edfDownload: life.neurone.shared.session.EdfDownloadModel? = null,
     fileTransfer: life.neurone.shared.migration.FileTransfer? = null,
 ) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     var selected by remember { mutableStateOf<SessionRecord?>(null) }
 
     val record = selected

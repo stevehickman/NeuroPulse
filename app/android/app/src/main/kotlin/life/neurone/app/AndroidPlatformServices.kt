@@ -49,6 +49,8 @@ class AndroidPlatformServices(
     override val gatedKeyStore: life.neurone.core.common.GatedSecretKeyStore? = null,
     /** Whether an activity is on screen, for the presence lock's background timeout; see [AndroidAppForeground]. */
     override val appInForeground: kotlinx.coroutines.flow.StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(true),
+    /** `FLAG_SECURE` on the app's windows while a screen asks (`REQ-SW03-36` (c)); see [AndroidScreenCaptureBlocker]. */
+    override val screenCaptureBlocker: life.neurone.shared.ScreenCaptureBlocker? = null,
 ) : PlatformServices {
 
     /** OkHttp with the relay's SPKI pins (REQ-SHDR-04). */

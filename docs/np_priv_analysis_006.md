@@ -31,7 +31,7 @@ Each finding says whether the existing record already holds it (**New**, **Parti
 §4 lists what the passes found again that the record already holds, so that it is not raised twice.
 
 **Open items raised:** F-03, F-04 and F-05 are `OI-PRIV-59`, `OI-PRIV-60` and `OI-PRIV-61` in
-`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). The other findings are fixes or extensions of existing items (§6).
+`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). Repairing F-14 and F-16 raised `OI-PRIV-79` (sealing the React app's backup files) and `OI-PRIV-80` (whether an EEG withdrawal must destroy the recordings) (§8). The other findings are fixes or extensions of existing items (§6).
 
 ## 2. Summary
 
@@ -341,6 +341,13 @@ F-12 to F-16 follow these.
 >
 > **Rev 5 (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
 > decision (`OI-PRIV-60` stays open for it).
+>
+> **Rev {NP-PRIV-ANALYSIS-006 to} (2026-11-25).** The remaining Low findings: F-12 in the Compose app and its Android and iOS hosts,
+> F-14 and the open F-16 items in the React web app and the Compose app. Two questions are raised rather than decided: whether the
+> React app's backup files should be sealed (`OI-PRIV-79`, the principal's design) and whether withdrawing the EEG release must
+> destroy the recordings (`OI-PRIV-80`). The F-16 rows for the iOS pasteboard and the privacy manifest went with the SwiftUI app
+> (#946); the Windows key-material row stays with `OI-PRIV-12`; the web sign-in popup's `window.opener` is deliberate
+> (`WebAuthorizationLauncher.kt`) and is not changed.
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
@@ -350,6 +357,12 @@ F-12 to F-16 follow these.
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
 | F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | — |
+| F-12 | The backup code and the direct-move code are no longer selectable, so neither can be copied (`SelectionContainer` removed). The backup, restore, direct-move, research-consent, privacy-dashboard and history screens hold the window out of capture while on show, through a counted guard and a new `PlatformServices.screenCaptureBlocker` seam; Android sets `FLAG_SECURE` (`AndroidScreenCaptureBlocker`); the iOS host covers the whole window with an opaque view whenever the scene is not active, so the app-switcher snapshot shows nothing | `REQ-SW03-36` | `ScreenCaptureTest` (the code test fails with `SelectionContainer` put back) | The Android flag and the iOS cover have no automated test and were not run on a device (no Android SDK or Mac in the session). iOS cannot keep a window out of a screenshot. The desktop and browser hosts have no switch (macOS `NSWindow.sharingType` was not tried) |
+| F-14 | The React web app's `index.html` carries the Compose web app's Content-Security-Policy and a `no-referrer` policy; the dev server alone drops the policy, because React's refresh preamble is inline. The `vite build` output was loaded in Chromium in two locales: the WebAssembly core, the protocols and a locale chunk load, with no policy violation. Doing so found that the built page had never started: `App.tsx` resolved the limits for a context default at module load, before the WebAssembly core was loaded; the default is now read lazily | `REQ-SW03-39` (a), (b) | `pageHardening.test.ts` | The backup file and the individual-limits download stay plain text: `OI-PRIV-79` (brief to the principal). `frame-ancestors` cannot be set by a meta policy; a host serving the page must send it as a header. An intermittent "unresolved references" error on load, with or without the policy, was seen and not fixed |
+| F-16 (dev server) | The Vite dev server serves from disk only `app/web` and `common/lib`, `common/types` and `common/generated`, not the repository root (`/@fs/` to a repository file now answers 403); `protocols/` is served by its own confined middleware, as before | `REQ-SW03-39` (c) | `pageHardening.test.ts` | — |
+| F-16 (profile note) | The web profile-note hint is "Label to tell profiles apart (e.g. left chair)", not "Notes (optional)" | — (wording; `REQ-SW03-32` already limits the note to a label) | — | English in every locale until translated; no verified translation existed to go stale (there is no `_translations.json`) |
+| F-16 (condition links) | The leaving-the-app confirmation shows the whole address below the host, in the React web app and in the Compose app, which had the same gap; the address is not rewritten, so the shared link policy and its vectors are unchanged. Both apps take links only from the shipped registry today, so the gap was latent | `REQ-SW03-38`; NP-COND-LINK-001 §4 | `ConditionLinkDialog.test.ts`; `ConditionChipsTest` | — |
+| F-16 (EEG revoke) | Revoking the EEG release in Settings now says that recordings already made stay, on this device and in any backup, and offers to delete the ones on this device; nothing is deleted unless the person asks, only files named as a hub session's recording are removed, and one the folder will not delete is reported as still there | `REQ-SW03-37` | `EegRevokedDialogTest` | Whether a withdrawal must destroy the recordings, the backup copies and any copy on the helmet: `OI-PRIV-80`. The seven new strings are English in every locale until translated, and are marked for legal review |
 
 ### 8.1 Findings now tracked as open items
 
