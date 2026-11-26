@@ -3,8 +3,10 @@
 //! When a person moves to a new device, the new device publishes a signed notice naming the key id of the person's
 //! current-device key and a count that rises with each move. Every other device that holds that key checks the
 //! notice against the public key it already has, and stops being current for the person if the count is higher than
-//! the one it knows. The server holds no key and verifies nothing, so this file is the only place the form, the
-//! signature and the ordering are decided, and every platform reaches it through `migration_json`.
+//! the one it knows. The server holds no key of its own; the notice carries the public key, and the server runs the
+//! same `supersededNoticeVerify` before it stores one (the principal, 2026-11-26, `OI-PRIV-68` option B), so a notice
+//! nobody signed cannot displace a real one. This file is the only place the form, the signature and the ordering are
+//! decided, and every platform and the server reach it through `migration_json`.
 //!
 //! The signed bytes are length-prefixed, not delimited (`NP-SW-PORTAL-API-001` §4a gives the reason), and the first
 //! line is the domain separator:
@@ -22,12 +24,23 @@
 //! | `supersededNoticeVerify` | `publicKey`, `keyId`, `count`, `signature` (hex) | `{ok}`; anything wrong is `ok: false`, never an error |
 //! | `supersededNoticeAccepts` | `knownCount` (a number or `null`), `count` | `{accept}` |
 //! | `supersededNextCount` | `highestKnown` | `{count}`, or an error when it cannot be raised |
+//! | `supersededCatchUp` | `cursor`, `latest`, `held` (`[{publicKey, knownCount}]`), `notices` (`[{sequence, keyId, count, signature}]`) | `{cursor, mayExtract, held: [{keyId, knownCount, retired}]}` |
+//!
+//! **Catching up (`SWR-MG-35`; the principal, 2026-11-21).** The server gives each notice it stores a sequence number,
+//! a counter that names nothing, and every wake carries the latest one. A device keeps a cursor, the highest sequence it
+//! has processed, and before it extracts anything it fetches the notices after its cursor, in pages, and passes each
+//! page to `supersededCatchUp` with the keys it holds for the people it is current for. Everything in a page is
+//! untrusted: a notice at or below the cursor is skipped, a notice that does not verify against a held key changes
+//! nothing but still moves the cursor past it (so junk cannot stall a device), and a person is retired only by a notice
+//! that verifies and whose count is higher than the one the device knows. `mayExtract` is true only once the cursor has
+//! reached the latest sequence; a device behind it extracts for no one.
 //!
 //! The seed is the person's current-device key and lives in the UHDR. It reaches the core as a secret (`secret_io`),
 //! never as text, and this module holds no copy of it.
 
 use crate::migration::{hex, unhex};
 use ed25519_dalek::{Signature, Signer, VerifyingKey};
+use std::collections::BTreeMap;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -74,6 +87,76 @@ pub fn verify(public_key: &[u8], key_id_text: &str, count: u64, signature: &[u8]
     key.verify_strict(&message(key_id_text, count), &Signature::from_bytes(&signature)).is_ok()
 }
 
+/// A notice as a fetch returns it: the server's sequence number beside the signed fields.
+pub struct Fetched {
+    pub sequence: u64,
+    pub key_id: String,
+    pub count: u64,
+    pub signature: Vec<u8>,
+}
+
+/// A person this device is current for: the public half of their current-device key and the highest count the device
+/// knows for it (`None` when it knows none).
+pub struct Held {
+    pub public_key: [u8; 32],
+    pub known: Option<u64>,
+}
+
+/// What a page of notices did to one held key.
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeldAfter {
+    pub key_id: String,
+    pub known: Option<u64>,
+    /// A verified notice with a higher count was seen: the person has moved, and this device is no longer current for them.
+    pub retired: bool,
+}
+
+/// Whether a device may extract: only once its cursor has reached the latest notice sequence it was told of.
+pub fn may_extract(cursor: u64, latest: u64) -> bool {
+    cursor >= latest
+}
+
+/// Apply one fetched page to the keys a device holds. Returns the new cursor and, for each held key in order, its
+/// highest known count and whether it was retired. The order of the page does not matter.
+pub fn catch_up(cursor: u64, held: &[Held], page: &[Fetched]) -> (u64, Vec<HeldAfter>) {
+    let mut next = cursor;
+    // The highest count that verifies, per key id, among the notices after the cursor.
+    let mut verified: BTreeMap<String, u64> = BTreeMap::new();
+    let ids: Vec<String> = held.iter().map(|h| key_id(&h.public_key)).collect();
+    for n in page.iter().filter(|n| n.sequence > cursor) {
+        next = next.max(n.sequence);
+        let Some(i) = ids.iter().position(|id| *id == n.key_id) else { continue };
+        if verify(&held[i].public_key, &n.key_id, n.count, &n.signature) {
+            let best = verified.entry(n.key_id.clone()).or_insert(n.count);
+            *best = (*best).max(n.count);
+        }
+    }
+    let after = held
+        .iter()
+        .zip(ids)
+        .map(|(h, id)| match verified.get(&id) {
+            Some(&c) if accepts(h.known, c) => HeldAfter { key_id: id, known: Some(c), retired: true },
+            _ => HeldAfter { key_id: id, known: h.known, retired: false },
+        })
+        .collect();
+    (next, after)
+}
+
+fn fetched(v: &Value) -> Option<Fetched> {
+    Some(Fetched {
+        sequence: v["sequence"].as_u64()?,
+        key_id: v["keyId"].as_str()?.to_string(),
+        count: v["count"].as_u64()?,
+        signature: unhex(v["signature"].as_str()?, "signature").ok()?,
+    })
+}
+
+fn held_of(v: &Value) -> R<Held> {
+    let public_key = <[u8; 32]>::try_from(hex_field(v, "publicKey")?).map_err(|_| "publicKey is 32 bytes".to_string())?;
+    let known = if v["knownCount"].is_null() { None } else { Some(count_of(v, "knownCount")?) };
+    Ok(Held { public_key, known })
+}
+
 fn count_of(req: &Value, name: &str) -> R<u64> {
     req[name].as_u64().ok_or_else(|| format!("{name} is required and is a whole number"))
 }
@@ -110,6 +193,19 @@ pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
         "supersededNextCount" => (|| {
             let next = next_count(count_of(req, "highestKnown")?).ok_or("a count at the top of its range cannot be raised")?;
             Ok(json!({ "count": next }))
+        })(),
+        "supersededCatchUp" => (|| {
+            let cursor = count_of(req, "cursor")?;
+            let latest = count_of(req, "latest")?;
+            let held = req["held"].as_array().ok_or("held is required and is a list")?.iter().map(held_of).collect::<R<Vec<_>>>()?;
+            // A notice the server sent malformed cannot be placed by sequence and is dropped; it can retire no one.
+            let page: Vec<Fetched> = req["notices"].as_array().ok_or("notices is required and is a list")?.iter().filter_map(fetched).collect();
+            let (cursor, after) = catch_up(cursor, &held, &page);
+            let held: Vec<Value> = after
+                .into_iter()
+                .map(|h| json!({ "keyId": h.key_id, "knownCount": h.known, "retired": h.retired }))
+                .collect();
+            Ok(json!({ "cursor": cursor, "mayExtract": may_extract(cursor, latest), "held": held }))
         })(),
         _ => return None,
     })
