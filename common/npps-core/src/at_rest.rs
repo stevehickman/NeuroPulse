@@ -12,6 +12,17 @@
 //! | `wrapKey` | `key` (the wrapping key), `nonce`, `name`, `data` (the key to wrap: bytes beside the request, or a kept `data` key) | `{sealed}`, the same form `sealValue` gives the key's hex |
 //! | `unwrapKey` | `key`, `name`, `sealed` | `{ok: true, key}` with the key as a secret of the answer, or `{ok: false, reason}` as `openValue` |
 //! | `openValue` | `key`, `name`, `sealed` | `{ok: true, value}`, or `{ok: false, reason}` with `authentication_failed` (a wrong key, a different name or an edited value) or `malformed` |
+//! | `keySeal` | `key` (a `data` key only), `nonce`, `name`, `bundle` (a kept `bundle` key, `{"$handle": n}`, and nothing else) | `{sealed}` |
+//! | `keyUnseal` | `key` (a `data` key only), `name`, `sealed` | `{ok: true, key: {"$handle": n}}`, the key kept again under `bundle`, or `{ok: false, reason}` as `openValue` |
+//!
+//! # A kept backup key, sealed (`SWR-MG-32` (i); `OI-PRIV-65` (2), the principal, 2026-11-24)
+//! The automatic backup must run with no one to type the passphrase or recovery code. It keeps a key derived from the secret
+//! instead of the secret, so the secret a person may reuse elsewhere is never stored. The key is one the core derived and keeps
+//! (`deriveBundleKey` with `"keep": "bundle"`), and no operation gives a kept key back as bytes or hex (`secret_io` rule 3).
+//! `keySeal` is the one way it leaves the core: AES-256-GCM under the data key of the store that will hold it, with its own
+//! associated-data label, so a sealed key is never read as a value (`openValue`) or as a wrapped data key (`unwrapKey`), and
+//! the reverse. `keyUnseal` brings it back as a kept key with a new handle, never as bytes. Only a `bundle` key can be sealed
+//! and only a `data` key can seal: a wrapping key (the passphrase gate's) cannot leave, and a backup key cannot seal.
 
 use crate::migration::{hex, unhex};
 use aes_gcm::aead::{Aead, KeyInit, Payload};
@@ -33,7 +44,12 @@ fn aad(name: &str) -> Vec<u8> {
 /// The cipher for the request's key. The decoded key is wiped when this returns, and the cipher wipes its own copy when it
 /// is dropped (the `zeroize` feature of `aes-gcm`), `SWR-MG-28` (c).
 fn cipher(req: &Value) -> R<Aes256Gcm> {
-    let key = crate::secret_io::secret(req, "key", &["data", "wrapping"])?;
+    cipher_of(req, &["data", "wrapping"])
+}
+
+/// As [`cipher`], taking a kept key only of one of `purposes`.
+fn cipher_of(req: &Value, purposes: &[&str]) -> R<Aes256Gcm> {
+    let key = crate::secret_io::secret(req, "key", purposes)?;
     if key.len() != KEY_LEN {
         return Err(format!("the key is {KEY_LEN} bytes"));
     }
@@ -117,9 +133,53 @@ fn unwrap_key(req: &Value) -> R<Value> {
     })
 }
 
-/// `sealValue`, `openValue`, `wrapKey` and `unwrapKey`.
+/// The associated data of a sealed kept key: a label of its own, then the name it is stored under.
+fn kept_aad(name: &str) -> Vec<u8> {
+    let mut a = b"np.kept-key.v1:".to_vec();
+    a.extend_from_slice(name.as_bytes());
+    a
+}
+
+/// `keySeal`: a kept `bundle` key, sealed under a `data` key (the module text). The key is read from the table straight into a
+/// wiped buffer and is never in the request or the answer.
+fn key_seal(req: &Value) -> R<Value> {
+    let name = req["name"].as_str().ok_or("name is required")?;
+    let nonce = unhex(req["nonce"].as_str().ok_or("nonce is required")?, "nonce")?;
+    if nonce.len() != NONCE_LEN {
+        return Err(format!("the nonce is {NONCE_LEN} bytes"));
+    }
+    let kept = crate::secret_io::kept(req, "bundle", &["bundle"])?;
+    let ct = cipher_of(req, &["data"])?
+        .encrypt(Nonce::from_slice(&nonce), Payload { msg: kept.as_slice(), aad: &kept_aad(name) })
+        .map_err(|_| "encryption failed".to_string())?;
+    let mut sealed = nonce;
+    sealed.extend(ct);
+    Ok(json!({ "sealed": hex(&sealed) }))
+}
+
+/// `keyUnseal`: the key `keySeal` sealed, kept again under `bundle`; the answer holds its handle and none of it.
+fn key_unseal(req: &Value) -> R<Value> {
+    let name = req["name"].as_str().ok_or("name is required")?;
+    let cipher = cipher_of(req, &["data"])?;
+    let Some(sealed) = req["sealed"].as_str().and_then(|s| unhex(s, "sealed").ok()).filter(|s| s.len() > NONCE_LEN) else {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    };
+    let (nonce, ct) = sealed.split_at(NONCE_LEN);
+    let Ok(plain) = cipher.decrypt(Nonce::from_slice(nonce), Payload { msg: ct, aad: &kept_aad(name) }) else {
+        return Ok(json!({ "ok": false, "reason": "authentication_failed" }));
+    };
+    let key = zeroize::Zeroizing::new(plain);
+    if key.len() != KEY_LEN {
+        return Ok(json!({ "ok": false, "reason": "malformed" }));
+    }
+    Ok(json!({ "ok": true, "key": crate::secret_io::keep("bundle", key)? }))
+}
+
+/// `sealValue`, `openValue`, `wrapKey`, `unwrapKey`, `keySeal` and `keyUnseal`.
 pub(crate) fn op(name: &str, req: &Value) -> Option<R<Value>> {
     match name {
+        "keySeal" => Some(key_seal(req)),
+        "keyUnseal" => Some(key_unseal(req)),
         "wrapKey" => Some(wrap_key(req)),
         "unwrapKey" => Some(unwrap_key(req)),
         "sealValue" => Some(seal(req)),

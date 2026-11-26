@@ -87,10 +87,39 @@ class CharacterisationEnrolmentGate(
      * @return the new consent epoch, or null if refused.
      */
     fun grant(hub: String?): Int? {
-        if (hub == null || !warrantyGate.isOpen(hub)) return null
+        if (hub == null || !warrantyGate.isOpen(hub) || windowEnded(hub)) return null
         val epoch = consentEpoch(hub) + 1
-        records.update(hub) { it.copy(enrolled = true, consentEpoch = epoch, programmeId = PersistedKeys.CURRENT_PROGRAMME_ID) }
+        records.update(hub) {
+            it.copy(
+                enrolled = true, consentEpoch = epoch, programmeId = PersistedKeys.CURRENT_PROGRAMME_ID,
+                windowEnded = false, windowAsked = false,
+            )
+        }
         return epoch
+    }
+
+    /**
+     * True when this helmet's window in the current programme has ended (`REQ-SHDR-12` (e)). The programme is over for this
+     * helmet, so it is never enrolled in it again (`REQ-SHDR-09`, `REQ-SHDR-12` (f)); a later programme has a new id and a window of
+     * its own.
+     */
+    fun windowEnded(hub: String?): Boolean =
+        hub?.let { records.record(it) }?.let { it.windowEnded && it.programmeId == PersistedKeys.CURRENT_PROGRAMME_ID } == true
+
+    /**
+     * Record that this helmet's characterisation window has closed (`NP-MOD-ID-001` §7.3; `NP-FW-EMMC-002` §H.3.4): the opt-in
+     * turns from yes to no, as its own state, and the owner's general consent is left exactly as it was (`REQ-SHDR-12` (a), (e)).
+     * Only an enrolment in the current programme can end; anything else changes nothing. Returns true when this call recorded the
+     * end, which is what makes prompt 1 due ([GeneralShdrConsentPrompts]).
+     *
+     * NOT YET CALLED. The hub decides the window's end in firmware (`np_accel_char_window_open`: a build constant and a record
+     * budget) and does not yet tell the app; the signal that would call this is specified in `OI-NVRAM-26` and not built.
+     */
+    fun endWindow(hub: String?): Boolean {
+        val r = hub?.let { records.record(it) } ?: return false
+        if (!r.enrolled || r.programmeId != PersistedKeys.CURRENT_PROGRAMME_ID) return false
+        records.update(hub) { it.copy(enrolled = false, windowEnded = true, windowAsked = false) }
+        return true
     }
 
     /**

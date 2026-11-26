@@ -7,7 +7,7 @@ package life.neurone.core.models
 
 /** How far the detector has been validated (REQ-FWHUB-70): decides what the override can do. */
 enum class PpxEvidence(val rawValue: Int) {
-    /** No validation: the helmet refuses flashing at 3 to 30 Hz whatever the switches say. */
+    /** No validation: the helmet refuses flashing at 3 to 60 Hz whatever the switches say. */
     NONE(0),
 
     /** Bench validation only: the refusal stands unless the clinician's override is on. */

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-006  
-**Revision:** 4
-**Date:** 2026-11-25  
+**Revision:** 6
+**Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -31,7 +31,7 @@ Each finding says whether the existing record already holds it (**New**, **Parti
 §4 lists what the passes found again that the record already holds, so that it is not raised twice.
 
 **Open items raised:** F-03, F-04 and F-05 are `OI-PRIV-59`, `OI-PRIV-60` and `OI-PRIV-61` in
-`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). The other findings are fixes or extensions of existing items (§6).
+`docs/status/pending-decisions.md` §13.2, and F-13 is `OI-PRIV-78` (§8.1). F-08 is point (6) of `OI-CONSENT-08` (§8.1). Repairing F-14 and F-16 raised `OI-PRIV-79` (sealing the React app's backup files) and `OI-PRIV-80` (whether an EEG withdrawal must destroy the recordings) (§8). The other findings are fixes or extensions of existing items (§6).
 
 ## 2. Summary
 
@@ -338,14 +338,31 @@ F-12 to F-16 follow these.
 > F-15 and the SwiftUI halves of F-10, F-11 and F-13 with it.
 >
 > **Rev 4.** F-05 repaired in the Compose app, which closes `OI-PRIV-61`.
+>
+> **Rev 5 (2026-11-25).** F-04 repaired in the Compose app and the shared core; its second half waits on a
+> decision (`OI-PRIV-60` stays open for it).
+>
+> **Rev 6 (2026-11-25).** The remaining Low findings: F-12 in the Compose app and its Android and iOS hosts,
+> F-14 and the open F-16 items in the React web app and the Compose app. Two questions are raised rather than decided: whether the
+> React app's backup files should be sealed (`OI-PRIV-79`, the principal's design) and whether withdrawing the EEG release must
+> destroy the recordings (`OI-PRIV-80`). The F-16 rows for the iOS pasteboard and the privacy manifest went with the SwiftUI app
+> (#946); the Windows key-material row stays with `OI-PRIV-12`; the web sign-in popup's `window.opener` is deliberate
+> (`WebAuthorizationLauncher.kt`) and is not changed.
 
 | Finding | Repair | Requirement | Tests | What remains |
 |---|---|---|---|---|
+| F-04 | The owner page's "offered" switch writes the owner's record for the connected helmet (`WarrantyOwnerRecord.withdrawnFamilies`, `WarrantyOwnerStore.setOffered`, in `np.warranty-owner.records`, which no user bundle carries), and the protocol library asks the owner's store whether a family is offered (`NPProtocolLibrary.isOffered`) and stores none of it. `np.archived-families` is now the person's own archive only: the person's Archive and Restore and the owner's switch no longer undo each other. The "used" marker is removed from the owner page | `SWR-WO-01`; `REQ-SHDR-10` (d) | `WarrantyOwnerOfferedTests`; `WarrantyOwnerScreenTest` | Whether a clinic owner may see usage with the wearer's consent: `docs/human-input/oi-priv-60-owner-sees-usage.md` (`OI-PRIV-60`). A family an earlier version archived from the owner page stays in the person's archive. The owner's own backup, restore and transfer: `OI-PRIV-20` |
 | F-05 | `ScheduledBackup.turnOn` keeps the code or passphrase only on a run whose storage is sealed (`AppServices` passes `StorageProtection.SEALED` and the protected list), and refuses with nothing written otherwise; a copy in the clear left by an earlier unsealed run is removed at start (a sealed one is left alone); the backup screen says why the automatic backup is not offered (`MIGRATION_BACKUP_AUTO_UNAVAILABLE_UNSEALED`), and the backup itself is still made under what the person types. The unsealed notice is shown on every host that keeps state on disk, phones included: the `reportsUnsealedStorage` switch, which only the desktop apps set, is removed | `SWR-MG-13` (c), (e) | `ScheduledBackupTest`, `AutomaticBackupSealingTest`, `StorageNoticeTest` | The new string is English in every locale until translated. Not run on a device: no Android SDK or Mac in the session |
 | F-07 | A new limits set is named for its level, never the helmet serial or the person, and a downloaded limits file is named for its level (React web `newLimitsSet`, `limitsFileName`). The Compose limits screen also named helmet limits after the serial and a person's limits after the person: both now take the tier's label | `SWR-WO-07` (g) | `limitsStore.test.ts`; `LimitsTiersTest` | Sets saved earlier keep their name until saved again |
 | F-09 | The Compose analytics switch shows what is sent and turns analytics on only when the person confirms (`ConsentStore.grantResearchAnalytics`); turning it off after it was on is marked with the day by the store, and the screen shows it; the switch follows the screen's state | `REQ-CONSENT-28` | `ConsentStoreTests`; `ResearchAnalyticsSectionTest` | Whether analytics may be on while blanket consent is withdrawn: `OI-PRIV-77`. The three new strings are English in every locale until translated, and are marked for legal review |
 | F-10 | Skip records nothing, on a first run and from Research Preferences | `REQ-CONSENT-27` | `ConsentOnboardingScreenTest` (both new tests fail against the old Skip) | — |
 | F-11 | Every firmware command and chunk, every calibration command and the recording request wait for the encrypted serial read; the update, the setup step and the download say the hub is not paired (`HUB_NOT_PAIRED_NOTHING_SENT`) | `REQ-SW03-31` (d) | `UploadLinkGateTest`, `OtaManagerTest`, `SetupCoordinatorTest`, `EdfDownloadTest` | — |
+| F-12 | The backup code and the direct-move code are no longer selectable, so neither can be copied (`SelectionContainer` removed). The backup, restore, direct-move, research-consent, privacy-dashboard and history screens hold the window out of capture while on show, through a counted guard and a new `PlatformServices.screenCaptureBlocker` seam; Android sets `FLAG_SECURE` (`AndroidScreenCaptureBlocker`); the iOS host covers the whole window with an opaque view whenever the scene is not active, so the app-switcher snapshot shows nothing | `REQ-SW03-36` | `ScreenCaptureTest` (the code test fails with `SelectionContainer` put back) | The Android flag and the iOS cover have no automated test and were not run on a device (no Android SDK or Mac in the session). iOS cannot keep a window out of a screenshot. The desktop and browser hosts have no switch (macOS `NSWindow.sharingType` was not tried) |
+| F-14 | The React web app's `index.html` carries the Compose web app's Content-Security-Policy and a `no-referrer` policy; the dev server alone drops the policy, because React's refresh preamble is inline. The `vite build` output was loaded in Chromium in two locales: the WebAssembly core, the protocols and a locale chunk load, with no policy violation. Doing so found that the built page had never started: `App.tsx` resolved the limits for a context default at module load, before the WebAssembly core was loaded; the default is now read lazily | `REQ-SW03-39` (a), (b) | `pageHardening.test.ts` | The backup file and the individual-limits download stay plain text: `OI-PRIV-79` (brief to the principal). `frame-ancestors` cannot be set by a meta policy; a host serving the page must send it as a header. An intermittent "unresolved references" error on load, with or without the policy, was seen and not fixed |
+| F-16 (dev server) | The Vite dev server serves from disk only `app/web` and `common/lib`, `common/types` and `common/generated`, not the repository root (`/@fs/` to a repository file now answers 403); `protocols/` is served by its own confined middleware, as before | `REQ-SW03-39` (c) | `pageHardening.test.ts` | — |
+| F-16 (profile note) | The web profile-note hint is "Label to tell profiles apart (e.g. left chair)", not "Notes (optional)" | — (wording; `REQ-SW03-32` already limits the note to a label) | — | English in every locale until translated; no verified translation existed to go stale (there is no `_translations.json`) |
+| F-16 (condition links) | The leaving-the-app confirmation shows the whole address below the host, in the React web app and in the Compose app, which had the same gap; the address is not rewritten, so the shared link policy and its vectors are unchanged. Both apps take links only from the shipped registry today, so the gap was latent | `REQ-SW03-38`; NP-COND-LINK-001 §4 | `ConditionLinkDialog.test.ts`; `ConditionChipsTest` | — |
+| F-16 (EEG revoke) | Revoking the EEG release in Settings now says that recordings already made stay, on this device and in any backup, and offers to delete the ones on this device; nothing is deleted unless the person asks, only files named as a hub session's recording are removed, and one the folder will not delete is reported as still there | `REQ-SW03-37` | `EegRevokedDialogTest` | Whether a withdrawal must destroy the recordings, the backup copies and any copy on the helmet: `OI-PRIV-80`. The seven new strings are English in every locale until translated, and are marked for legal review |
 
 ### 8.1 Findings now tracked as open items
 
@@ -374,3 +391,5 @@ Revisions before the first row below were not recorded in a table in this docume
 | 2 | 2026-11-25 | NeurOne Software Engineering | **§8 added: F-07, F-09, F-10 and F-11 repaired in the Compose app and the React web app, with their requirements, tests and what remains; `OI-PRIV-77` raised from F-09.** |
 | 3 | 2026-11-25 | NeurOne Software Engineering | **New §8.1: where F-08 and F-13 are now tracked, each checked against `main`. F-08 is point (6) of `OI-CONSENT-08`, with a proposed minimum per use case (Q6 of its brief, register row `UC-212`). F-13 is new `OI-PRIV-78` (GitHub #1060, brief `oi-priv-78-phone-erase.md`). The iOS Keychain residue on the shared host is the data key and the gated key only, and the analytics ID and the cloud grant are left behind on both phones. §1, §3 and the header point to them.** |
 | 4 | 2026-11-25 | NeurOne Software Engineering | **§8: F-05 repaired in the Compose app (`SWR-MG-13` (c), (e)), with its tests and what remains; closes `OI-PRIV-61`.** |
+| 5 | 2026-11-26 | NeurOne Software Engineering | **§8: F-04 repaired in the Compose app and the shared core (the offered set in the owner's store per helmet, the used marker removed), with what remains: the principal's answer on whether a clinic owner may see usage.** |
+| 6 | 2026-11-26 | NeurOne Software Engineering | **§8: F-12, F-14 and the open F-16 items repaired in the Compose app, its Android and iOS hosts and the React web app, with their requirements, tests and what remains; `OI-PRIV-79` (sealing the web backup files) and `OI-PRIV-80` (whether an EEG withdrawal must destroy the recordings) raised.** |

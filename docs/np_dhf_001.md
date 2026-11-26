@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 439
-**Date:** 2026-11-25
+**Revision:** 461
+**Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 439 | 2026-11-25 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 461 | 2026-11-26 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
-| NP-RM-001 | ISO 14971 Risk Management Plan | 4 | 2026-11-24 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 220 | 2026-11-25 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-RM-001 | ISO 14971 Risk Management Plan | 5 | 2026-11-26 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
+| NP-SW-001 | IEC 62304 Software Development Plan | 225 | 2026-11-26 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -101,7 +101,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 6 | 2026-08-11 | [np_db_005.docx](./np_db_005.docx) | DRAFT — PENDING APPROVAL | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief | 10 | 2026-11-03 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DRAFT | REQ |
-| — | CLAUDE.md — Project Design Memory | 88 | 2026-11-23 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 89 | 2026-11-26 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 
@@ -140,16 +140,16 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 3 | 2026-09-24 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
-| NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 20 | 2026-11-25 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
+| NP-FW-EMMC-002 | Firmware Specification: Privacy Remediation Delta | 23 | 2026-11-26 | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification | 3 | 2026-11-23 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 88 | 2026-11-25 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
+| NP-FW-HUB-001 | Hub Control Program — Firmware Specification | 95 | 2026-11-26 | [np_fw_hub_001.md](./np_fw_hub_001.md) · [../firmware/hub_control/](../firmware/hub_control/) | DRAFT | SPEC-FW |
 | NP-FW-MMSOCK-001 | Multi-Modality Drive at One Hex-Tile Socket — Design Study | 3 | 2026-09-26 | [np_fw_mmsock_001.md](./np_fw_mmsock_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | 7 | 2026-11-21 | [np_fw_hrv_001.md](./np_fw_hrv_001.md) | BASELINED | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | 1 | 2026-05-11 | [np_fw_za_001.md](./superseded/np_fw_za_001.md) | SUPERSEDED | SPEC-FW |
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 8 | 2026-11-25 | [np_fw_hd_001.md](./np_fw_hd_001.md) | BASELINED | SPEC-FW |
 | NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 25 | 2026-11-25 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | BASELINED | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | 9 | 2026-11-21 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | BASELINED | SPEC-FW |
-| NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 17 | 2026-11-25 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
+| NP-FW-NVRAM-001 | Hub NVRAM Hardware Abstraction Layer and the On-Helmet Module Record | 24 | 2026-11-26 | [np_fw_nvram_001.md](./np_fw_nvram_001.md) | DRAFT | SPEC-FW |
 | NP-FW-BENCH-001 | Head-Presence Gate and Bench / Service Mode | 5 | 2026-09-27 | [np_fw_bench_001.md](./np_fw_bench_001.md) | DRAFT | SPEC-FW |
 | NP-FW-HEXTILE-001 | Hex-Tile On-Module Driver Firmware Specification | 5 | 2026-11-21 | [np_fw_hextile_001.md](./np_fw_hextile_001.md) | DRAFT | SPEC-FW |
 | NP-FW-REQ-001 | Zone Module Firmware Requirements | 1 | 2026-05-10 | [np_fw_req_001.docx](./superseded/np_fw_req_001.docx) | SUPERSEDED by individual firmware specs | REQ |
@@ -167,10 +167,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | 11 | 2026-11-21 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | BASELINED | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | 8 | 2026-11-21 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE | APP |
 | NP-APP-PRESENCE-001 | UHDR Presence Gate — Decision and Plan | 18 | 2026-11-25 | [np_app_presence_001.md](./np_app_presence_001.md) | DRAFT | APP |
-| NP-NPPS-REF-001 | NPPS Language Reference | 45 | 2026-11-24 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
+| NP-NPPS-REF-001 | NPPS Language Reference | 46 | 2026-11-26 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
-| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 53 | 2026-11-24 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 56 | 2026-11-26 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 
@@ -309,31 +309,31 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 6 | 2026-11-24 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
 | NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 11 | 2026-11-25 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
-| NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 2 | 2026-11-22 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
+| NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 3 | 2026-11-26 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 10 | 2026-11-21 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
 | NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 8 | 2026-11-22 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
 | NP-MAN-OPS-001 | NeurOne Operations Manual | 1 | 2026-11-20 | [np_man_ops_001.md](./np_man_ops_001.md) | DRAFT | APP |
-| NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 2 | 2026-11-22 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
+| NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 5 | 2026-11-26 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-003 | Privacy Analysis — Consumable Tracker Feature | 3 | 2026-06-08 | [np_priv_analysis_003.md](./np_priv_analysis_003.md) | ACTIVE | PRIV |
 | NP-PRIV-ANALYSIS-004 | Privacy Analysis and Repair — Firmware | 1 | 2026-11-21 | [np_priv_analysis_004.md](./np_priv_analysis_004.md) | DRAFT | PRIV |
-| NP-PRIV-ANALYSIS-006 | Privacy Analysis — Companion Apps (app/) | 4 | 2026-11-25 | [np_priv_analysis_006.md](./np_priv_analysis_006.md) | DRAFT | PRIV |
+| NP-PRIV-ANALYSIS-006 | Privacy Analysis — Companion Apps (app/) | 6 | 2026-11-26 | [np_priv_analysis_006.md](./np_priv_analysis_006.md) | DRAFT | PRIV |
 | NP-PRIV-ANALYSIS-007 | Privacy Analysis and Repair — Shared Code (`common/`), Second Pass | 3 | 2026-11-22 | [np_priv_analysis_007.md](./np_priv_analysis_007.md) | DRAFT | PRIV |
 | NP-PRIV-KEYSPLIT-001 | Analytics Gate Architecture — Design Spec | 1 | 2026-06-16 | [np_priv_keysplit_001.md](./np_priv_keysplit_001.md) | ACTIVE | PRIV |
 | NP-PWR-BUDGET-001 | Power Budget — Reverse-Engineered from Safety Ceilings (Design Study) | 4 | 2026-08-21 | [np_pwr_budget_001.md](./np_pwr_budget_001.md) | DRAFT | SPEC-HW |
 | NP-SES-PWR-001 | PBM Session Power Audit — Predefined Protocol Library Against the Concurrency Ceiling | 3 | 2026-11-11 | [np_ses_pwr_001.md](./np_ses_pwr_001.md) | DRAFT | SES |
 | NP-SOUP-BTLE-001 | btleplug SOUP Inventory — Desktop Hub Link (Companion App) | 2 | 2026-10-08 | [np_soup_btle_001.md](./np_soup_btle_001.md) | DRAFT | APP |
 | NP-SOUP-CMSIS-001 | CMSIS SOUP Anomaly Evaluation — Safety MCU (SW-01, Class C) | 1 | 2026-08-09 | [np_soup_cmsis_001.md](./np_soup_cmsis_001.md) | DRAFT | SPEC-FW |
-| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 17 | 2026-11-21 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
+| NP-SOUP-LFS-001 | LittleFS SOUP Record and Hazard Analysis — Hub Storage (SW-02, Class B) | 19 | 2026-11-26 | [np_soup_lfs_001.md](./np_soup_lfs_001.md) | DRAFT | SPEC-FW |
 | NP-SOUP-KOTLIN-001 | Kotlin Libraries SOUP Inventory — Shared App (Android, Desktop, iOS, Web) | 10 | 2026-11-11 | [np_soup_kotlin_001.md](./np_soup_kotlin_001.md) | DRAFT | APP |
 | NP-SOUP-NATIVE-001 | Native App SOUP Inventory — Swift (iOS) and .NET (Windows) | 5 | 2026-11-24 | [np_soup_native_001.md](./np_soup_native_001.md) | DRAFT | APP |
 | NP-SOUP-RUST-001 | Rust Crates SOUP Inventory — Shared NPPS Core (Companion Apps) | 18 | 2026-11-24 | [np_soup_rust_001.md](./np_soup_rust_001.md) | DRAFT | APP |
-| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 49 | 2026-11-25 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
+| NP-SW-CI-001 | Firmware Cross-Compile Continuous Integration Plan | 52 | 2026-11-26 | [np_sw_ci_001.md](./np_sw_ci_001.md) | DRAFT | APP |
 | NP-SW-CLOUDSTORE-001 | Common Cloud Storage API — Provider Findings (Draft) | 36 | 2026-11-20 | [np_sw_cloudstore_001.md](./np_sw_cloudstore_001.md) | DRAFT | APP |
-| NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 4 | 2026-11-21 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
+| NP-SW-PORTAL-API-001 | Device-Facing Consent Channel — Study Descriptors and Clinician Portal | 5 | 2026-11-26 | [np_sw_portal_api_001.md](./np_sw_portal_api_001.md) | DRAFT | APP |
 | NP-THERM-COOL-001 | Cooling Architecture Options for the Sealed Cavity — Airflow, Liquid, Stored Coolth, and the Ambient Lever | 16 | 2026-09-23 | [np_therm_cool_001.md](./np_therm_cool_001.md) | DRAFT | SPEC-HW |
 
 ---

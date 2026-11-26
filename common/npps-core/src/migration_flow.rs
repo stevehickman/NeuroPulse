@@ -31,7 +31,7 @@
 //! |------|------|--------|
 //! | `random` | `bytes` | `{bytes: hex}` from the platform's CSPRNG |
 //! | `now` | none | `{seconds}` Unix time, for the pairing code's expiry (`link.rs`) |
-//! | `deriveKey` | `method`, `kdf` | `{key: hex}`, answered by the DRIVER with the core's own `deriveBundleKey` over the secret the driver holds; a host never implements it |
+//! | `deriveKey` | `method`, `kdf` | `{key: hex}`, answered by the DRIVER with the core's own `deriveBundleKey` over the secret the driver holds; a host never implements it ; when the backup was started with a fixed `kdf` (the automatic backup), the driver answers with a fresh handle of the key it keeps sealed (`keyUnseal`), and that `kdf` is the one asked for |
 //! | `readKeys` | `keys` | `{values: {key: text}}`, a key this phone holds nothing for left out |
 //! | `writeKeys` | `remove`, `set` | `{ok}`: remove every key in `remove`, then write every `key: text` in `set` |
 //! | `readItems` | `names` | `{items: {name: value}}`, a name this phone holds nothing for left out |
@@ -193,7 +193,18 @@ fn backup(req: &Value) -> R<Value> {
             let carried: Vec<String> = inv["carried"].as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect();
             let keyed: Vec<String> = carried.iter().filter(|n| key_items.contains(n) && !keys_of(n).is_empty()).cloned().collect();
             let adapter: Vec<String> = carried.iter().filter(|n| host_items.contains(n) && !keyed.contains(n)).cloned().collect();
-            let st = json!({ "step": "epoch", "kind": kind, "method": method, "omitted": inv["omitted"], "keyed": keyed, "adapter": adapter, "items": {} });
+            let mut st = json!({ "step": "epoch", "kind": kind, "method": method, "omitted": inv["omitted"], "keyed": keyed, "adapter": adapter, "items": {} });
+            // A fixed `kdf` (the automatic backup, whose key was derived once and is kept sealed, `OI-PRIV-65`): the bundle is
+            // sealed under that salt instead of a fresh one. It must be one the core would make for this method, so a caller
+            // cannot ask for a cheaper derivation or another method's block.
+            if !p["kdf"].is_null() {
+                let salt = p["kdf"]["salt"].as_str().ok_or("kdf has no salt")?;
+                let expected = dispatch("bundleKdf", &json!({ "method": method, "salt": salt }))?["kdf"].clone();
+                if expected != p["kdf"] {
+                    return refused("step_failed");
+                }
+                st["fixedKdf"] = expected;
+            }
             // SWR-MG-29 (b): the bundle is sealed with one more than the highest epoch this phone has sealed or opened.
             effect(st, json!({ "type": "readKeys", "keys": [SEEN_EPOCH_KEY] }))
         }
@@ -237,7 +248,11 @@ fn backup(req: &Value) -> R<Value> {
                 return Err("random gave the wrong number of bytes".into());
             }
             let (salt, nonce) = bytes.split_at(64);
-            let kdf = dispatch("bundleKdf", &json!({ "method": st["method"], "salt": salt }))?["kdf"].clone();
+            let kdf = if st["fixedKdf"].is_null() {
+                dispatch("bundleKdf", &json!({ "method": st["method"], "salt": salt }))?["kdf"].clone()
+            } else {
+                st["fixedKdf"].clone()
+            };
             st["nonce"] = json!(nonce);
             st["kdf"] = kdf.clone();
             let method = st["method"].clone();
@@ -965,6 +980,42 @@ mod tests {
     fn restore(route: &mut Route, p: &mut Phone, secret: &str) -> Value {
         let params = params(p, json!({}));
         run("restore", params, route, p, secret)
+    }
+
+    /// The automatic backup seals every bundle under the one salt its kept key was derived under (`OI-PRIV-65` (2)), and the
+    /// bundle still restores with the passphrase alone. A block the core would not make for the method is refused before
+    /// anything is read or written.
+    // @verifies SWR-MG-32#i
+    #[test]
+    #[cfg_attr(feature = "refuse-hex-keys", ignore = "uses a secret as hex text, the form SWR-MG-32 (h) refuses")]
+    fn a_backup_started_with_a_fixed_kdf_seals_under_it_and_restores_with_the_passphrase() {
+        let (mut route, mut old, mut new) = (Route::default(), phone(&ADAPTER, 1), phone(&ADAPTER, 50));
+        fill(&mut old);
+        let fixed = ask(json!({ "op": "bundleKdf", "method": "passphrase", "salt": "6b".repeat(32) }))["kdf"].clone();
+        let header = |route: &Route| ask(json!({ "op": "readBundleHeader", "bundle": route.bundle.clone().unwrap() }));
+        for _ in 0..2 {
+            let params = params(&old, json!({ "kind": "uhdr", "method": "passphrase", "route": ATOMIC(), "kdf": fixed }));
+            assert_eq!(run("backup", params, &mut route, &mut old, SECRET)["ok"], true);
+            assert_eq!(header(&route)["kdf"], fixed, "the bundle is sealed under the fixed salt, every time");
+        }
+        assert_eq!(restore(&mut route, &mut new, SECRET)["ok"], true, "the passphrase alone restores it");
+
+        let before = route.bundle.clone();
+        let other = ask(json!({ "op": "bundleKdf", "method": "recoveryCode", "salt": "6b".repeat(32) }))["kdf"].clone();
+        let mut cheaper = fixed.clone();
+        cheaper["memoryKiB"] = json!(8);
+        for bad in [other, cheaper, json!({ "salt": 5 })] {
+            let params = params(&old, json!({ "kind": "uhdr", "method": "passphrase", "route": ATOMIC(), "kdf": bad }));
+            // Refused at the start: a `done` with `step_failed`, or an error for a block with no salt at all. Never an effect.
+            match crate::migration::migration_json(&json!({ "op": "flow", "flow": "backup", "params": params }).to_string()) {
+                Ok(text) => {
+                    let first: Value = serde_json::from_str(&text).unwrap();
+                    assert_eq!(first["done"]["reason"], "step_failed", "{first}");
+                }
+                Err(e) => assert!(e.contains("salt"), "{e}"),
+            }
+        }
+        assert_eq!(route.bundle, before, "nothing was written");
     }
 
     // @verifies SWR-MG-07

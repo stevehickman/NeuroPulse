@@ -53,7 +53,7 @@ export interface VisualStimLimits {
   maxFrequencyHz?: number;
   minFrequencyHz?: number;
   allowedModes?: string[];           // VisualMode rawValue whitelist
-  blockHighRiskRange?: boolean;      // true = error if 3–30 Hz (not just warning)
+  blockHighRiskRange?: boolean;      // true = error if 3–60 Hz (not just warning)
 }
 
 export interface TMSLimits {

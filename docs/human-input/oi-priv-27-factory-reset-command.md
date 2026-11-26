@@ -1,10 +1,10 @@
 # Question for the principal: OI-PRIV-27 (NP-PRIV-ANALYSIS-004), who starts a factory reset, and how
 
-**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). Two points of design remain, Q7 and Q8 (§12). The wire format is specified, not built (2026-11-25, `NP-FW-HUB-001` §4.7, §13 below), and asks Q9 and Q10 (§13). Not a controlled document; see `docs/human-input/README.md`.
+**Status:** ANSWERED by the principal: Q2 and the reset flow on 2026-11-23 (§8); the §8 consequences, Q1, Q3, Q4, Q5 and Q6 on 2026-11-24 (§11). The wire format is specified, not built (2026-11-25, `NP-FW-HUB-001` §4.7, §13 below); Q9 and Q10 answered 2026-11-26 (§14); the design points Q7 and Q8 (§12) answered 2026-11-26 (§15). Nothing is left for the principal in this brief. Not a controlled document; see `docs/human-input/README.md`.
 **GitHub issue:** [#955](https://github.com/stevehickman/NeuroPulse/issues/955)
 **From:** NeurOne Firmware Engineering (`OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) in `docs/status/pending-decisions.md`; firmware privacy review `NP-PRIV-ANALYSIS-004`, Finding H7)
 **To:** the principal (a wire and design change); Firmware and Software to implement
-**Response needed:** answers to Q7 and Q8 (§12), and Q9 and Q10 (§13). Everything else is answered (§8, §11).
+**Response needed:** none. Every question is answered (§8, §11, §14, §15).
 
 ## 1. The question
 
@@ -152,7 +152,7 @@ Recommendation: **A**, because it reuses a mechanism already decided and fails t
 
 **Q8. How the owner's app learns the label for each profile without seeing any data.** Option A of Q4 needs the owner's app to hold a label per profile identifier. The natural moment is when the profile is created on the helmet, in the clinic, with both the person and the owner present: the owner's app records its own label for the new identifier. The helmet never stores it. A profile created without the owner present, or imported (§C.8.4), shows as an unlabelled profile with its identifier and size bucket until the owner labels it. Recommendation: **label at profile creation, in the owner's app only.**
 
-Both points are recorded under `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) and are settled with the build of §C.8, which the reset command waits on anyway (Q6).
+Both points are recorded under `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) and are settled with the build of §C.8, which the reset command waits on anyway (Q6). **Both were answered on 2026-11-26 (§15).**
 
 ## 13. The wire format, specified (2026-11-25)
 
@@ -199,3 +199,24 @@ may remove the others, so the owner's role on the helmet and the admin role are 
 the hub needs a separate owner mark on one pairing entry, and a rule for who sets it. Either answer fixes the
 `UNKNOWN_SIGNER` check (`NP-FW-HUB-001` §4.7.4 step 4); until one is given, no hub accepts a reset.
 
+## 14. Answers received (the principal, 2026-11-26)
+
+| Q | Answer | What follows |
+|---|--------|--------------|
+| Q9 | **Option A, accepted.** | The warranty owner's app makes an Ed25519 key pair at pairing and sends the public key inside the SPAKE2-authenticated channel, with its X25519 key. The hub keeps it in that pairing's table entry, and the reset blob's `signer_key` must equal it. The blob stays verifiable on its own, whatever channel carried it. Recorded in `NP-FW-HUB-001` §4.7.3 and in the `OI-SIMFW-71` record (`NP-SIM-FW-001`; secure-channel brief §14 addendum) |
+| Q10 | **Yes, accepted.** | The warranty owner is the admin pairing of `OI-SIMFW-71` Q8. A pairing that is not the admin, including any user's, cannot sign a reset (`NP-FW-HUB-001` §4.7.4 step 4). This also answers the same question `OI-PRIV-33` (NP-PRIV-ANALYSIS-004) asks for the warranty token; which release rule the token gets is still that item's decision |
+
+Name, role, date: the principal, 2026-11-26 (in the session that wrote §13). **Nothing is built.** The reset still waits
+on the `OI-SIMFW-71` secure channel (the pairing table that holds the key), the `OI-PRIV-31` challenge, per-person
+profiles and their export (`NP-FW-EMMC-002` §C.8). Q7 and Q8 of §12 remain (answered later the same day, §15).
+
+## 15. Answers received on Q7 and Q8 (the principal, 2026-11-26)
+
+The principal was asked Q7 and Q8 of §12 in plain words, with the options, the recommendation and what each discloses. For Q7, the disclosure put to the principal included one point §12 did not state. Under option A the helmet keeps the person's current-device key id. That id is the same on every device the person uses, so two helmets that hold the person's profile can be matched to each other, though not to a name. Q9 and Q10 (§13) were asked separately and are answered in §14.
+
+| Q | Answer | What follows |
+|---|--------|--------------|
+| Q7 | **Option A: the current-device key and the superseded notice of `docs/reference/data-architecture-detail.md` §5.3 step 1a (`OI-PRIV-68`), extended to helmets.** | A profile on a helmet records its person's current-device key id. When the person moves to another device, the signed superseded notice reaches this helmet through the warranty owner's app or the person's app. The helmet verifies it against the key it holds for that profile and marks the profile not current. A notice the helmet cannot verify changes nothing, and neither does one whose move count is not higher than the last it accepted. A helmet that never sees the notice keeps the profile current, so its data starts selected for backup, which is the safe direction. **Disclosures accepted with the answer:** the warranty owner learns that a person has moved to another device (behaviour, not health), and the key id held on the helmet links that person's profiles across helmets, though not to a name. The key id is kept in the profile record only. It is never written to SHDR and never sent to NeurOne. |
+| Q8 | **The warranty owner's app records the label when the profile is created. The helmet never stores a name.** | At profile creation, with the person and the owner present, the owner's app records its own label against the new opaque profile identifier (for a clinic, its patient name or number). A profile created without the owner present, or imported (`NP-FW-EMMC-002` §C.8.4), is listed in the reset list as an unlabelled profile, with its identifier and its export size bucket, until the owner labels it. Nothing new is stored on the helmet, and `NP-FW-EMMC-002` §C.8.2's "never a name" stands. The labels are the warranty owner's own data. They are kept with the owner's other data and never with any user's (`CLAUDE.md` §6.0, `REQ-SHDR-10`). |
+
+**What this leaves.** Nothing for the principal in this brief. The reset command, the list and the export screen are built with per-person profiles (§C.8) or after them (Q6), with their requirement rows and tests (`CLAUDE.md` §21). They also wait on the `OI-SIMFW-71` secure channel and the `OI-PRIV-31` challenge (§14), and on the regulatory and legal review of the BIPA rewording (§11, Q3). These answers change no code.

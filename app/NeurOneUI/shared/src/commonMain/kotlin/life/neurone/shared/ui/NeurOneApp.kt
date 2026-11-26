@@ -43,6 +43,7 @@ import life.neurone.core.setup.SetupFlow
 import life.neurone.core.common.StorageProtection
 import life.neurone.core.protocol.PersistedKeys
 import life.neurone.shared.AppServices
+import life.neurone.shared.LocalScreenCaptureGuard
 import life.neurone.shared.resources.*
 import life.neurone.shared.text.installValidationText
 import org.jetbrains.compose.resources.StringResource
@@ -83,10 +84,12 @@ fun NeurOneApp(services: AppServices) {
     // The validator's messages are locale keys until their text is read (asynchronously, once).
     LaunchedEffect(Unit) { installValidationText() }
     MaterialTheme {
-        Column {
-            SimulatedHubNotice(services)
-            StorageNotice(services)
-            PresenceGate(services) { Root(services) }
+        CompositionLocalProvider(LocalScreenCaptureGuard provides services.screenCaptureGuard) {
+            Column {
+                SimulatedHubNotice(services)
+                StorageNotice(services)
+                PresenceGate(services) { Root(services) }
+            }
         }
     }
 }

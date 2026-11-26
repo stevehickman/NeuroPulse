@@ -53,6 +53,27 @@
   "DASHBOARD_STOP_PREAPPROVING_MESSAGE": {
     "legal_review_required": true
   },
+  "EEG_REVOKED_BODY": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_DELETED": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_DELETE_BUTTON": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_DELETE_FAILED": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_DELETE_NOTE": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_KEEP_BUTTON": {
+    "legal_review_required": true
+  },
+  "EEG_REVOKED_TITLE": {
+    "legal_review_required": true
+  },
   "MODALITY_AUDIO_ENTRAINMENT_NAME": {
     "translate": false
   },

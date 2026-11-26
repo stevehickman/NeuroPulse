@@ -7,7 +7,39 @@ import { fileURLToPath } from 'node:url';
 
 // Repo root, from app/web/vite.config.ts → app/web → app → <root>.
 const REPO_ROOT = resolve(fileURLToPath(import.meta.url), '..', '..', '..');
+const PROJECT_ROOT = join(REPO_ROOT, 'app', 'web');
 const PROTOCOLS_DIR = join(REPO_ROOT, 'protocols');
+
+/**
+ * What the dev server may serve from disk (REQ-SW03-39 (c); NP-PRIV-ANALYSIS-006 F-16): this project (its
+ * sources, the generated locale files and node_modules), and the three folders of <repo>/common/ the app
+ * imports: the shared code, its types, and the WebAssembly core `scripts/build-npps-wasm.sh` writes. Not the
+ * repository root, which would let any page, or anyone on the network when the server is started with
+ * --host, read every file in the checkout through `/@fs/`. `protocols/` is not listed: the middleware below
+ * serves it, confined to its own tree. A new import from elsewhere in the repository fails in the dev server
+ * with Vite's "outside of Vite serving allow list" error; add that folder here, not the root.
+ */
+export const DEV_SERVER_FS_ALLOW: readonly string[] = [
+  PROJECT_ROOT,
+  join(REPO_ROOT, 'common', 'lib'),
+  join(REPO_ROOT, 'common', 'types'),
+  join(REPO_ROOT, 'common', 'generated'),
+];
+
+/**
+ * Drops the Content-Security-Policy element from index.html in the dev server only (REQ-SW03-39 (a)). React's
+ * fast refresh injects an inline preamble script that the policy refuses, so the dev page would not start; the
+ * built page, the one that is deployed, keeps the policy.
+ */
+function devWithoutCsp(): Plugin {
+  return {
+    name: 'neurone-dev-without-csp',
+    apply: 'serve',
+    transformIndexHtml(html) {
+      return html.replace(/\s*<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+    },
+  };
+}
 const URL_PREFIX = '/protocols/';
 
 /**
@@ -132,10 +164,11 @@ function canonicalLocales(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), canonicalLocales(), canonicalProtocols()],
+  plugins: [react(), canonicalLocales(), canonicalProtocols(), devWithoutCsp()],
   // The sources the simulator bundle shares with this app live in <repo>/common/,
-  // outside this project root, so the dev server must be allowed to serve them.
-  server: { fs: { allow: [REPO_ROOT] } },
+  // outside this project root, so the dev server must be allowed to serve them,
+  // and only them (DEV_SERVER_FS_ALLOW).
+  server: { fs: { allow: [...DEV_SERVER_FS_ALLOW] } },
   test: {
     environment: 'node',
     // common/ tests run here: it has no package.json or node_modules of its own.

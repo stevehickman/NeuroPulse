@@ -1,14 +1,21 @@
 package life.neurone.shared.migration
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import life.neurone.core.common.EncryptedKeyValueStore
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.data.BundleKeyDerivation
 import life.neurone.core.data.BundleKeyMethod
 import life.neurone.core.data.BundleSecret
+import life.neurone.core.data.KeptKeySealer
 import life.neurone.core.data.RandomSource
 import life.neurone.core.data.SystemRandomSource
-import life.neurone.core.data.storedSecret
-import life.neurone.core.data.toStoredText
 import life.neurone.core.migration.MigrationItemStore
 import life.neurone.core.platform.epochSeconds
 import life.neurone.shared.MigrationPlace
@@ -18,10 +25,13 @@ import life.neurone.shared.MigrationPlace
  * and chosen to keep backing up, the same backup is made again whenever the app runs and the last one is over 20 hours old, into the
  * same folder, under the same code or passphrase, without asking.
  *
- * **The secret is kept on this phone, by the person's choice** (`np.backup.auto-secret`): in the sealed per-install store, under the
- * device-only data key, so it is readable only on this phone while it is unlocked, never goes into a bundle or to another phone, and
- * is destroyed by [turnOff] and by the clear. Restoring still needs the code or passphrase the person holds. A run only ever reads
- * the secret to seal the next bundle; no screen shows it.
+ * **A key derived from the secret is kept on this phone, by the person's choice, and the secret is not** (`np.backup.auto-secret`;
+ * `OI-PRIV-65` (2), the principal, 2026-11-24). When the backup is turned on, the core derives the bundle key from the code or
+ * passphrase under one fresh salt and keeps it; [sealer] has the core seal it under the data key of the store that holds it, and the
+ * record kept is `{v, method, kdf, key}` with the sealed key. Every automatic bundle and its recordings are sealed under that salt, so
+ * each still restores with the code or passphrase alone. A passphrase a person may reuse elsewhere is therefore never stored. The record
+ * never goes into a bundle or to another phone and is destroyed by [turnOff] and by the clear. A run where nothing can be sealed (no
+ * [sealer]: the storage is not sealed on this run) keeps nothing, and the backup stays off.
  *
  * **Only a run whose storage is sealed keeps it** (`SWR-MG-13` (e), `OI-PRIV-61`). On any other run ([secretKeptSealed] false: the host
  * has no usable keystore and its store is plain, or the sealed data cannot be opened) [turnOn] keeps nothing and says so, and a secret an
@@ -50,10 +60,15 @@ class ScheduledBackup(
      * passes `StorageProtection.SEALED`), so a store nobody vouched for never receives the secret.
      */
     private val secretKeptSealed: () -> Boolean = { false },
+    /** Seals the kept key under the data key of [keys]' sealed tier; null on a run whose storage is not sealed, where nothing is kept. */
+    private val sealer: KeptKeySealer? = null,
 ) {
     init {
         if (!secretKeptSealed()) removePlainSecret()
     }
+
+    /** The key the automatic backup will keep, derived and sealed but not yet stored ([prepare], then [turnOn]). Holds no secret and no key. */
+    class Kept internal constructor(internal val method: BundleKeyMethod, internal val kdf: JsonObject, internal val sealed: String)
 
     /** How a [runIfDue] ended. */
     sealed interface Outcome {
@@ -65,8 +80,11 @@ class ScheduledBackup(
         data class Failed(val reason: String) : Outcome
     }
 
-    /** Whether the automatic backup can be turned on on this run: only where the secret it keeps would be sealed at rest. */
-    val isAvailable: Boolean get() = secretKeptSealed()
+    /**
+     * Whether the automatic backup can be turned on on this run: only where what it keeps would be sealed at rest (`OI-PRIV-61`) and there
+     * is a key to seal its kept key under (`OI-PRIV-65` (2)).
+     */
+    val isAvailable: Boolean get() = secretKeptSealed() && sealer != null
 
     /** Whether the person has turned the automatic backup on. Never on a run that cannot keep its secret sealed. */
     val isOn: Boolean get() = isAvailable && keys.getString(SECRET_KEY) != null
@@ -78,16 +96,44 @@ class ScheduledBackup(
     val lastFailure: String? get() = keys.getString(FAILURE_KEY)
 
     /**
-     * Keep backing up under [secret], which the caller made for this backup. The secret is copied; the caller still destroys its own.
-     * Refused, with nothing written, unless the run keeps it sealed ([isAvailable]); the answer says whether it was turned on.
+     * The key to keep for [secret]: derived by the core under a fresh salt, sealed under the data key and released. Null where this run
+     * cannot seal (no [sealer], or its keystore cannot be asked). Nothing is stored until [turnOn]. The caller still destroys [secret].
      */
-    fun turnOn(method: BundleKeyMethod, secret: BundleSecret): Boolean {
+    fun prepare(method: BundleKeyMethod, secret: BundleSecret): Kept? {
+        if (!isAvailable) return null
+        val s = sealer ?: return null
+        val kdf = BundleKeyDerivation.newKdf(method, random)
+        val key = runCatching { BundleKeyDerivation.deriveKey(secret, kdf) }.getOrNull() ?: return null
+        val sealed = try { s.sealKept(SECRET_KEY, key) } finally { key.destroy() } ?: return null
+        return Kept(method, kdf, sealed)
+    }
+
+    /** [kept] as the key a backup is made under: unsealed into a new handle for each use. */
+    fun backupKey(kept: Kept): BackupKey? {
+        val s = sealer ?: return null
+        return KeptBackupKey(kept.method, kept.kdf) { s.openKept(SECRET_KEY, kept.sealed) }
+    }
+
+    /** Keep backing up under [kept]. Refused, with nothing written, on a run that cannot keep it sealed ([isAvailable]). */
+    fun turnOn(kept: Kept): Boolean {
         if (!isAvailable) return false
-        keys.putString(SECRET_KEY, method.wire + ":" + secret.toStoredText())
+        keys.putString(SECRET_KEY, buildJsonObject {
+            put("v", RECORD_VERSION); put("method", kept.method.wire); put("kdf", kept.kdf); put("key", kept.sealed)
+        }.toString())
         keys.remove(FAILURE_KEY)
         onChange()
         return true
     }
+
+    /** Keep backing up under a key derived from [secret] ([prepare], then [turnOn]). False, and nothing kept, where this run cannot seal one. The caller still destroys [secret]. */
+    fun turnOn(method: BundleKeyMethod, secret: BundleSecret): Boolean = prepare(method, secret)?.let(::turnOn) ?: false
+
+    /** The record [stored], or null when it is not one: an unreadable value, or the earlier form that held the secret itself. */
+    private fun readKept(stored: String): Kept? = runCatching {
+        val o = Json.parseToJsonElement(stored).jsonObject
+        if (o["v"]!!.jsonPrimitive.int != RECORD_VERSION) return null
+        Kept(BundleKeyMethod.fromWire(o["method"]!!.jsonPrimitive.content)!!, o["kdf"]!!.jsonObject, o["key"]!!.jsonPrimitive.content)
+    }.getOrNull()
 
     /** Stop, and destroy the kept secret. */
     fun turnOff() {
@@ -110,13 +156,23 @@ class ScheduledBackup(
         val last = lastBackupSeconds
         if (last != null && now - last in 0 until INTERVAL_SECONDS) return Outcome.NotDue
 
-        val method = BundleKeyMethod.fromWire(stored.substringBefore(':'))
-        val secret = BundleKeyDerivation.storedSecret(stored.substringAfter(':'))
-        if (method == null || secret == null) return fail("secret_unreadable")
+        val kept = readKept(stored)
+        if (kept == null) {
+            // Not a kept key. The earlier form held the code or passphrase itself (`method:hex`): it is destroyed, not read, and the
+            // person turns the backup on again with their next backup (`OI-PRIV-65` (2); nothing of that form was released).
+            keys.remove(SECRET_KEY)
+            onChange()
+            return fail("secret_unreadable")
+        }
+        val key = backupKey(kept) ?: return fail("secret_unreadable")
+        // The key is unsealed once here so a key that no longer opens (the data key was destroyed or replaced) is said as such.
+        (key.keyFor(kept.kdf) ?: return fail("secret_unreadable")).destroy()
         val outcome = try {
-            runBackup(place, keys, items, BackupKind.UHDR, method, secret, random, waveforms)
-        } finally {
-            secret.destroy()
+            runBackup(place, keys, items, BackupKind.UHDR, key, random, waveforms)
+        } catch (ex: CancellationException) {
+            throw ex
+        } catch (ex: IllegalStateException) {
+            return fail("secret_unreadable")
         }
         return when (outcome) {
             is BackupStep.Done -> {
@@ -143,6 +199,9 @@ class ScheduledBackup(
 
     companion object {
         const val SECRET_KEY = "np.backup.auto-secret"
+
+        /** The form of the record under [SECRET_KEY]: a kept key, sealed (`OI-PRIV-65` (2)). Before it the value was `method:hex` of the secret. */
+        private const val RECORD_VERSION = 2
         const val LAST_KEY = "np.backup.last-epoch"
         const val FAILURE_KEY = "np.backup.auto-failure"
 

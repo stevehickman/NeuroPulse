@@ -230,6 +230,10 @@ void   np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms)       { (void)key;
 void   np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint32_t now_ms) { (void)slot; (void)type; (void)now_ms; UNEXPECTED(); }
 void   np_mu_slot_off(uint8_t slot, uint32_t now_ms)                { (void)slot; (void)now_ms; UNEXPECTED(); }
 np_hub_status_t np_mu_session_end(uint32_t session_ms)              { (void)session_ms; UNEXPECTED(); return NP_HUB_OK; }
+void   np_mu_add_dose(const np_mu_key_t *key, uint32_t mj)          { (void)key; (void)mj; UNEXPECTED(); }
+void   np_mu_note_throttle(const np_mu_key_t *key)                  { (void)key; UNEXPECTED(); }
+uint32_t np_mu_dose_mJ_cm2(const float *d, size_t n)                { (void)d; (void)n; UNEXPECTED(); return 0U; }
+bool   np_pst_get_record(uint16_t s, np_pst_socket_record_t *out)   { (void)s; (void)out; UNEXPECTED(); return false; }
 size_t np_fitting_build(uint8_t hw, const uint8_t *stamp, uint8_t *out, size_t cap) { (void)hw; (void)stamp; (void)out; (void)cap; UNEXPECTED(); return 0U; }
 void   np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)
                                                                     { (void)cmd; (void)session_ms; (void)accepted; UNEXPECTED(); }
@@ -668,11 +672,14 @@ static void test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves
     blob_visual(&b, 1U, 3U, 3U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode at the lower bound is refused");
     expect_nothing_left_behind("photic combined");
-    blob_visual(&b, 1U, 0U, 30U);
+    blob_visual(&b, 1U, 0U, 40U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: 40 Hz, the gamma protocols' frequency, is refused (OI-FWHUB-37)");
+    expect_nothing_left_behind("photic gamma");
+    blob_visual(&b, 1U, 0U, 60U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the upper bound is refused");
     expect_nothing_left_behind("photic upper");
-    blob_visual(&b, 1U, 0U, 40U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: 40 Hz loads");
+    blob_visual(&b, 1U, 0U, 61U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: 61 Hz loads");
     fresh();
     blob_visual(&b, 1U, 1U, 20U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz, so it loads");
@@ -976,7 +983,7 @@ static void blob_visual_mask(blob_t *b, uint8_t lo, uint8_t hi)
 {
     np_mod_visual_params_t p;
     memset(&p, 0, sizeof p);
-    p.mode = 0U; p.freq_hz = 40U; p.duty_pct = 50U; p.zone_mask_lo = lo; p.zone_mask_hi = hi;
+    p.mode = 0U; p.freq_hz = 70U; p.duty_pct = 50U; p.zone_mask_lo = lo; p.zone_mask_hi = hi;
     blob_make(b, 1U, 60000U, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, (const uint8_t *)&p, sizeof p);
 }
 

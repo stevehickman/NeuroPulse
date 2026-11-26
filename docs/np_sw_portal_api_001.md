@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SW-PORTAL-API-001
-**Revision:** 4
-**Date:** 2026-11-21
+**Revision:** 5
+**Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -228,8 +228,9 @@ and they carry a grant ID rather than anything about the user's biology. They ma
 > JSON are not specified (§7).
 
 **What the server keeps, and nothing else:** the push channels of subscribed devices (platform and token), and the
-superseded notices it has been sent (key id, count, signature) until they expire. No user, no consent, no study, no
-history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
+superseded notices it has been sent (public key, key id, count, signature), each with a sequence number: for each
+key id, the notice with the highest count that verified (ruled 2026-11-26, `OI-PRIV-68`, option B). It never expires
+one (ruled 2026-11-21). No user, no consent, no study, no history of who subscribed when. It is kept apart from the research store, the SHDR fleet database and the warranty
 database.
 
 **Five calls, all with fixed response shapes (§5).**
@@ -247,11 +248,21 @@ database.
 3a. **`fetch`** (device to server, through the relay): the device sends its cursors and receives the study
     descriptors and the notices after them, in pages (§6a, junk notices). It fetches only because a push woke it.
     The app does not fetch on opening, which would be a poll. A push that is dropped, or does not wake the app,
-    means the request is missed (deliver-once).
+    means the request is missed (deliver-once). **A device whose notice cursor is behind the latest notice sequence
+    extracts for no one until it has fetched up to it** (ruled 2026-11-21; `SWR-MG-35`). Each notice in a page is
+    checked by the core (`supersededCatchUp`): one at or below the cursor is skipped, every one above it moves the
+    cursor whether or not it verifies, so junk cannot stall a device, and a person is retired only by a notice that
+    verifies against the key the device holds and carries a higher count than the device knows. A device records its
+    own move's count before it fetches, so its own notice, an equal count, retires no one.
 4. **`supersede`** (device to server, then broadcast to every subscribed channel): the signed form below. The
-   person's current-device key signs it. The server holds no key and does not verify it; it stores it and
-   broadcasts it. A device that holds the key checks the signature and the count; a notice that does not verify is
-   ignored.
+   person's current-device key signs it, and the notice carries the public key beside the signed fields. **The server
+   verifies before it stores** (ruled 2026-11-26, `OI-PRIV-68`, option B): the key id must be the SHA-256 of the public
+   key sent and the signature must be valid under the strict check, the same check the devices run
+   (`supersededNoticeVerify` in `common/npps-core`, `SWR-MG-34` (c); `CLAUDE.md` §22). A notice that fails is refused
+   and never stored. Of those that pass, it keeps the highest count per key id, gives it a sequence number and
+   broadcasts it. The server holds no key of its own: the public key arrives in the notice, and the key id the server
+   already keeps is a hash of it, so it links no more than the key id does. A device that holds the key still checks
+   the signature and the count itself; a notice that does not verify is ignored.
 
 ```
 NP-SUPERSEDED-V1\n
@@ -264,11 +275,20 @@ made for this form can be read as nothing else the key signs. The signature is E
 each move and is carried with the key, so a person who goes from A to B and back to A is current on A again; a
 notice with a count no higher than a device knows changes nothing. There is no date: the count orders them.
 
-**Ruled 2026-11-21 (`OI-PRIV-68`), not yet written into the calls above:** the server keeps the highest-count notice per key id with
+**Ruled 2026-11-21 (`OI-PRIV-68`), written into the calls above (Rev 5):** the server keeps notices with
 no expiry, gives each a sequence number, every `publish` carries the latest sequence, and a device behind it fetches
-the notices after its cursor before it extracts; junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
-flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own and still need checking against their sources); and the
-desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-68`, not ruled: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
+the notices after its cursor before it extracts (the device's half is built in the core, `SWR-MG-35`). **Ruled
+2026-11-26 (`OI-PRIV-68`, option B; brief `docs/human-input/oi-priv-68-forged-high-count.md`), written into call 4:**
+"only the highest-count notice per key id" is kept, but only among notices the server has verified. As first ruled,
+a server that could not verify would keep a junk notice with a count at the top of the range for any key id it had
+seen broadcast, drop the person's real notice, and drop every later move of theirs, so their old device would never
+be retired. Verifying first means only the holder of a person's private key can displace their notice. What remains
+is a flood of notices for keys made for the purpose, which verify; that stays bounded by the relay limit and the
+store's total below. Junk notices are handled (ruled 2026-11-21, `OI-PRIV-68`) by the relay limiting `supersede` calls per sender address, the server refusing new notices when its store is full and never dropping one it holds, and a paged fetch, the figures being operational settings with a register row each when set; **ruled 2026-11-21 (`OI-PRIV-69`): `subscribe`, `unsubscribe`, `supersede` and the fetch all go through the Oblivious HTTP relay and gateway of `NP-INFRA-001` §3.3b, so the server never sees which device sent them, and none ships before the relay does;** what stops someone
+flooding the server with notices nobody can verify; push size (ruled 2026-11-21, `OI-PRIV-68`, and written in call 3: the push carries only sequence numbers and the device always fetches; the limits cited are the push services' own); (all four
+limits now read at their sources: APNs, WNS, RFC 8030, and FCM's 4096 bytes on Firebase's "message types" page,
+2026-11-25); and the
+desktop and web apps and Android without Google's push service (proposed in `OI-PRIV-68`, not ruled, except that web is eligible with a neutral notice on every publish, ruled 2026-11-22: Web Push for web, the platform's own push for Windows and macOS where the host can, UnifiedPush optional, no persistent connection to NeurOne because it cannot go through the relay and would be a poll). The key and
 its signature are cryptographic and are written once in `common/npps-core` (`CLAUDE.md` §22).
 
 ## §7 — What this leaves open
@@ -306,3 +326,4 @@ Revisions before the first row below were not recorded in a table in this docume
 |---|---|---|---|
 | 3 | 2026-11-19 | NeurOne Software Engineering | **§4a: the canonical form a study descriptor is signed over is `NP-STUDY-DESCRIPTOR-V2`, which adds the expiry day as its last field (`REQ-CONSENT-09` i). No V1 descriptor was ever issued.** |
 | 4 | 2026-11-21 | NeurOne Software Engineering | **§4a: the study audit trail is UHDR, held on the device, never in SHDR (OI-PRIV-07); §3 amended for study requests (subscribe and publish, not pull; clinician requests stay pull-only); new §6a (DRAFT): the subscribe, unsubscribe, publish, fetch and supersede calls and the NP-SUPERSEDED-V1 form, all through the Oblivious HTTP relay (OI-PRIV-68, OI-PRIV-69).** |
+| 5 | 2026-11-26 | NeurOne Software Engineering | **§6a: notices are kept with a sequence number and never expire (the earlier "until they expire" is corrected); the fetch call states the catch-up rule and the extract gate (SWR-MG-35); supersede: the notice carries the public key and the server verifies it with the core's check before storing, keeping the highest verified count per key id, because otherwise a junk notice with a top count would hide every later real move (OI-PRIV-68 option B, the principal, 2026-11-26); all four push limits now read at their sources; web eligibility ruled 2026-11-22 noted.** |

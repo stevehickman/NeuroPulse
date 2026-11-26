@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import life.neurone.shared.KeepOffScreenCapture
 import life.neurone.shared.AppServices
 import life.neurone.shared.resources.Res
 import life.neurone.shared.resources.*
@@ -89,6 +90,8 @@ private sealed interface DashboardRoute {
 
 @Composable
 fun ConsentDashboardScreen(app: AppServices, modifier: Modifier = Modifier) {
+    // Kept out of screenshots, screen recording and the app switcher while on show (REQ-SW03-36 (b)).
+    KeepOffScreenCapture()
     val store = app.consentStore
     var route by remember { mutableStateOf<DashboardRoute>(DashboardRoute.Dashboard) }
     // ConsentStore is not observable (parity with iOS's @Published is a follow-up); bump to

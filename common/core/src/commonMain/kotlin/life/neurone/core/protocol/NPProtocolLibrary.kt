@@ -136,6 +136,13 @@ class NPProtocolLibrary(
      * sealed ones. Used from one thread.
      */
     private val lock: PresenceLock? = null,
+    /**
+     * The families the warranty owner does not offer on the connected helmet (`SWR-WO-01`), asked each time it is needed. They are
+     * the owner's, kept in `WarrantyOwnerStore` per helmet, and this library never stores them: the person's own archive
+     * ([ARCHIVED_FAMILIES_KEY]) travels with the person's protocols and the owner's choices never do (`REQ-SHDR-10`, `OI-PRIV-60`).
+     * None by default, and none with no helmet connected.
+     */
+    private val ownerWithdrawn: () -> Set<String> = { emptySet() },
 ) {
     companion object {
         const val USER_PROTOCOLS_KEY = "np.user-protocols.npps"
@@ -144,7 +151,10 @@ class NPProtocolLibrary(
         /** The families that have been used (SWR-WO-02): a list of `{"familyId"}` records, the family id and nothing else. */
         const val USED_FAMILIES_KEY = "np.used-families"
 
-        /** The families the warranty owner has archived (SWR-WO-01): a list of family ids. A list state, never a deletion. */
+        /**
+         * The families the person has archived from their own list (SWR-FM-05): a list of family ids. A list state, never a deletion.
+         * The person's, carried with their protocols; the warranty owner's offered set is not kept here (`OI-PRIV-60`).
+         */
         const val ARCHIVED_FAMILIES_KEY = "np.archived-families"
 
         /** Clone entry id → the entry it was cloned from, for the unmodified-clone check at upload (SWR-PL-06). */
@@ -569,7 +579,7 @@ class NPProtocolLibrary(
 
     // MARK: Archive and the offered list (SWR-WO-01, SWR-FM-05)
 
-    /** Archive the family of [entry]: it drops out of the offered list and every variant is kept. */
+    /** Archive the family of [entry] from the person's own list: it drops out of the offered list and every variant is kept. */
     fun archiveFamily(entry: NPProtocolEntry) {
         if (!loaded) { held += { archiveFamily(entry) }; return }
         if (archivedFamilies.add(entry.familyKey())) saveFamilyState()
@@ -580,12 +590,19 @@ class NPProtocolLibrary(
         if (archivedFamilies.remove(entry.familyKey())) saveFamilyState()
     }
 
+    /** Whether the person has archived [entry]'s family from their own list. Says nothing about the owner's choice ([isOffered]). */
     fun isArchived(entry: NPProtocolEntry): Boolean = entry.familyKey() in archivedFamilies
 
-    /** The warranty owner's set: every protocol whose family is not archived. */
+    /**
+     * Whether the warranty owner offers [entry]'s family on the connected helmet (`SWR-WO-01`). The owner's choice, asked of the
+     * owner's store, and independent of the person's archive: neither side's choice changes the other's (`OI-PRIV-60`).
+     */
+    fun isOffered(entry: NPProtocolEntry): Boolean = entry.familyKey() !in ownerWithdrawn()
+
+    /** The protocols the person is offered: those whose family the owner offers on the connected helmet and the person has not archived. */
     val offeredProtocols: List<NPProtocolEntry>
         get() {
-            val offered = NPLibraryRules.offered(familySummaries(withVersions = false), archivedFamilies).toSet()
+            val offered = NPLibraryRules.offered(familySummaries(withVersions = false), archivedFamilies + ownerWithdrawn()).toSet()
             return allProtocols.filter { !it.isRunnable || it.id.toString() in offered }
         }
 

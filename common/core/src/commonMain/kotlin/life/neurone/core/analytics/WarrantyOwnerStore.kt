@@ -3,6 +3,7 @@ package life.neurone.core.analytics
 import life.neurone.core.common.KeyValueStore
 import life.neurone.core.platform.Digests
 import life.neurone.core.platform.secureRandomBytes
+import life.neurone.core.platform.toHex
 import life.neurone.core.protocol.PersistedKeys
 
 /**
@@ -23,6 +24,38 @@ data class WarrantyOwnerRecord(
      * the choice to the wearer. The app enforces it; the hub cannot tell who asks, so it does not.
      */
     val stealthForbidden: Boolean = false,
+    /**
+     * The protocol families the owner does not offer on this helmet (`SWR-WO-01`): family ids and nothing else. Empty, the default,
+     * offers every family. The owner's set, never the person's own archive (`np.archived-families`, which travels with the person's
+     * protocols): kept here so that it stays with the owner's other decisions and never moves in a user's migration or backup
+     * (`REQ-SHDR-10`, `OI-PRIV-60`). Nothing here says which protocols anyone has run.
+     */
+    val withdrawnFamilies: Set<String> = emptySet(),
+    /**
+     * The owner has answered the reports question for this helmet, yes or no (`REQ-SHDR-08` (c), `REQ-SHDR-12` (e)). False on a
+     * record made only by another choice (the stealth lock, the offered set), so that a record does not by existing turn "never
+     * asked" into "said stop" (`CLAUDE.md` §6.0, §6.2).
+     */
+    val fleetDecided: Boolean = false,
+    /**
+     * The version of the general-consent content set ([GeneralShdrContent]) that the owner's yes was given for (`REQ-SHDR-12`
+     * (d)). Zero is the baseline. It rises only by the owner's yes to a set they were shown, never by an app update or by
+     * silence. Meaningful only while [fleetConsent] is true.
+     */
+    val contentLevel: Int = 0,
+    /**
+     * This helmet's characterisation window has ended (`REQ-SHDR-12` (e); `NP-MOD-ID-001` §7.3): the opt-in turned from yes to
+     * no because the programme's window closed, not because the owner withdrew or revoked. Its own state: a revoke clears
+     * [fleetConsent], a withdrawal leaves this false, and a helmet never asked has no record at all.
+     */
+    val windowEnded: Boolean = false,
+    /** Prompt 1, the window-end question, has been put to the owner of this helmet (`REQ-SHDR-12` (a)). */
+    val windowAsked: Boolean = false,
+    /**
+     * The highest content-set version this helmet's owner has been asked about (`REQ-SHDR-12` (b)): prompt 2 for a set shows only
+     * while the set is newer than this, so it shows once per owner and helmet.
+     */
+    val contentAsked: Int = 0,
 )
 
 /**
@@ -111,28 +144,78 @@ class WarrantyOwnerStore(
         return true
     }
 
+    /**
+     * The families the owner does not offer on [hub] (`SWR-WO-01`, `OI-PRIV-60`), or none with no helmet named or no record kept.
+     * The protocol library asks this, apart from the person's own archive.
+     */
+    fun withdrawnFamilies(hub: String?): Set<String> = hub?.let { record(it)?.withdrawnFamilies }.orEmpty()
+
+    /**
+     * Offer or withdraw one protocol family on [hub] (`SWR-WO-01`): the owner's choice, written to the owner's record for that helmet
+     * and to nothing of the person's (`REQ-SHDR-10`, `OI-PRIV-60`).
+     */
+    fun setOffered(hub: String, familyKey: String, offered: Boolean) {
+        update(hub) { r -> r.copy(withdrawnFamilies = if (offered) r.withdrawnFamilies - familyKey else r.withdrawnFamilies + familyKey) }
+    }
+
     /** Delete this helmet's staged record, if there is one. Every other helmet's stays. */
     fun clearStaged(hub: String) {
         val key = table.keyOf(hub) ?: return
         staging?.clear(key)
     }
 
+    // A family id is the protocol's own text (a script may name it), so each is written as the hex of its UTF-8 bytes: no id can
+    // then hold the ',' between fields, the '.' between ids, or the tab and newline of the table around the line.
     private fun encode(r: WarrantyOwnerRecord): String =
         listOf(
-            FORMAT, if (r.fleetConsent) "1" else "0", if (r.enrolled) "1" else "0", r.consentEpoch, r.programmeId,
-            if (r.stealthForbidden) "1" else "0",
+            FORMAT, flag(r.fleetConsent), flag(r.enrolled), r.consentEpoch, r.programmeId,
+            flag(r.stealthForbidden),
+            r.withdrawnFamilies.sorted().joinToString(".") { it.encodeToByteArray().toHex() },
+            flag(r.fleetDecided), r.contentLevel, flag(r.windowEnded), flag(r.windowAsked), r.contentAsked,
         ).joinToString(",")
 
-    // A v1 line (five fields, written before the stealth lock existed) reads with stealth not forbidden, which is what it meant.
+    private fun flag(b: Boolean) = if (b) "1" else "0"
+
+    // A v1 line (five fields, written before the stealth lock existed) reads with stealth not forbidden, a v2 line (six, written
+    // before the owner's offered set moved here, OI-PRIV-60) with every family offered, and a v1 to v3 line (written before the
+    // general-consent prompts, OI-NVRAM-26) as decided, at the baseline, with no window ended and nothing asked: that is what each
+    // meant, since every grant before v4 was a grant of the baseline and a record was then made only by a decision or a later
+    // choice that the line cannot tell apart. A line that does not read as a record is a record that grants nothing and withdraws
+    // nothing.
     private fun decode(line: String): WarrantyOwnerRecord {
         val p = line.split(',')
         val epoch = p.getOrNull(3)?.toIntOrNull()
         val programme = p.getOrNull(4)?.toIntOrNull()
-        val shape = (p.size == 5 && p[0] == FORMAT_V1) || (p.size == 6 && p[0] == FORMAT && p[5] in FLAGS)
-        if (!shape || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null) {
+        val v4 = p.size == 12 && p[0] == FORMAT && p[5] in FLAGS && p[7] in FLAGS && p[9] in FLAGS && p[10] in FLAGS
+        val shape = (p.size == 5 && p[0] == FORMAT_V1) ||
+            (p.size == 6 && p[0] == FORMAT_V2 && p[5] in FLAGS) ||
+            (p.size == 7 && p[0] == FORMAT_V3 && p[5] in FLAGS) ||
+            v4
+        val withdrawn = if (p.size >= 7) decodeFamilies(p[6]) else emptySet()
+        val level = if (v4) p[8].toIntOrNull() else 0
+        val asked = if (v4) p[11].toIntOrNull() else 0
+        if (!shape || p[1] !in FLAGS || p[2] !in FLAGS || epoch == null || epoch < 0 || programme == null || withdrawn == null ||
+            level == null || level < 0 || asked == null || asked < 0
+        ) {
             return WarrantyOwnerRecord()
         }
-        return WarrantyOwnerRecord(p[1] == "1", p[2] == "1", epoch, programme, stealthForbidden = p.getOrNull(5) == "1")
+        return WarrantyOwnerRecord(
+            p[1] == "1", p[2] == "1", epoch, programme, stealthForbidden = p.getOrNull(5) == "1", withdrawnFamilies = withdrawn,
+            fleetDecided = if (v4) p[7] == "1" else true,
+            contentLevel = level,
+            windowEnded = v4 && p[9] == "1",
+            windowAsked = v4 && p[10] == "1",
+            contentAsked = asked,
+        )
+    }
+
+    /** The family ids of a v3 or v4 line's seventh field, or `null` when any of them is not hex this store wrote. */
+    private fun decodeFamilies(field: String): Set<String>? {
+        if (field.isEmpty()) return emptySet()
+        return field.split('.').map { h ->
+            if (h.isEmpty() || h.length % 2 != 0 || !h.all { it in HEX_DIGITS }) return null
+            ByteArray(h.length / 2) { h.substring(2 * it, 2 * it + 2).toInt(16).toByte() }.decodeToString()
+        }.toSet()
     }
 
     companion object {
@@ -147,8 +230,11 @@ class WarrantyOwnerStore(
             PersistedKeys.PROGRAMME_ID_KEY,
         )
 
-        private const val FORMAT = "v2"
+        private const val FORMAT = "v4"
+        private const val FORMAT_V3 = "v3"
+        private const val FORMAT_V2 = "v2"
         private const val FORMAT_V1 = "v1"
+        private const val HEX_DIGITS = "0123456789abcdef"
         private val FLAGS = setOf("0", "1")
     }
 }

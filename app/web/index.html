@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy (REQ-SW03-39 (a); NP-PRIV-ANALYSIS-006 F-14). The app holds health data in page memory, and any
+      script that runs in this page can read it, so the page runs only its own script: the bundle, the WebAssembly core and the
+      stylesheet are all same-origin, and the shipped protocols are fetched from the same origin. 'wasm-unsafe-eval' is
+      what compiling WebAssembly needs; it does not allow eval() of strings. There is no 'unsafe-inline', so a script or style
+      injected into the markup does not run. The policy is the Compose web app's (app/NeurOneUI/web/src/wasmJsMain/resources/index.html).
+      A meta policy cannot set frame-ancestors; a host that serves this page should also send the header with
+      `frame-ancestors 'none'`. The dev server drops this element (vite.config.ts), because React's refresh preamble is an inline
+      script; the built page keeps it.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <!-- The page tells no site it links to where the person came from (REQ-SW03-39 (b)). -->
+    <meta name="referrer" content="no-referrer" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NeurOne Protocol Library</title>

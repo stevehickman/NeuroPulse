@@ -134,3 +134,102 @@ fn the_count_a_move_signs_is_one_higher_and_a_count_at_the_top_is_refused() {
     assert_eq!(ask(json!({ "op": "supersededNextCount", "highestKnown": 9 })).unwrap()["count"], 10);
     assert!(ask(json!({ "op": "supersededNextCount", "highestKnown": u64::MAX })).is_err());
 }
+
+// ── Catching up (`SWR-MG-35`; the principal, 2026-11-21): the cursor, retirement and the extract gate ──
+
+const OTHER_SEED: [u8; 32] = [9u8; 32];
+
+fn key_of(seed: [u8; 32]) -> (String, String) {
+    let r = ask(json!({ "op": "currentDeviceKey", "seed": hex(&seed) })).unwrap();
+    (r["publicKey"].as_str().unwrap().to_string(), r["keyId"].as_str().unwrap().to_string())
+}
+
+fn notice(seed: [u8; 32], sequence: u64, count: u64) -> Value {
+    let n = ask(json!({ "op": "supersededNoticeSign", "seed": hex(&seed), "count": count })).unwrap();
+    json!({ "sequence": sequence, "keyId": n["keyId"], "count": count, "signature": n["signature"] })
+}
+
+fn catch_up(cursor: u64, latest: u64, held: Value, notices: Value) -> Value {
+    ask(json!({ "op": "supersededCatchUp", "cursor": cursor, "latest": latest, "held": held, "notices": notices })).unwrap()
+}
+
+// @verifies SWR-MG-35#a
+#[test]
+fn the_cursor_moves_to_the_highest_sequence_after_it_and_never_back() {
+    let (public, _) = key();
+    let held = json!([{ "publicKey": public, "knownCount": 3 }]);
+    // Notices for other people's keys still move the cursor: the device processed them.
+    let page = json!([notice(OTHER_SEED, 12, 1), notice(OTHER_SEED, 11, 2)]);
+    assert_eq!(catch_up(10, 12, held.clone(), page)["cursor"], 12);
+    // A page of notices at or below the cursor changes nothing; the cursor does not go back.
+    let stale = json!([notice(SEED, 4, 9), notice(OTHER_SEED, 7, 1)]);
+    let r = catch_up(10, 12, held, stale);
+    assert_eq!(r["cursor"], 10);
+    assert_eq!(r["held"][0]["retired"], false, "a notice at or below the cursor was already processed");
+}
+
+// @verifies SWR-MG-35#a
+#[test]
+fn a_notice_that_does_not_verify_moves_the_cursor_and_retires_no_one() {
+    let (public, id) = key();
+    let held = json!([{ "publicKey": public, "knownCount": 3 }]);
+    let mut forged = notice(SEED, 21, 9);
+    forged["count"] = json!(10); // signed for 9, claims 10
+    let junk = json!({ "sequence": 22, "keyId": id, "count": 50, "signature": hex(&[0u8; 64]) });
+    let malformed = json!({ "keyId": id, "count": 50 });
+    let r = catch_up(20, 22, held, json!([forged, junk, malformed]));
+    assert_eq!(r["cursor"], 22, "junk cannot stall a device");
+    assert_eq!(r["held"][0]["retired"], false);
+    assert_eq!(r["held"][0]["knownCount"], 3);
+    assert_eq!(r["mayExtract"], true);
+}
+
+// @verifies SWR-MG-35#b
+#[test]
+fn a_verified_higher_count_retires_the_person_and_records_the_count() {
+    let (public, id) = key();
+    let (other_public, other_id) = key_of(OTHER_SEED);
+    let held = json!([{ "publicKey": public, "knownCount": 3 }, { "publicKey": other_public, "knownCount": 1 }]);
+    // Two notices for the first person in one page, out of order: the highest that verifies is taken.
+    let page = json!([notice(SEED, 33, 5), notice(SEED, 31, 4), notice(OTHER_SEED, 32, 1)]);
+    let r = catch_up(30, 33, held, page);
+    assert_eq!(r["held"][0], json!({ "keyId": id, "knownCount": 5, "retired": true }));
+    assert_eq!(r["held"][1], json!({ "keyId": other_id, "knownCount": 1, "retired": false }), "an equal count is this device's own move");
+}
+
+// @verifies SWR-MG-35#b
+#[test]
+fn an_older_or_equal_count_retires_no_one() {
+    let (public, _) = key();
+    let held = json!([{ "publicKey": public, "knownCount": 6 }]);
+    let r = catch_up(0, 2, held, json!([notice(SEED, 1, 6), notice(SEED, 2, 5)]));
+    assert_eq!(r["held"][0]["retired"], false);
+    assert_eq!(r["held"][0]["knownCount"], 6);
+}
+
+// @verifies SWR-MG-35#c
+#[test]
+fn a_device_behind_the_latest_sequence_may_not_extract() {
+    use neurone_npps_core::current_device::may_extract;
+    assert!(may_extract(7, 7));
+    assert!(may_extract(8, 7));
+    assert!(!may_extract(6, 7));
+    let (public, _) = key();
+    let held = json!([{ "publicKey": public, "knownCount": 1 }]);
+    // One page of two: the cursor is still behind the latest, so nothing may be extracted yet.
+    let first = catch_up(0, 4, held.clone(), json!([notice(OTHER_SEED, 1, 1), notice(OTHER_SEED, 2, 2)]));
+    assert_eq!(first["mayExtract"], false);
+    let second = catch_up(first["cursor"].as_u64().unwrap(), 4, held, json!([notice(OTHER_SEED, 3, 3), notice(OTHER_SEED, 4, 4)]));
+    assert_eq!(second["mayExtract"], true);
+}
+
+// @verifies SWR-MG-35#a
+#[test]
+fn a_catch_up_call_missing_its_cursor_or_lists_is_refused() {
+    let (public, _) = key();
+    let held = json!([{ "publicKey": public, "knownCount": 1 }]);
+    assert!(ask(json!({ "op": "supersededCatchUp", "latest": 1, "held": held, "notices": [] })).is_err());
+    assert!(ask(json!({ "op": "supersededCatchUp", "cursor": 0, "held": held, "notices": [] })).is_err());
+    assert!(ask(json!({ "op": "supersededCatchUp", "cursor": 0, "latest": 1, "notices": [] })).is_err());
+    assert!(ask(json!({ "op": "supersededCatchUp", "cursor": 0, "latest": 1, "held": [{ "publicKey": "00" }], "notices": [] })).is_err());
+}

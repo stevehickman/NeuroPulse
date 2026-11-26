@@ -4,6 +4,7 @@
  */
 
 #include "np_module_registry.h"
+#include "np_module_usage.h"
 #include "np_session_log.h"
 #include <string.h>
 
@@ -332,6 +333,12 @@ np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot)
         e->present = false;
         return NP_HUB_ERR_NOT_PRESENT;
     }
+
+    /* A new occupant seen while the hub runs is a mate of this port (REQ-FWHUB-93 (f)): the
+     * previous observation was empty or another module type.  The boot scan's first look is
+     * not one (NP-MOD-ID-001 MODID-4a rule 2), and np_mod_reg_scan() counts none. */
+    const np_mu_key_t mate = np_mu_key_port(slot, type);
+    np_mu_note_mate(&mate);
 
     e->type      = type;
     e->slot      = slot;
