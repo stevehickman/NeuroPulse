@@ -14,8 +14,15 @@
  *   EXT_CSD_SEC_FEATURE_SUPPORT 231, EXT_CSD_SEC_SANITIZE BIT(6), the R1 bits
  *   below) and drivers/mmc/core/mmc_ops.c mmc_sanitize(), which calls
  *   __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_SANITIZE_START, 1, ...).
- *   The JEDEC JESD84-B51 wording and a vendor datasheet for the selected part
- *   are still to be read against these figures (OI-PRIV-27, NP-PRIV-ANALYSIS-004).
+ *   Checked against JEDEC JESD84-B51 (e.MMC 5.1, Feb 2015) on 2026-11-26
+ *   (OI-PRIV-27 (c), (d), NP-PRIV-ANALYSIS-004; NP-FW-EMMC-002 §B.3):
+ *   §7.4.80 SANITIZE_START[165], Table 36 (CMD6 SWITCH), Table 6 (access 11 =
+ *   Write Byte), Table 116 (bit 6 SEC_SANITIZE), Table 68 (the R1 error bits).
+ *   §6.6.9 says an ERASE moves its range to the unmapped space, and §6.6.13
+ *   recommends ERASE then SANITIZE.  Never use DISCARD (CMD38 arg 3) here:
+ *   §6.6.12 says SANITIZE cannot guarantee that discarded data is removed.
+ *   The standard sets no SANITIZE time (§7.4.31), so the bound is UC-202.
+ *   The selected part's datasheet is still to be read (OI-EMMC2-03).
  *
  * SANITIZE purges the device's UNMAPPED user address space, the whole device
  * and not an LBA range.  So the caller first unmaps what it wants purged

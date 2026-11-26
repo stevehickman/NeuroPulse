@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 22
+**Revision:** 23
 **Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -122,8 +122,9 @@ R-3  Hub sets reset_in_progress flag in SNVS_LPGPR1 (survives warm reset ONLY �
      otherwise it is refused the same way (Rev 5, NP-SOUP-LFS-001 §13.18)
 R-4  Hub suspends all active sessions and closes all open file handles
 R-5  Hub erases the UHDR partition (eMMC ERASE, CMD35/CMD36/CMD38 argument 0), meant
-     to unmap it; the purge is R-7a (Rev 9). That ERASE unmaps is not yet confirmed
-     from a primary source (Rev 21)
+     to unmap it; the purge is R-7a (Rev 9). JESD84-B51 §6.6.9: the erase's impact
+     "should be simply moving the mapped host address range to the unmapped host
+     address range" (Rev 23)
 R-6  Hub zeroes SHDR partition
 R-7  Hub zeroes Config partition
 R-7a Hub runs eMMC SANITIZE: CMD6 SWITCH writing 1 to EXT_CSD[165] SANITIZE_START,
@@ -206,6 +207,53 @@ R-12 Hub reboots — device presents as factory-new to the next owner
 > **Still open.** JESD84-B51 is behind a JEDEC login, so it remains to read the command, the bit, the R1 error
 > bits and **(d), whether ERASE unmaps**. Until then R-5 stays an ERASE, and nothing here shows that TRIM or DISCARD
 > is needed. Neither datasheet states a SANITIZE time, so `UC-202` is unchanged.
+>
+> **Rev 23 (2026-11-26): JESD84-B51 read, which settles `OI-PRIV-27` (`NP-PRIV-ANALYSIS-004`) parts (c) and (d).**
+> Source: JEDEC JESD84-B51, *Embedded Multi-Media Card (e•MMC) Electrical Standard (5.1)*, February 2015. The
+> principal supplied a copy on 2026-11-26. It is a licensed JEDEC document and is not committed. **The
+> sequence above is the one the standard recommends, and the code matches it. No change is needed.**
+>
+> - **(d) ERASE unmaps, and ERASE then SANITIZE is the standard's own sequence.** §6.6.9 says that once an erase completes, "the
+>   mapped device address range that was erased shall behave as if it was overwritten with all '0' or all '1'", and
+>   "The impact of the erase command should be simply moving the mapped host address range to the unmapped host
+>   address range". §6.6.13's NOTE says "New system level implementations (based on v4.51 devices and beyond) should
+>   use Erase combined with Sanitize instead of secure erase". TRIM (§6.6.10) uses the same "should" wording, so
+>   it buys nothing over ERASE here. **DISCARD (CMD38 argument 3) must not be used:** §6.6.12 says "a read to a
+>   region that was discarded may return some or all of the original data". It also says "The device cannot
+>   guarantee that discarded data is completely removed from the device when Sanitize is applied".
+> - **(c) The command, the bit and the error bits match.** §7.4.80: "Writing any value to this field shall manually
+>   start a sanitize operation. Device shall stay busy until sanitize is complete." Table 36 (§6.6.26) lists "CMD6
+>   SWITCH, byte SANITIZE_START". §6.6.1 Table 6 defines access bits `11` as "Write Byte", which matches the code's
+>   `(3 << 24) | (165 << 16) | (1 << 8)`. §7.4.38 Table 116 defines "Bit 6: SEC_SANITIZE … 0x1: Device supports the
+>   sanitize operation". In §6.13 Table 68, `NP_EMMC_R1_ERROR_MASK` (`0xFFF9A000`) covers every "E" (error) bit:
+>   31 to 19, 16, 15 (`WP_ERASE_SKIP`), 13 (`ERASE_RESET`) and 7 (`SWITCH_ERROR`). It also covers bit 25,
+>   `DEVICE_IS_LOCKED`, a status bit, so a locked card fails the purge, which is the safe reading. It leaves out
+>   the two obsolete bits, 18 and 17. §6.6.1 makes CMD6 R1b and says the host "should read the Device status,
+>   using SEND_STATUS command, after the busy signal is de-asserted, to check the result", which is the CMD13 poll.
+> - **What SANITIZE acts on.** §6.6.11: it "requires the device to physically remove data from the unmapped user
+>   address space"; "After the sanitize operation is completed, no data should exist in the unmapped host address
+>   space". §3 defines that space as the part a read cannot reach, which "may contain old host data or copies of
+>   host data". So it covers the stale copies R-6 and R-7 leave in wear-levelled blocks. §6.6.31: "The SANITIZE
+>   operation shall clean up the unmapped data in the cache."
+> - **An interrupted SANITIZE must be re-run, which the design already does.** §6.6.11: after an HPI, a power
+>   failure, CMD0 or a hardware reset, "the state of the unmapped host address space cannot be guaranteed. The host
+>   must re-initiate the sanitize operation". R-7a's failure keeps the reset in progress, and both resume paths run
+>   R-7a again (§B.4).
+> - **The standard sets no SANITIZE time, so `UC-202` stays per part.** §7.4.31 says `GENERIC_CMD6_TIME` "doesn't
+>   define the timeout when … starting a sanitize operation (writing to field SANITIZE_START[165])". No other field
+>   bounds it. The 240 s figure is still the Linux default, to be replaced by the selected part's figure or the
+>   `FAI-RESET-01` bench.
+> - **Two points for part selection (`OI-EMMC2-03`), new in `OI-PRIV-27` (g):**
+>   - **Erase group size.** §6.6.9: "The Device will ignore all LSB's below the Erase Group size, effectively
+>     rounding the address down to the Erase Group boundary." The map is aligned to 1 MiB, and Config starts at
+>     261 MiB. On a part whose erase group is larger than 1 MiB (`HC_ERASE_GRP_SIZE` > 2, in 512 KiB units),
+>     erasing Config would reach back into the end of the Safety MCU staging partition. The selected part's erase
+>     group must divide 1 MiB, or the map must be re-aligned.
+>   - **What SANITIZE does physically.** §6.6.11 removes data "according to Secure Removal Type". That is
+>     `SECURE_REMOVAL_TYPE` [16] (§7.4.120): a supported-type field, plus bits [5:4], which "can be set once during
+>     system integration by host". The code leaves it at the part's default. §6.6.11 also says applications "must
+>     work with individual device manufacturers to ensure this operation is performing properly". Whether the
+>     default counts as a Purge is the IEEE 2883 question of (f).
 
 ### B.4 Power-loss resilience
 
@@ -1415,6 +1463,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
 | 21 | 2026-11-26 | **§B.3: a callout records the sources read for `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) (c) to (e), with quotes and URLs. NIST SP 800-88r1 is withdrawn (CSRC, 2025-09-26) and superseded by Rev 2, which names no eMMC or flash technique and defers Purge techniques to IEEE 2883 (unread), so R-7a is now "meant as a Purge" under Rev 2 §3.1.2. Transcend EMC210 and Alliance Memory eMMC 5.1 datasheets confirm SANITIZE_START at EXT_CSD[165], SEC_FEATURE_SUPPORT at [231] (55h, bit 6 set) and that SANITIZE removes data from the unmapped user address space. They do not settle CMD6, the bit names, the R1 error bits, a SANITIZE time (`UC-202` unchanged) or whether ERASE unmaps, so R-5 now says its unmapping is unconfirmed. Code unchanged.** |
 | 22 | 2026-11-26 | **§B.2: new Rev note recording the answers to brief §12 Q7 and Q8 (brief §15). A profile records its person's current-device key id and is marked not current by a verified superseded notice; a helmet that sees none keeps the profile current. The owner learns that a person moved, and the key id links one person's profiles across helmets, not to a name (both accepted; never in SHDR). The owner's app records each profile's label at creation; the helmet stores no name (§C.8.2). Not built (`OI-PRIV-27`, NP-PRIV-ANALYSIS-004, #955).** |
+| 23 | 2026-11-26 | **§B.3: R-5 cites JESD84-B51 §6.6.9 for ERASE moving its range to the unmapped space, and a callout quotes JESD84-B51 against the sequence. ERASE then SANITIZE is the standard's recommendation (§6.6.13). DISCARD is not to be used (§6.6.12). The CMD6 Write Byte to [165], bit 6 of [231] and `NP_EMMC_R1_ERROR_MASK` match Tables 6, 36, 116 and 68. An interrupted SANITIZE must be re-run, as both resume paths do (§6.6.11). No SANITIZE time is defined (§7.4.31), so `UC-202` is unchanged. New for part selection: an erase group larger than 1 MiB would carry Config's erase into the Safety MCU staging partition, and `SECURE_REMOVAL_TYPE` is left at the part's default (`OI-PRIV-27` (f), (g)). No code change.** |
 
 Open items created by this document:
 
