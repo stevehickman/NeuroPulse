@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 21
+**Revision:** 22
 **Date:** 2026-11-26
 **Status:** ACTIVE
 **Effective Date:** 2026-08-12
@@ -96,7 +96,7 @@ NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for 
 > owner's pairing (`OI-SIMFW-71` Q8), on BLE only until USB-C carries payload encryption (`CLAUDE.md` §23). **Not built,
 > and built with §C.8 or after it**, because the helmet cannot list its users before per-person profiles exist.
 >
-> **Rev {NP-FW-EMMC-002 to} (2026-11-26): the brief's two design points, answered by the principal (brief §15).**
+> **Rev 22 (2026-11-26): the brief's two design points, answered by the principal (brief §15).**
 > - **Who is current.** A profile records its person's current-device key id (`docs/reference/data-architecture-detail.md`
 >   §5.3 step 1a, `OI-PRIV-68`). The signed superseded notice, brought by the owner's or the person's app, marks the
 >   profile not current once the helmet has verified it against that key and found a higher move count. A helmet that
@@ -1414,6 +1414,7 @@ This delta document (NP-FW-EMMC-002 Rev 4) is under change control per NP-QMS-DC
 | 19 | 2026-11-25 | **Settles the Rev 12 note's Argon2id question: new Rev note in §C.2 and new `REQ-EMMC2-08` (the memory-hard stage runs on the phone at the written 64 MiB, `t = 4`, `p = 1`); §C.3 `argon2id_m_cost` is 256 KiB, the hub stage, sized from the measured free DTCM; §C.4 steps 2 and 3, §C.5 step 3, the §C.2 WKMD bullet and the §C.8 credential bullet follow. The hub figures are provisional until the time per attempt is measured on the target (UC-206; `OI-PRIV-35`, NP-PRIV-ANALYSIS-004).** |
 | 20 | 2026-11-25 | **§B.3: R-1 and R-2 now point at the reset blob's wire format in NP-FW-HUB-001 §4.7, which reuses the `OI-PRIV-31` challenge and refuses a wipe unless every selected export was sent and confirmed. Not built (`OI-PRIV-27`, GitHub #955).** |
 | 21 | 2026-11-26 | **§B.3: a callout records the sources read for `OI-PRIV-27` (NP-PRIV-ANALYSIS-004) (c) to (e), with quotes and URLs. NIST SP 800-88r1 is withdrawn (CSRC, 2025-09-26) and superseded by Rev 2, which names no eMMC or flash technique and defers Purge techniques to IEEE 2883 (unread), so R-7a is now "meant as a Purge" under Rev 2 §3.1.2. Transcend EMC210 and Alliance Memory eMMC 5.1 datasheets confirm SANITIZE_START at EXT_CSD[165], SEC_FEATURE_SUPPORT at [231] (55h, bit 6 set) and that SANITIZE removes data from the unmapped user address space. They do not settle CMD6, the bit names, the R1 error bits, a SANITIZE time (`UC-202` unchanged) or whether ERASE unmaps, so R-5 now says its unmapping is unconfirmed. Code unchanged.** |
+| 22 | 2026-11-26 | **§B.2: new Rev note recording the answers to brief §12 Q7 and Q8 (brief §15). A profile records its person's current-device key id and is marked not current by a verified superseded notice; a helmet that sees none keeps the profile current. The owner learns that a person moved, and the key id links one person's profiles across helmets, not to a name (both accepted; never in SHDR). The owner's app records each profile's label at creation; the helmet stores no name (§C.8.2). Not built (`OI-PRIV-27`, NP-PRIV-ANALYSIS-004, #955).** |
 
 Open items created by this document:
 
