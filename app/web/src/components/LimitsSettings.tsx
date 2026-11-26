@@ -1193,7 +1193,7 @@ function VisualLimitsEditor({
             <LimitBoolField
               label={t('WEB_LIM_BLOCK_HIGH_RISK')}
               value={limits.visualStimulation.blockHighRiskRange ?? false}
-              hint="Treat 3–30 Hz as an error instead of a warning (photoparoxysmal zone)"
+              hint={`Treat ${hw.VISUAL_HIGH_RISK_MIN_HZ}–${hw.VISUAL_HIGH_RISK_MAX_HZ} Hz as an error instead of a warning (photoparoxysmal zone)`}
               onChange={v => patchModality('visualStimulation', { blockHighRiskRange: v })}
             />
             <LimitWhitelistField

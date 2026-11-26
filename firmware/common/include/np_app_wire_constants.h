@@ -74,7 +74,7 @@
  * READ 2 B / WRITE 1 B, encrypted link only: the photoparoxysmal detector's clinician settings
  * (REQ-FWHUB-71). Read: flags, then the evidence level the detector has (0 none, 1 bench, 2 clinical;
  * REQ-FWHUB-70). Write: flags only. Flags: bit 0 stop on an occipital-only discharge (on by default),
- * bit 1 manual override of the 3 to 30 Hz refusal (off by default; it lifts the refusal only where the
+ * bit 1 manual override of the 3 to 60 Hz refusal (off by default; it lifts the refusal only where the
  * evidence level is 1). Any other bit set is refused. Set by the hardware owner.
  */
 #define NP_GATT_PPX_CONFIG_ID 0x001Eu

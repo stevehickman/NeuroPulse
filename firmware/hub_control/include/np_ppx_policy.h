@@ -1,7 +1,7 @@
 /*
  * NeurOne Hub Control Program — what the detector is allowed to replace (REQ-FWHUB-70, REQ-FWHUB-71)
  *
- * The refusal of REQ-FWHUB-65 / -66 (photic driving at 3 to 30 Hz) stays until the detector has earned the right to stand in
+ * The refusal of REQ-FWHUB-65 / -66 (photic driving at 3 to 60 Hz) stays until the detector has earned the right to stand in
  * for it, and what it has earned is its EVIDENCE LEVEL:
  *
  *   NONE      no validation. The refusal stands, whatever the clinician's switches say, because nothing guards the drive.

@@ -440,7 +440,7 @@ fn modality(kind: &str, p: &Value, interval: &Value, duration: Option<f64>, limi
                 out.push(Error, k, "frequencyHz", "VALIDATE_PARAM_FREQUENCY", fs.clone(), s(format!("{} Hz", num_string(hw::VISUAL_MAX_HZ))), "hardware",
                     msg("VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ", vec![n(freq), n(hw::VISUAL_MAX_HZ)]));
             }
-            // Photoparoxysmal risk zone (3–30 Hz).
+            // Photoparoxysmal risk zone (3–60 Hz, OI-FWHUB-37).
             if freq >= hw::VISUAL_HIGH_RISK_MIN_HZ && freq <= hw::VISUAL_HIGH_RISK_MAX_HZ {
                 let (lo, hi) = (n(hw::VISUAL_HIGH_RISK_MIN_HZ), n(hw::VISUAL_HIGH_RISK_MAX_HZ));
                 if l["blockHighRiskRange"].as_bool() == Some(true) {

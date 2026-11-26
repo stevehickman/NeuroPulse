@@ -106,7 +106,7 @@ describe('validator wrapper', () => {
       }).issues;
       const kept = r.issues.filter((_, i) => {
         const m = raw[i]!.message;
-        return !ADDED.has(typeof m === 'string' ? m : m.key);
+        return !ADDED.has(typeof m === 'string' ? m : m.key) && !zoneAbove30(m);
       });
       const got = kept.map(({ id, ...rest }) => rest);
       // undefined `modality` is absent in the golden.
@@ -124,7 +124,9 @@ describe('validator wrapper', () => {
         // ...and the auricular VNS "outside hardware range 1–25 Hz" error: the ceiling is removed (OI-VNSCLIP-08, 2026-10-29).
         && !(i.modality === 'vns_hrv' && i.parameterKey === 'frequencyHz' && i.limitSource === 'hardware'
           && i.message.startsWith('VNS frequency') && i.message.includes('outside hardware range')));
-      expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(want);
+      // The photoparoxysmal zone's upper edge moved from 30 to 60 Hz (OI-FWHUB-37, 2026-11-25): the golden's zone text is read
+      // with the new edge, and a zone issue above 30 Hz, which the golden cannot hold, is set aside above, as in validate.rs.
+      expect(JSON.parse(JSON.stringify(got)), c.name).toEqual(want.map(widenZoneText));
     }
   });
 
@@ -142,3 +144,21 @@ describe('validator wrapper', () => {
     expect(r.errors[0]!.message.startsWith('[Bad] ')).toBe(true);
   });
 });
+
+/** A zone message above 30 Hz, inside a layer's prefix message too (OI-FWHUB-37; common/npps-core/tests/validate.rs). */
+function zoneAbove30(m: unknown): boolean {
+  if (!m || typeof m !== 'object') return false;
+  const { key, args } = m as { key?: string; args?: unknown[] };
+  const zone = key === 'VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_2' || key === 'VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_3';
+  return (zone && Number(args?.[0]) > 30) || (Array.isArray(args) && args.some(zoneAbove30));
+}
+
+/** The golden's zone issue, worded with the zone's new upper edge. */
+function widenZoneText<T extends { modality?: string; parameterKey?: string; message: string; limitValueDescription?: string }>(i: T): T {
+  if (i.modality !== 'visual_stimulation' || i.parameterKey !== 'frequencyHz') return i;
+  return {
+    ...i,
+    message: i.message.replace('3–30 Hz', '3–60 Hz'),
+    ...(i.limitValueDescription === undefined ? {} : { limitValueDescription: i.limitValueDescription.replace('3–30 Hz', '3–60 Hz') }),
+  };
+}

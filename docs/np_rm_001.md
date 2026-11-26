@@ -179,7 +179,7 @@ The following hazard categories apply to NeurOne. Each category must be systemat
 | Category | Hazard sources | Primary interlock |
 |---|---|---|
 | Electrical stimulation | Excessive current/charge density; charge imbalance; electrode loss of contact | Safety MCU hardware GPIO; 40µC/cm² hardware limit; impedance monitoring |
-| Optical / photobiological | Retinal exposure (visual LEDs, Mode F NIR); skin thermal injury (PBM scalp); IEC 62471 MPE | Hardware current limit; Hall sensor goggle lift cutoff; IR proximity; NTC thermal throttle |
+| Optical / photobiological | Retinal exposure (visual LEDs, Mode F NIR); skin thermal injury (PBM scalp); IEC 62471 MPE; **seizure in a photosensitive user from photic driving** (S3 transient, S4 sustained) | Hardware current limit; Hall sensor goggle lift cutoff; IR proximity; NTC thermal throttle; **photic driving refused at 3–60 Hz until the Oz detector is built and validated** (`REQ-FWHUB-65`, `-66`) |
 | Thermal | Scalp burn from PBM zone; battery / supercapacitor thermal runaway | NTC per zone → hardware current throttle at 62°C junction; IEC 60601-1 42°C limit |
 | Electromagnetic | EMF exposure from device operation; interference with external pacemakers/ICDs | 4-layer passive + active Helmholtz shielding (Layer 4 absorber deleted 2026-09-23, `REQ-CAV-04` — no ELF/RF attenuation claim rested on it); contraindication labelling |
 | Mechanical | Zone module ejection during use; Boa dial failure; eye goggle impact | Snap-fit detent on eject lever; Boa 50,000-cycle rating; clamshell case |
@@ -265,7 +265,8 @@ Currently documented software safety requirements:
 - SPI heartbeat loss → all-stimulation cutoff within 50ms (NP-FW-CVNS-001, NP-FW-EMMC-001)
 - Safety MCU watchdog 1.5s → all-stimulation cutoff within 50ms
 - HR change >15 BPM → cervical VNS GPIO cutoff within <5.1ms worst-case (NP-FW-CVNS-001)
-- Photoparoxysmal EEG detection → goggle LED cutoff within <200ms — **specified, not built** (`OI-FWHUB-29`). In its place the goggles refuse photic driving at 3–30 Hz outright (`REQ-FWHUB-65`); the risk acceptance that rested on the detector is the principal's and Risk's to restate
+- Photoparoxysmal EEG detection → goggle LED cutoff within <200ms — **specified, not built** (`OI-FWHUB-29`). In its place the goggles refuse photic driving at 3–60 Hz outright (`REQ-FWHUB-65`; 3–30 Hz until 2026-11-25, `OI-FWHUB-37`); the risk acceptance that rested on the detector is the principal's and Risk's to restate
+  - **Hazard inputs for photosensitive seizure (2026-11-25, `OI-FWHUB-37`):** (1) photosensitive patients respond across 2–60 Hz, most at 15–20 Hz, about 49 % at 50 Hz and 15 % at 60 Hz (Fisher et al., *Epilepsia* 2005;46:1426-41), and the European photic-stimulation method tests up to 60 Hz (Kasteleijn-Nolst Trenité et al., *Epilepsia* 2012;53:16-24); (2) Cognito's HOPE Phase 3 trial of 40 Hz light and sound (n = 673, mild-to-moderate Alzheimer's disease, 12 months) reported seizures in 0.9 % of the active arm vs 0.3 % on sham (CTAD, 2026-11-16, from press coverage). Input (1) moved the refusal zone's upper edge from 30 to 60 Hz (the principal); input (2) is a weak signal on its own. Most photosensitive epilepsy is undiagnosed until a first seizure, so the intended-use exclusion of known seizure disorders (§ intended use) does not by itself control this hazard (§6.1). Citations checked by `OI-FWHUB-38`.
 - 25% duty cycle ceiling enforced unconditionally for all PBM channels (NP-FW-PBM1064-001)
 - OTA firmware requires Ed25519 signature; unsigned firmware rejected at bootloader (NP-FW-EMMC-001)
 

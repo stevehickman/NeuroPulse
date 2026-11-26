@@ -672,11 +672,14 @@ static void test_photic_driving_in_the_risk_zone_is_refused_at_upload_and_leaves
     blob_visual(&b, 1U, 3U, 3U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the combined mode at the lower bound is refused");
     expect_nothing_left_behind("photic combined");
-    blob_visual(&b, 1U, 0U, 30U);
+    blob_visual(&b, 1U, 0U, 40U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: 40 Hz, the gamma protocols' frequency, is refused (OI-FWHUB-37)");
+    expect_nothing_left_behind("photic gamma");
+    blob_visual(&b, 1U, 0U, 60U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_ERR_PHOTIC_ZONE, "photic: the upper bound is refused");
     expect_nothing_left_behind("photic upper");
-    blob_visual(&b, 1U, 0U, 40U);
-    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: 40 Hz loads");
+    blob_visual(&b, 1U, 0U, 61U);
+    check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: 61 Hz loads");
     fresh();
     blob_visual(&b, 1U, 1U, 20U);
     check(np_runner_load(b.buf, b.len) == NP_HUB_OK, "photic: EMDR does not drive at freq_hz, so it loads");
@@ -980,7 +983,7 @@ static void blob_visual_mask(blob_t *b, uint8_t lo, uint8_t hi)
 {
     np_mod_visual_params_t p;
     memset(&p, 0, sizeof p);
-    p.mode = 0U; p.freq_hz = 40U; p.duty_pct = 50U; p.zone_mask_lo = lo; p.zone_mask_hi = hi;
+    p.mode = 0U; p.freq_hz = 70U; p.duty_pct = 50U; p.zone_mask_lo = lo; p.zone_mask_hi = hi;
     blob_make(b, 1U, 60000U, NP_MOD_VISUAL, NP_HUB_SLOT_VISUAL, (const uint8_t *)&p, sizeof p);
 }
 
