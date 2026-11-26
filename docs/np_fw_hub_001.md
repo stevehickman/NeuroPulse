@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HUB-001
-**Revision:** 91
+**Revision:** 92
 **Date:** 2026-11-26
 **Status:** **DRAFT — pending approval** (`OI-FWHUB-06`). Issued as a design output under `21 CFR §820.30(d)`, which expects design outputs to be reviewed and approved before release; `Approved By` is blank, so this record does not claim a completed review (Rev 7 — it read RELEASED until then). **Written against the firmware that exists**, not ahead of it — see the banner below for what that means and what it does not.
 **Effective Date:** 2026-09-23
@@ -17,7 +17,7 @@
 
 ---
 
-> **Rev {NP-FW-HUB-001 to} (2026-11-25) — the photic refusal zone is 3 to 60 Hz, not 3 to 30 (`OI-FWHUB-37`, closed; the principal, 2026-11-25).** The goggles now refuse the 40 Hz gamma protocols until the Oz detector is built and validated. The 30 Hz edge had no source (`UC-121`); the European photic-stimulation method tests photosensitivity up to 60 Hz (Kasteleijn-Nolst Trenité et al., *Epilepsia* 2012;53:16-24, already cited for `REQ-FWHUB-67`), and an Epilepsy Foundation review reports about 49 % of photosensitive patients responding at 50 Hz and 15 % at 60 Hz (Fisher et al., *Epilepsia* 2005;46:1426-41). HOPE Phase 3 adds a weak signal (seizures 0.9 % on the device vs 0.3 % on sham). `REQ-FWHUB-65` and `-66` carry the new edge; the three predefined protocols that drive the goggles at 40 Hz (`01-gamma-focus`, `14-gamma-theta-coupled`, `15-full-t1-immersive`) now lose their visual block, as `13-focus-prime` already did at 20 Hz, and are a clinical decision, not edited here. The citations are checked by `OI-FWHUB-38`.
+> **Rev 92 (2026-11-25) — the photic refusal zone is 3 to 60 Hz, not 3 to 30 (`OI-FWHUB-37`, closed; the principal, 2026-11-25).** The goggles now refuse the 40 Hz gamma protocols until the Oz detector is built and validated. The 30 Hz edge had no source (`UC-121`); the European photic-stimulation method tests photosensitivity up to 60 Hz (Kasteleijn-Nolst Trenité et al., *Epilepsia* 2012;53:16-24, already cited for `REQ-FWHUB-67`), and an Epilepsy Foundation review reports about 49 % of photosensitive patients responding at 50 Hz and 15 % at 60 Hz (Fisher et al., *Epilepsia* 2005;46:1426-41). HOPE Phase 3 adds a weak signal (seizures 0.9 % on the device vs 0.3 % on sham). `REQ-FWHUB-65` and `-66` carry the new edge; the three predefined protocols that drive the goggles at 40 Hz (`01-gamma-focus`, `14-gamma-theta-coupled`, `15-full-t1-immersive`) now lose their visual block, as `13-focus-prime` already did at 20 Hz, and are a clinical decision, not edited here. The citations are checked by `OI-FWHUB-38`.
 >
 > **Rev 90 (2026-11-26) — the warranty owner's reset key is ruled (§4.7.3; `OI-PRIV-27` (NP-PRIV-ANALYSIS-004), GitHub #955; brief §13, the principal, 2026-11-26).** The warranty owner is the `OI-SIMFW-71` Q8 admin pairing (Q10), and that pairing carries an Ed25519 signing key, sent inside the SPAKE2-authenticated channel at pairing and stored in the admin's table entry (Q9 A). §4.7.4 step 4 checks `signer_key` against that entry. Nothing is built: the pairing table belongs to the `OI-SIMFW-71` secure channel.
 >

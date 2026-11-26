@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 55
+**Revision:** 56
 **Date:** 2026-11-26
 **Status:** DRAFT
 **Effective Date:** —
@@ -1233,3 +1233,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 53 | 2026-11-24 | NeurOne Software Engineering | **`OI-SIMFW-73`: the principal's ruling of 2026-11-23 recorded (stop and panic stay open; pause needs an encrypted link).** |
 | 54 | 2026-11-26 | NeurOne Software Engineering | **REQ-SIMFW-25 (e) and OI-SIMFW-51: np_map3_record.c is removed with the retired Map 3 journal; the scenario now checks Map 3's per-module record (np_module_usage.c).** |
 | 55 | 2026-11-26 | NeurOne Software Engineering | **`OI-SIMFW-71`: records the principal's 2026-11-26 addition to the Q8 ruling (from `OI-PRIV-27` brief §14): the clinic admin pairing is the warranty owner's and carries an Ed25519 signing key, sent in the SPAKE2 channel and kept in its table entry, for the factory-reset blob (NP-FW-HUB-001 §4.7.3). Nothing built.** |
+| 56 | 2026-11-26 | NeurOne Software Engineering | **The goggles' scenario drives at 70 Hz, outside the 3 to 60 Hz refused band (was 40 Hz, now inside it), and the refusal table names the 3 to 60 Hz zone (OI-FWHUB-37).** |
