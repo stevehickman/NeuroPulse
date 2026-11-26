@@ -40,7 +40,8 @@
  *     text: **{date} — `OI-X-01` CLOSED: what was decided (who; where).** …
  *
  * `{date}` in a LOG entry becomes the date assigned. `{X from}`, `{X to}` and `{X from → to}` (X is a serial, or DHF) become the numbers assigned. They work in a
- * history text and, for a bumped document, anywhere in the document's own text (a "> **Rev {X to} (date)**" callout).
+ * history text, a LOG or CLAUDE.md entry, an OPEN hunk's `text:` lines (resolved after the hunk's anchor is matched,
+ * so its hash is unaffected) and, for a bumped document, anywhere in the document's own text (a "> **Rev {X to} (date)**" callout).
  *
  * Usage:
  *     bun scripts/assign-revisions.ts --mode      print the policy mode (hand | assign-at-merge)
@@ -224,7 +225,9 @@ export function assignNext(root: string, validate = true): Assigned {
     texts.set(CLAUDE_HISTORY, insertClaudeEntry(get(CLAUDE_HISTORY), frag.claude.map((p) => resolveTokens(p.split(DATE_TOKEN).join(date), revs))));
     texts.set(DHF_FILE, setClaudeRow(get(DHF_FILE), r.to, date));
   }
-  if (frag.open.length > 0) texts.set(OPEN_FILE, applyOpen(get(OPEN_FILE), frag.open, path));
+  // A hunk is found by the hash of the page lines it names, which hold no token; only its `text:` lines are resolved,
+  // after matching, so the anchor still matches and the page takes the numbers, not the token.
+  if (frag.open.length > 0) texts.set(OPEN_FILE, applyOpen(get(OPEN_FILE), frag.open.map((h) => ({ ...h, lines: h.lines.map((l) => resolveTokens(l, revs)) })), path));
   if (frag.log.length > 0) {
     if (!existsSync(join(root, DECISIONS_FILE))) throw new Error(`${path}: has a LOG section but ${DECISIONS_FILE} does not exist`);
     texts.set(DECISIONS_FILE, appendLog(get(DECISIONS_FILE), frag.log.map((e) => resolveTokens(e.split(DATE_TOKEN).join(date), revs))));
@@ -680,6 +683,20 @@ function selfTest(): void {
     commit(op, "fragment");
     const res = assignNext(op, false);
     check(res.status === "done" && res.opened === 1 && read(op, OPEN_FILE) === edited, "at merge the edit is applied to the page in place");
+    // A revision token in an OPEN hunk's text resolves at merge, as in every other text of the fragment. It used to be
+    // applied to the page as written (OI-PRIV-27 read "Rev {NP-FW-EMMC-002 to} callout" after PR #1078 merged).
+    git(op, "checkout", "-q", "-b", "claude/token");
+    frag(op, "claude-token.md", "date: 2026-11-04\n## DHF\nauthor: A\ntext: **{NP-SW-001 from → to}: t.**\n## NP-SW-001\nauthor: A\ntext: **t**\n");
+    const tokened = edited.replace("- [ ] **`OI-A-01`** one", "- [x] **`OI-A-01`** one, closed by the NP-SW-001 Rev {NP-SW-001 to} callout");
+    writeFileSync(join(op, OPEN_FILE), tokened);
+    convertOpen(op, "main");
+    check(/\ntext: - \[x\] \*\*`OI-A-01`\*\* one, closed by the NP-SW-001 Rev \{NP-SW-001 to\} callout\n/.test(read(op, `${PENDING_DIR}/claude-token.md`)),
+      "--convert-open keeps a token in an OPEN hunk's text as written");
+    commit(op, "token fragment");
+    const tr = assignNext(op, false), tp = read(op, OPEN_FILE);
+    check(tr.status === "done" && tr.revisions["NP-SW-001"] === "2 → 3" && tp === edited.replace("- [ ] **`OI-A-01`** one", "- [x] **`OI-A-01`** one, closed by the NP-SW-001 Rev 3 callout"),
+      "at merge a token in an OPEN hunk's text resolves to the number assigned (the hunk's anchor still matches)");
+    check(!tp.includes("{NP-SW-001"), "and no literal token reaches pending-decisions.md");
   } finally { rmSync(op, { recursive: true, force: true }); }
 
   // The parser refuses what would write a bad row.
@@ -695,6 +712,8 @@ function selfTest(): void {
   check(typeof parseFragment("f.md", "## OPEN x\nwas: 0123456789abcdef\ntext: a\n") === "string", "was: without a line count is refused");
   check(typeof parseFragment("f.md", "## OPEN x\nwas: 0123456789abcdef 1\nafter: 0123456789abcdef 1\ntext: a\n") === "string", "was: with an insertion anchor is refused");
   check(typeof parseFragment("f.md", "## OPEN x\nafter: 0123456789abcdef 1\nbefore: 0123456789abcdef 2\ntext: a\n") !== "string", "an insertion with both anchors parses");
+  check(typeof parseFragment("f.md", "## OPEN x\nwas: 0123456789abcdef 1\ntext: Rev {NP-SW-001 to}\n") === "string", "an OPEN token naming a document with no section is refused");
+  check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n## NP-SW-001\nauthor: A\ntext: t\n## OPEN x\nwas: 0123456789abcdef 1\ntext: Rev {NP-SW-001 to}\n") !== "string", "an OPEN token naming a section of the fragment parses");
   check(typeof parseFragment("f.md", "## CLAUDE.md\ntext: **Rev {CLAUDE.md to} ({date}) — t.**\n") === "string", "a CLAUDE.md section with no DHF section is refused (it changes the DHF index)");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: t\n## CLAUDE.md\ntext: **Rev 86 (2026-11-21) — t.**\n") === "string", "a CLAUDE.md entry with a hand-written number is refused");
   check(typeof parseFragment("f.md", "## DHF\nauthor: A\ntext: {CLAUDE.md to}\n") === "string", "a CLAUDE.md token with no CLAUDE.md section is refused");
