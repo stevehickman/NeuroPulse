@@ -35,7 +35,8 @@
       "actor_id": 5585393,
       "bypass_mode": "always",
       "who": "A GitHub App: RevNumberFixer, which is on the bypass list (docs/revisions/README.md). The principal confirmed on 2026-11-25 that this id is that App (NP-SW-CI-001 §6.21.5).",
-      "workflow": ".github/workflows/assign-revisions.yml"
+      "workflow": ".github/workflows/assign-revisions.yml",
+      "allowed_paths": ["docs", "CLAUDE.md"]
     }
   ]
 }

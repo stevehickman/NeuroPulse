@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: fbc90f0459672a794bf64dde2c8a6320d88ba9b697cd9034afa560170eb22099
+// sources-sha256: 030ae4bce21e4b851760e11dc99481c2f398a2073c6c890a3c511d6c2b735633
 // common/lib/constants.generated.ts
 var NppsStatus = {
   OK: 0,
@@ -26,12 +26,18 @@ var instance = null;
 function instantiate(module) {
   return new WebAssembly.Instance(module, {}).exports;
 }
-async function initNppsCore() {
+var loading = null;
+function initNppsCore() {
   if (instance)
-    return;
-  const nodeFs = nodeFileSystem();
-  const module = nodeFs ? new WebAssembly.Module(nodeFs.readFileSync(nodeFilePath())) : await WebAssembly.compileStreaming(fetch(WASM_URL));
-  instance = instantiate(module);
+    return Promise.resolve();
+  loading ??= (async () => {
+    const nodeFs = nodeFileSystem();
+    const module = nodeFs ? new WebAssembly.Module(nodeFs.readFileSync(nodeFilePath())) : await WebAssembly.compileStreaming(fetch(WASM_URL));
+    instance ??= instantiate(module);
+  })().finally(() => {
+    loading = null;
+  });
+  return loading;
 }
 function nodeFileSystem() {
   const proc = globalThis.process;
