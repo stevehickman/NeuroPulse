@@ -334,14 +334,16 @@
 #define NP_DETECT_ACCESSORY_POLL_MS 500U  /* VNS, intranasal, CVNS */
 #define NP_DETECT_VISUAL_POLL_MS    200U  /* Hall sensor poll */
 
-/* The photoparoxysmal risk zone for photic driving, in whole hertz, inclusive (OI-FWHUB-29, REQ-FWHUB-65).  The same two
- * numbers as VISUAL_HIGH_RISK_MIN_HZ / VISUAL_HIGH_RISK_MAX_HZ in common/npps/constants.json, which the protocol validator
- * uses; nothing checks the two agree.  The goggles refuse photic driving inside the zone until the Oz detector exists.
- * The upper edge is 60 Hz, not 30, since 2026-11-25 (the principal, OI-FWHUB-37): photosensitive patients respond up to
- * 60 Hz (the European photic-stimulation method tests to 60 Hz, Epilepsia 2012;53:16-24; about 49 % respond at 50 Hz,
- * Epilepsia 2005;46:1426-41), so 40 Hz gamma driving is inside it.  The citations are checked by OI-FWHUB-38. */
-#define NP_VISUAL_PPX_RISK_MIN_HZ   3U
-#define NP_VISUAL_PPX_RISK_MAX_HZ   60U
+/* The photoparoxysmal risk zone for photic driving, in whole hertz, inclusive (OI-FWHUB-29, REQ-FWHUB-65):
+ * NP_VISUAL_PPX_RISK_MIN_HZ to NP_VISUAL_PPX_RISK_MAX_HZ, 3 to 60 Hz.  The two edges are not written here: they are
+ * VISUAL_HIGH_RISK_MIN_HZ / VISUAL_HIGH_RISK_MAX_HZ in common/npps/constants.json, the numbers the protocol validator and
+ * the apps use, and scripts/sync-constants.ts generates them into np_app_wire_constants.h (included above), so the firmware
+ * and the validator cannot disagree (OI-FWHUB-38).  The goggles refuse photic driving inside the zone until the Oz detector
+ * exists.  The upper edge is 60 Hz, not 30, since 2026-11-25 (the principal, OI-FWHUB-37); the citations are in the JSON
+ * notes and are checked by OI-FWHUB-38. */
+#if !defined(NP_VISUAL_PPX_RISK_MIN_HZ) || !defined(NP_VISUAL_PPX_RISK_MAX_HZ)
+#error "np_app_wire_constants.h must define the photic zone edges: run bun scripts/sync-constants.ts"
+#endif
 
 /* The rule itself, used by the load check (np_protocol_photic_admit, REQ-FWHUB-66) and by the goggles at dispatch
  * (np_mod_visual_control, REQ-FWHUB-65): visual modes 0 (photic) and 3 (combined) drive at freq_hz; EMDR (1) and retinal

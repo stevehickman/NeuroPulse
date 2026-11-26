@@ -296,4 +296,22 @@
  */
 #define NP_CVNS_ELECTRODE_COUNT 2U
 
+/*
+ * VISUAL_HIGH_RISK_MIN_HZ in common/npps/constants.json: photoparoxysmal risk zone, lower edge
+ * (inclusive): photic driving from here to VISUAL_HIGH_RISK_MAX_HZ is refused until the Oz detector is
+ * built and validated (REQ-FWHUB-65, -66). Flashes faster than 3 per second are the hazard threshold
+ * of the Epilepsy Foundation working group (Fisher et al., Epilepsia 2005;46:1426-41; checked by
+ * OI-FWHUB-38)
+ */
+#define NP_VISUAL_PPX_RISK_MIN_HZ 3U
+/*
+ * VISUAL_HIGH_RISK_MAX_HZ in common/npps/constants.json: photoparoxysmal risk zone, upper edge
+ * (inclusive), 60 Hz since 2026-11-25 (was 30, unsourced, UC-121). The European photic-stimulation
+ * method tests photosensitivity up to 60 Hz, and about 49 % of photosensitive patients respond at 50
+ * Hz and 15 % at 60 Hz, so 40 Hz gamma driving is inside the range (OI-FWHUB-37; Kasteleijn-Nolst
+ * Trenite et al., Epilepsia 2012;53:16-24; Fisher et al., Epilepsia 2005;46:1426-41; checked by
+ * OI-FWHUB-38)
+ */
+#define NP_VISUAL_PPX_RISK_MAX_HZ 60U
+
 #endif /* NP_APP_WIRE_CONSTANTS_H */
