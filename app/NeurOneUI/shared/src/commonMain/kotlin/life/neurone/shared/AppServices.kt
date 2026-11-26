@@ -19,6 +19,7 @@ import life.neurone.core.analytics.FleetUploader
 import life.neurone.core.analytics.SealedDeviceTokenStore
 import life.neurone.core.analytics.AnalyticsBackend
 import life.neurone.core.analytics.AnalyticsErasureQueue
+import life.neurone.core.analytics.GeneralShdrConsentPrompts
 import life.neurone.core.analytics.PostHogAnalyticsBackend
 import life.neurone.core.analytics.ResearchAnalyticsGate
 import life.neurone.core.analytics.WarrantyAnalyticsGate
@@ -227,6 +228,11 @@ class AppServices(
     /** The warranty owner's records, one per helmet, apart from every user's data (`REQ-SHDR-10`). */
     val warrantyOwnerStore = WarrantyOwnerStore(keyValueStore, staging = platform.shdrStaging)
     val warrantyAnalyticsGate = WarrantyAnalyticsGate(warrantyOwnerStore)
+    /**
+     * The warranty owner's two general-consent prompts (`REQ-SHDR-12`): built on the owner's store and gate only, never on a
+     * user's consent (`CLAUDE.md` §6.0).
+     */
+    val generalShdrConsentPrompts = GeneralShdrConsentPrompts(warrantyOwnerStore, warrantyAnalyticsGate)
 
     /**
      * The SHDR fleet uploader, gated only by the warranty owner's consent (`REQ-SHDR-01`), on a host that can pin the relay's

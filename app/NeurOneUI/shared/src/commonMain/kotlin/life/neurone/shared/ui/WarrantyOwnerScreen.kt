@@ -22,6 +22,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import life.neurone.core.analytics.GeneralShdrContent
 import life.neurone.core.models.CardiacSensitivity
 import life.neurone.core.models.PauseLimit
 import life.neurone.core.models.PpxConfig
@@ -80,6 +82,14 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
     // The helmet health reports choice is the connected helmet's, and each helmet has its own (`REQ-SHDR-08`).
     val hub by gatt.hubIdentifier.collectAsState()
     var fleetOn by remember(hub) { mutableStateOf(app.warrantyAnalyticsGate.isOpen(hub)) }
+    // REQ-SHDR-12: the owner's general-consent prompt for this helmet, if one is due. It is recorded as put the first time it is
+    // shown, so it shows once per owner and helmet, and leaving it unanswered changes nothing. A prompt whose added items this
+    // build cannot all name in words is not shown and not recorded (the shipped history is held to the table by a test).
+    val prompts = app.generalShdrConsentPrompts
+    var prompt by remember(hub) {
+        mutableStateOf(prompts.due(hub)?.takeIf { p -> p.added.all { it in GENERAL_CONSENT_ITEM_NAMES } })
+    }
+    LaunchedEffect(hub, prompt) { prompt?.let { prompts.markShown(hub, it) } }
     // SWR-IND-02: the owner's stealth lock, per helmet like the reports choice.
     var stealthAllowed by remember(hub) { mutableStateOf(!app.stealthForbidden(hub)) }
 
@@ -194,6 +204,18 @@ fun WarrantyOwnerScreen(app: AppServices, onDone: () -> Unit, modifier: Modifier
         Spacer(Modifier.height(24.dp))
         OutlinedButton(onClick = onDone) { Text(stringResource(Res.string.common_back)) }
     }
+
+    prompt?.let { p ->
+        GeneralConsentPromptDialog(
+            prompt = p,
+            itemNames = p.added.map { stringResource(GENERAL_CONSENT_ITEM_NAMES.getValue(it)) },
+            onAnswer = { answer ->
+                prompts.answer(hub, p, answer)
+                prompt = null
+                fleetOn = app.warrantyAnalyticsGate.isOpen(hub)
+            },
+        )
+    }
 }
 
 /**
@@ -258,6 +280,14 @@ private fun FleetReportsSection(helmetConnected: Boolean, isOn: Boolean, onGrant
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Text(stringResource(Res.string.warranty_fleet_notice_body))
+                    Spacer(Modifier.height(8.dp))
+                    // The grant is recorded for the content set in force (REQ-SHDR-12 (d)), so the dialog says what that covers.
+                    Text(stringResource(Res.string.general_consent_baseline))
+                    val added = GeneralShdrContent.shipped.fields.mapNotNull { GENERAL_CONSENT_ITEM_NAMES[it] }
+                    if (added.isNotEmpty()) {
+                        Text(stringResource(Res.string.general_consent_added_heading))
+                        added.forEach { Text(stringResource(it), modifier = Modifier.padding(start = 16.dp)) }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = mayDecide, onCheckedChange = { mayDecide = it })
