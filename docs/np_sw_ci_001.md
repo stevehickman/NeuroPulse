@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 51
+**Revision:** 52
 **Date:** 2026-11-26  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -4561,3 +4561,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 49 | 2026-11-25 | NeurOne Tooling | **§6.20.5: step 2 (the sending account's secrets) and step 3 (a mail rule in Apple Mail and on the iPhone) are done, reported by the principal on 2026-11-25; step 6 stays open. §6.21.5 step 5: the first `main-pushes-audit` run stopped on a `TypeError` in `check-main-pushes.ts` (`jq` writes `previous_filename: null`); the script treats null as absent, with two new self-test cases; the audit's result is the next run after this merges.** |
 | 50 | 2026-11-26 | NeurOne Software Engineering | **§6.21.3, §6.21.5, new §6.21.6 and the OI-SWCI-54 row: the audit's first real read found 3 commits by the revision App that touch CLAUDE.md; the principal decided to allow CLAUDE.md beside docs/. The allowance is `allowed_paths` on the App's bypass in ci/main-ruleset.json, and the offline mode fails a pull request where it differs from the paths assign-revisions.yml stages.** |
 | 51 | 2026-11-26 | NeurOne Software Engineering | **§6.21.5 and the OI-SWCI-54 row: the first manual Build All run after #1077 passed all 6 jobs, main-pushes-audit and main-ruleset-live included. A duplicated copy of §6.21.5 is removed. No workflow, script or setting changed.** |
+| 52 | 2026-11-26 | NeurOne Software Engineering | **§6.21.4, §6.21.5 and the OI-SWCI-54 row: the log of main-ruleset-live says the bypass list is not visible to the job's token, so the weekly job does not compare the bypass entries; --require-bypass is not added; a token that can read them is open and undecided. A line in §6.21.4 that the previous revision overwrote is restored. No workflow, script or setting changed.** |
