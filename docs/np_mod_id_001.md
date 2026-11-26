@@ -406,6 +406,20 @@ Because collection is opt-in (§7.5), the relaxation is **cohort-scoped**:
 opted in, which will be the large majority of the fleet. The narrowed invariant
 describes what the schema *may* carry, not what any given device *does* carry.
 
+> **Rev {NP-MOD-ID-001 to} (2026-11-26), the principal's ruling on the Map 3 row (`NP-FW-NVRAM-001` §8.5, D-38).**
+> Delivered dose does not matter for SHDR: the helmet's dose totals never reach the fleet, opted in or not, so this
+> section and `DOSE-01` stand unchanged. Dose is kept per wavelength for the person's own app, as UHDR. The principal
+> asked SHDR instead for how much each emitter is used, as totals per emitter, and for session counts per emitter as a
+> measure of on/off switching, with consent for SHDR data coming from the warranty owner and never from individual
+> users. That is already this opt-in's subject (§7.5.1). `NP-FW-NVRAM-001` §8.5 records the totals per emitter
+> channel in the module's Map 3 row, as drive time of the class of `emitter_on_seconds` above, in Map 3's narrower
+> shape: running totals per module, never per socket per session (`NP-FW-NVRAM-001` D-18). Specified, not built
+> (`OI-NVRAM-23`). **They ride on either consent** (the principal, 2026-11-26, `OI-NVRAM-25` (b);
+> `NP-FW-NVRAM-001` D-39): the warranty owner's general SHDR consent, or this opt-in while its window is open, and the
+> Map 3 `throttle_count` likewise, by the reading of the principal's "generally". They are Map 3 totals, not
+> additions to the list above, which is unchanged. Whether the ruling also reaches this list's per-socket, per-session
+> fields is put to the principal (`OI-NVRAM-27` (a)); until then they stay under this opt-in alone.
+
 ### 7.3 Time-box and fail-closed expiry (CHAR-2)
 
 **Window:** ends at the earlier of (a) N devices × M sessions sufficient for the
@@ -420,6 +434,16 @@ asking for it.
 **Nothing is retroactive.** Data already collected cannot be un-collected. This
 asymmetry is the reason the window is bounded at adoption rather than reviewed
 "when convenient".
+
+> **Rev {NP-MOD-ID-001 to} (2026-11-26), the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The characterisation opt-in is
+> "just a time limited version of consent that, once the characterisation period ends, changes consent from 'yes' to
+> 'no'". The window's end is therefore a transition from yes to no, and it prompts the warranty owner for general SHDR
+> consent, because they may have changed their mind (`REQ-SHDR-12`, `docs/reference/data-architecture-detail.md` §5.4;
+> app build `OI-NVRAM-26`). The prompt starts at no, an unanswered prompt grants nothing, and it never re-enrols
+> characterisation (`REQ-SHDR-09`). **Superseded in part:** for Map 3's per-emitter-channel totals, temperature bands
+> and `throttle_count`, which flow under either consent, nothing stops at the window's end while general consent is in
+> force. The firmware stop above still governs §7.2's own fields, unless the principal rules otherwise (`OI-NVRAM-27`
+> (a)).
 
 ### 7.4 The review gate and its decision rule
 
@@ -472,6 +496,13 @@ stronger signal than a failure count. Folding that into warranty registration
 would have been bundled consent for a purpose the registrant never contemplated.
 A separate, affirmative, granular, revocable opt-in with a stated benefit is what
 the same reasoning asks for.
+
+> **Rev {NP-MOD-ID-001 to} (2026-11-26) — superseded in part by the principal's ruling (`NP-FW-NVRAM-001` §8.5, D-39).** The
+> argument above is kept. For Map 3's per-emitter-channel totals, temperature bands and `throttle_count`, the principal
+> ruled that both of the warranty owner's consents admit them, so they flow under the general SHDR consent given at
+> warranty registration as well as under this opt-in. Those totals are per module and running, not a per-socket,
+> per-session duty map, but a module usually stays in one socket. Whether the ruling also reaches §7.2's per-socket set,
+> which is what this argument was made about, is `OI-NVRAM-27` (a).
 
 The reciprocity is genuine rather than decorative, and it should be described as
 the honest exchange it is: the fleet model cannot personalise for a device whose
