@@ -291,13 +291,15 @@ export class UIManager {
           .filter(([, v]) => v.active)
           .map(([k]) => {
             const mc = MODALITY_COLORS[k];
-            return `<span class="mod-pill" style="--mc:${mc?.hex ?? '#aaa'}">${mc?.label ?? k}</span>`;
+            // The colour is set through the CSSOM below, not a style attribute, which the page's CSP refuses (OI-PRIV-44).
+            return `<span class="mod-pill" data-mc="${mc?.hex ?? '#aaa'}">${mc?.label ?? k}</span>`;
           })
           .join('');
         info.innerHTML = `
           <p class="prot-desc">${p.description}</p>
           <div class="prot-duration">⏱ ${this._fmtDuration(p.duration)}</div>
           <div class="prot-mods">${mods}</div>`;
+        for (const pill of info.querySelectorAll('.mod-pill[data-mc]')) pill.style.setProperty('--mc', pill.dataset.mc);
 
         // Auto-configure zones from protocol
         this._applyProtocolToZones(p);

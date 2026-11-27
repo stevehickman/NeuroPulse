@@ -185,7 +185,7 @@ class SessionGate {
 
   noteStop() { this.started = false; this.displayRunning = false; }
   noteComplete() { this.noteStop(); }
-  // A display's TELEMETRY states the session's phase (REQ-SIMFW-30): running or paused holds the session, stopped frees it.
+  // A display's TELEMETRY states the session's phase (REQ-SIMFW-31): running or paused holds the session, stopped frees it.
   noteTelemetry(t) { if (typeof t?.phase === 'string') this.displayRunning = t.phase === 'running' || t.phase === 'paused'; }
   noteDisplays(count) { if (count === 0) this.noteStop(); }
 }

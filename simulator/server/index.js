@@ -194,7 +194,7 @@ function handleMessage(ws, msg) {
     case 'FAULT':
     case 'SESSION_COMPLETE': {
       // No UHDR value reaches a controller: of TELEMETRY and SESSION_COMPLETE only the fields of NP-SIM-FW-001
-      // REQ-SIMFW-30 are relayed, whatever the display sent (OI-PRIV-42).
+      // REQ-SIMFW-31 are relayed, whatever the display sent (OI-PRIV-42).
       const out = narrowDisplayMessage(msg);
       // Only a display's report moves the session state: a controller cannot clear it by claiming the session ended.
       if (ws.role === 'display') {

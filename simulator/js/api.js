@@ -46,7 +46,7 @@ export class DeviceAPI {
    * Called from the app's RAF loop. Sends a TELEMETRY message if the server
    * is connected and at least TELEMETRY_PERIOD_MS has elapsed since the last send.
    * The message carries the session's id and phase only, never the snapshot
-   * (device-messages.js, REQ-SIMFW-30, OI-PRIV-42).
+   * (device-messages.js, REQ-SIMFW-31, OI-PRIV-42).
    *
    * @param {object} snap  - SessionEngine.snapshot() result
    * @param {number} wallTime  - seconds since page load (from RAF)
@@ -73,7 +73,7 @@ export class DeviceAPI {
 
   /**
    * Send SESSION_COMPLETE: the session's id and whether a UHDR record was written,
-   * and no UHDR or SHDR value (device-messages.js, REQ-SIMFW-30, OI-PRIV-42).
+   * and no UHDR or SHDR value (device-messages.js, REQ-SIMFW-31, OI-PRIV-42).
    */
   sendSessionComplete(sessionId) {
     if (!this._open()) return;

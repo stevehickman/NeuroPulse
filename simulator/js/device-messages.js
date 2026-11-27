@@ -1,6 +1,6 @@
 /**
  * The two messages the simulated hub sends its controllers about a session, built from nothing but what may cross the
- * device API (NP-SIM-FW-001 REQ-SIMFW-30, OI-PRIV-42).
+ * device API (NP-SIM-FW-001 REQ-SIMFW-31, OI-PRIV-42).
  *
  * No UHDR value crosses the device API (CLAUDE.md §5.1; data-architecture-detail.md §5.1): not the protocol or its
  * parameters, the modalities, the dose, the EEG, HRV or neurofeedback values, the impedance check, the adaptation

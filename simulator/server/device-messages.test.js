@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The server relays no UHDR value to a controller (NP-SIM-FW-001 REQ-SIMFW-30 (c), OI-PRIV-42).  Run: node --test server/
+ * The server relays no UHDR value to a controller (NP-SIM-FW-001 REQ-SIMFW-31 (c), OI-PRIV-42).  Run: node --test server/
  * Starts index.js in its default mode on a free port, joins a display and a controller, and has the display send the
  * messages the simulator used to send. Needs `ws` installed in simulator/server (bun install).
  */
@@ -58,8 +58,8 @@ async function next(inbox, type, ms = 5_000) {
   throw new Error(`no ${type} within ${ms} ms`);
 }
 
-// @verifies REQ-SIMFW-30#c
-test('a controller receives only the REQ-SIMFW-30 fields of a display\'s TELEMETRY and SESSION_COMPLETE', async (t) => {
+// @verifies REQ-SIMFW-31#c
+test('a controller receives only the REQ-SIMFW-31 fields of a display\'s TELEMETRY and SESSION_COMPLETE', async (t) => {
   const { child, port } = await startServer();
   t.after(() => child.kill());
   const display = await join(port, 'display');

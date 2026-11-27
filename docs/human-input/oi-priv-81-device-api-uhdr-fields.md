@@ -12,7 +12,7 @@ neurofeedback scores and the HRV time series. The in-session electrode impedance
 was ruled UHDR on 2026-11-23 (`OI-PRIV-40`).
 
 On 2026-11-27 the user chose to make the simulator's device API strict. It now sends no UHDR value
-(`NP-SIM-FW-001` `REQ-SIMFW-30`, `OI-PRIV-42`):
+(`NP-SIM-FW-001` `REQ-SIMFW-31`, `OI-PRIV-42`):
 
 - `SESSION_COMPLETE` is `{session_id, uhdr_written}`.
 - `TELEMETRY` is `{session_id, phase, hub_temp_c}`.

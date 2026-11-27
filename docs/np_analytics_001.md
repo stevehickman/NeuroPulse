@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-11-27  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -498,6 +498,13 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 `infra/posthog/read_log.py` is the part of §7.7 that does not wait on the deployment: what one entry is, how a proxied page or a ClickHouse query becomes one, and which entries raise which alert, routed how (`REQ-SW03-40`, tested by `ci/test_posthog_read_access.py`). It forwards nothing, stores nothing and sends nothing. The proxy, the forwarder, the bucket and the channel are built on it once the identity provider, the cloud provider and the alert channel are chosen (`docs/human-input/oi-priv-47-read-log-deployment.md`).
 
+**Working assumption: AWS, with Amazon Cognito as the identity provider (the user, 2026-11-27).** The company has no cloud or identity provider yet, so nothing else decided either. It may be revisited before anything is deployed. What it means for the build:
+
+- **The locked bucket** is S3 with Object Lock in compliance mode, a default retention of 12 months, and a lifecycle rule that expires each object after it. It sits in an EU region (Frankfurt or Ireland) wherever EU users are in scope (§6.3). It lives in its own AWS account under an AWS Organization, separate from any account that runs the analytics host, and the Privacy Lead is that account's only administrator.
+- **A9** reads CloudTrail for that account. It needs management events, which cover changes to the lock, retention, lifecycle or bucket policy. It also needs S3 data events for deletes and retention changes on objects; these must be switched on and cost extra.
+- **The identity provider is Amazon Cognito** (the user, 2026-11-27): a user pool in the same account as the bucket, behind `oauth2-proxy` over OIDC. It holds only the CEO-approved accounts (§7.7), and the account name is the entry's `who`. Self sign-up is off. Multi-factor sign-in is required, because the account reads every installation's timeline: NIST SP 800-63B requires two distinct authentication factors for its assurance level 2. Checking that citation against the text is tracked by `OI-PRIV-47`, as the CNIL and NCSC ones are. Cognito's own sign-in events (where its tier provides them) are the identity-provider signal B2 prefers. The proxy's own request log must be turned off, because it writes raw paths with the IDs in them; the page record comes from `read_log.from_proxy()` instead. For the same reason, a load balancer's built-in sign-in and its access logs must not be used to record pages.
+- **The alert channel is not decided.** If email to role addresses is chosen (Q3, option A), Amazon SNS can send it from the same account.
+
 **One entry** is one JSON object on one line:
 
 | Key | Holds |
@@ -523,7 +530,7 @@ The analytics store holds each installation's event timeline under its pseudonym
 | A1, A2, A3, A5, A6, A7 | One entry: an identity not on the approved list; `posthog` with origin `other`; outcome `refused`; kind `access_change`; kind `single_installation` from anyone but `np_erase`; kind `export` | Rule built |
 | A4 | PostHog's own request log showing a page the proxy did not record | No: needs the proxy |
 | A8 | No entry for `HEARTBEAT_SECONDS` × `HEARTBEAT_MISSED` (300 s × 3), or a gap in `seq`. The forwarder writes a heartbeat every 300 s whether or not anyone read anything | Rule built; the figures are `UC-221` |
-| A9 | The cloud provider's audit trail for the bucket | No: needs the cloud provider |
+| A9 | CloudTrail for the bucket's account: management events and S3 data events (AWS assumed, below) | No: the account and trail are not created |
 | A10 | `apply_project_settings.py --check` or `apply_event_retention.py --check` not exiting 0 (exit 2, unreadable, counts), or the checks not run in the last 7 days. They run once a day | Rule built; the 7-day bound follows from A10's within-the-week routing, the daily schedule is `UC-222` |
 | A11 | The erasure relay's `failed` counter rising, or resetting (a restart loses the counts in between, so a reset is raised too) | Rule built; the relay still prints its counters only at shutdown (§7.6), so it must expose them while it runs |
 
@@ -656,3 +663,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 12 | 2026-11-27 | NeurOne Software Engineering | **§6.2: a physical device goes through Caddy (the https profile) and no other way; the plain-HTTP App Transport Security option is removed, because PostHog is published on 127.0.0.1 only (OI-PRIV-50). §7.6: np_erase is admitted from the host name erase-relay only, which carries into the rebuilt stack (OI-ANALYTICS-03), checked by P11; the self-check runs with --use-aliases.** |
 | 13 | 2026-11-27 | NeurOne Software Engineering | **§7.1, §7.7, new §7.8: the retention script's ClickHouse user `np_retention` is built, and ClickHouse refuses to start without each script user's password; §7.8 specifies the read log's entry format and where each alert comes from, with the A8 heartbeat (`UC-221`) and A10's schedule (`UC-222`). Nothing is deployed (`OI-PRIV-47`).** |
 | 14 | 2026-11-27 | NeurOne Software Engineering | **§7.6 Known residues: ClickHouse's server log is bounded by size, not age (`np-privacy.xml` `<logger>` at `warning`, three archived files of 10 MB per log, `UC-223`, checked by `ci/test_posthog_infra.py` P13 with the mount); a failed query is still logged with its text; neither log is bounded by age (`OI-PRIV-46`).** |
+| 15 | 2026-11-27 | NeurOne Software Engineering | **§7.8: AWS and Amazon Cognito are the working assumptions for the read log (the user, 2026-11-27): S3 Object Lock in compliance mode in its own account, with A9 read from CloudTrail; the identity provider is Amazon Cognito behind `oauth2-proxy`, with self sign-up off and multi-factor sign-in required (NIST SP 800-63B); the alert channel stays open (`OI-PRIV-47`).** |

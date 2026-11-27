@@ -1,5 +1,5 @@
 /**
- * Tests for what the device API says about a session (NP-SIM-FW-001 REQ-SIMFW-30, OI-PRIV-42).
+ * Tests for what the device API says about a session (NP-SIM-FW-001 REQ-SIMFW-31, OI-PRIV-42).
  * Run: node --test js/device-messages.test.mjs
  */
 import test from 'node:test';
@@ -19,7 +19,7 @@ const SNAP = {
   tdcs: { active: false, intensity_ma: '0.00' },
 };
 
-// @verifies REQ-SIMFW-30#a
+// @verifies REQ-SIMFW-31#a
 test('SESSION_COMPLETE carries the session id and uhdr_written, and nothing else', () => {
   const id = newSessionId();
   const m = sessionCompleteMessage(id);
@@ -27,7 +27,7 @@ test('SESSION_COMPLETE carries the session id and uhdr_written, and nothing else
   assert.ok(!('uhdr_summary' in m) && !('shdr_summary' in m) && !('duration_s' in m));
 });
 
-// @verifies REQ-SIMFW-30#b
+// @verifies REQ-SIMFW-31#b
 test('TELEMETRY carries the session id, the phase and hub_temp_c, never the snapshot', () => {
   const id = newSessionId();
   const m = telemetryMessage(id, SNAP);
@@ -37,7 +37,7 @@ test('TELEMETRY carries the session id, the phase and hub_temp_c, never the snap
   assert.strictEqual(phaseOf(undefined), 'stopped');
 });
 
-// @verifies REQ-SIMFW-30#a
+// @verifies REQ-SIMFW-31#a
 test('the session id is random and names nothing else', () => {
   const ids = new Set(Array.from({ length: 64 }, () => newSessionId()));
   assert.strictEqual(ids.size, 64);
@@ -45,7 +45,7 @@ test('the session id is random and names nothing else', () => {
   assert.strictEqual(newSessionId(() => new Uint8Array([0, 1, 2, 3, 0xfc, 0xfd, 0xfe, 0xff])), 'sess_00010203fcfdfeff');
 });
 
-// @verifies REQ-SIMFW-30#c
+// @verifies REQ-SIMFW-31#c
 test('the server relays only those fields, whatever a display sends', () => {
   const id = newSessionId();
   // The messages as the simulator used to send them.

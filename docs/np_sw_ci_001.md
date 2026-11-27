@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 52
-**Date:** 2026-11-26  
+**Revision:** 53
+**Date:** 2026-11-27  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -2390,6 +2390,8 @@ jobs:
 
 **CodeQL does not check anything across languages.** Recorded here because it bears on what these lists can promise: each language is a separate database, so no CodeQL leg — scoped or not — checks that the firmware's C wire formats agree with the Swift, Kotlin or TypeScript code that parses them. That remains the job of the repository's own gates.
 
+**One thing is never analysed: vendored third-party code (`.github/codeql/codeql-config.yml`, 2026-11-27, `OI-PRIV-44`).** The config's `paths-ignore` excludes `simulator/vendor/**`, and nothing else. Those files are committed byte for byte from upstream (Three.js 0.164.1 and two fonts), and each one's SHA-256 is pinned (`simulator/vendor/VENDOR.md`, `NP-SIM-FW-001` `REQ-SIMFW-30` (d)). So a finding in them cannot be fixed in place, and every upstream update would raise the same findings again. The first such finding was `js/insecure-randomness` on Three.js's `MathUtils.generateUUID`, whose value names a scene object and is no secret (PR #1103). Vendored code is reviewed through its SOUP record, `NP-SOUP-SIM-001`, instead. The config is in every leg's relevance list, so an edit to it runs every leg. **An exclusion added to it later needs its reasoning written in the config and here.**
+
 ## 6. Phased rollout
 
 A permanently red required check trains reviewers to ignore it, which is worse than no check. So both workflows land reporting-only and are promoted independently as each defect closes. The two workflows are on separate tracks — the Class C safety MCU is not gated behind Class B bootloader work.
@@ -4562,3 +4564,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 50 | 2026-11-26 | NeurOne Software Engineering | **§6.21.3, §6.21.5, new §6.21.6 and the OI-SWCI-54 row: the audit's first real read found 3 commits by the revision App that touch CLAUDE.md; the principal decided to allow CLAUDE.md beside docs/. The allowance is `allowed_paths` on the App's bypass in ci/main-ruleset.json, and the offline mode fails a pull request where it differs from the paths assign-revisions.yml stages.** |
 | 51 | 2026-11-26 | NeurOne Software Engineering | **§6.21.5 and the OI-SWCI-54 row: the first manual Build All run after #1077 passed all 6 jobs, main-pushes-audit and main-ruleset-live included. A duplicated copy of §6.21.5 is removed. No workflow, script or setting changed.** |
 | 52 | 2026-11-26 | NeurOne Software Engineering | **§6.21.4, §6.21.5 and the OI-SWCI-54 row: the log of main-ruleset-live says the bypass list is not visible to the job's token, so the weekly job does not compare the bypass entries; --require-bypass is not added; a token that can read them is open and undecided. A line in §6.21.4 that the previous revision overwrote is restored. No workflow, script or setting changed.** |
+| 53 | 2026-11-27 | NeurOne Software Engineering | **§5.6: CodeQL excludes vendored third-party code, `simulator/vendor/**`, and nothing else (`.github/codeql/codeql-config.yml`, `OI-PRIV-44`). The files are pinned by hash, so a finding cannot be fixed in place; they are reviewed through `NP-SOUP-SIM-001`. The first finding was `js/insecure-randomness` on Three.js `generateUUID`, a false positive.** |

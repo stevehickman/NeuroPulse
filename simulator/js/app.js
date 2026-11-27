@@ -47,7 +47,7 @@ class NeurOneSimulator {
 
     this._lastRaf = 0;
     this._prevRunning = false;
-    this._sessionId = null;   // random, one per session; the only thing the device API says about which session (REQ-SIMFW-30)
+    this._sessionId = null;   // random, one per session; the only thing the device API says about which session (REQ-SIMFW-31)
     this._raf();
   }
 
@@ -292,7 +292,7 @@ class NeurOneSimulator {
     const snap = this._session.snapshot(wallTime);
 
     // WebSocket device API — telemetry and session-complete events. Neither carries a UHDR value, and nothing is
-    // labelled SHDR: the session's id and phase, and whether a UHDR record was written (REQ-SIMFW-30, OI-PRIV-42).
+    // labelled SHDR: the session's id and phase, and whether a UHDR record was written (REQ-SIMFW-31, OI-PRIV-42).
     if (!this._prevRunning && snap.running) this._sessionId = newSessionId();
     this._api.maybeSendTelemetry(snap, wallTime, this._sessionId);
     if (this._prevRunning && !snap.running && this._session.protocol) {
