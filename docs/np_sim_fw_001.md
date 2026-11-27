@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 60
+**Revision:** 61
 **Date:** 2026-11-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -1277,3 +1277,4 @@ refused WebSocket, because the device API server was not running.
 | 58 | 2026-11-27 | NeurOne Software Engineering | **§5 new `REQ-SIMFW-28` (loopback bind in every mode; a 403 for any Origin but a loopback one, a missing Origin let in; the D-2 container publishes on 127.0.0.1 only, not built); §7 `OI-SIMFW-07` closed: `simulator/server/origin.js`, `index.js` and `bind-origin.test.js`, run by `simulator-ci.yml`.** |
 | 59 | 2026-11-27 | NeurOne Software Engineering | **§5: new `REQ-SIMFW-29` (`OI-PRIV-43`): the device API in `simulator/server/index.js` relays a `SESSION_START` only with a signature the shared core's `ed25519Verify` accepts against the TEST key, over a 4-byte little-endian length then a domain tag and RFC 8785 canonical JSON of the descriptor, and refuses a second `SESSION_START` and a `ZONE_CONFIG` while a session runs; tested by `simulator/server/session-auth.test.js`.** |
 | 60 | 2026-11-27 | NeurOne Software Engineering | **§5, §9, new §35: `REQ-SIMFW-30` (a page the simulator serves asks no third party for anything, four parts); D-2 checked for anything that assumes a CDN (nothing); §35 records the vendored fonts and Three.js, the CSP and its reasons, and the browser check (`OI-PRIV-44`).** |
+| 61 | 2026-11-27 | NeurOne Software Engineering | **§2a requirements: REQ-SIMFW-31 added. SESSION_COMPLETE is {session_id, uhdr_written} and TELEMETRY {session_id, phase, hub_temp_c}; the server relays only those fields of a display's messages. The uhdr_summary and shdr_summary (protocol, modalities, session count, dose, HRV and neurofeedback values) and the whole-snapshot TELEMETRY are removed. Where NP-API-001 §4.3 and §4.4 name fields data-architecture-detail.md §5.1 classes UHDR, the simulator leaves them out pending OI-PRIV-81 (OI-PRIV-42, privacy review PR #974 Finding S2).** |
