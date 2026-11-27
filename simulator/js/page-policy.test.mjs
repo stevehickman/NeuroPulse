@@ -1,6 +1,6 @@
 /**
  * The simulator page asks no third party for anything, and its policy keeps it so
- * (OI-PRIV-44, REQ-SIMFW-27, NP-SIM-FW-001 §35).
+ * (OI-PRIV-44, REQ-SIMFW-28, NP-SIM-FW-001 §35).
  * Run: node --test js/page-policy.test.mjs
  */
 import test from 'node:test';
@@ -24,7 +24,7 @@ const directives = Object.fromEntries((csp ?? '').split(';').map((d) => d.trim()
 // A reference that names another origin: a scheme, or a protocol-relative `//host`.
 const foreign = (ref) => /^[a-z][a-z0-9+.-]*:/i.test(ref) || ref.startsWith('//');
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('every script, stylesheet, font and import the page names is a same-origin path', () => {
   const refs = [
     ...[...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => ['index.html', m[1]]),
@@ -45,7 +45,7 @@ test('every script, stylesheet, font and import the page names is a same-origin 
   }
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('the CSP allows same-origin scripts, styles and fonts, and the device API WebSocket only', () => {
   assert.ok(csp, 'the page carries a Content-Security-Policy');
   assert.deepStrictEqual(directives['default-src'], ["'none'"]);
@@ -65,7 +65,7 @@ test('the CSP allows same-origin scripts, styles and fonts, and the device API W
   assert.doesNotMatch(csp, /\*|'unsafe-inline'|'unsafe-eval'|https?:/);
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('nothing on the page needs what the CSP refuses: no inline script but the importmap, no style attribute', () => {
   const inline = [...html.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>/g)].map((m) => m[0]);
   assert.deepStrictEqual(inline, ['<script type="importmap">']);
@@ -75,12 +75,12 @@ test('nothing on the page needs what the CSP refuses: no inline script but the i
   }
 });
 
-// @verifies REQ-SIMFW-27#c
+// @verifies REQ-SIMFW-28#c
 test('the page sends no referrer', () => {
   assert.match(html, /<meta name="referrer" content="no-referrer">/);
 });
 
-// @verifies REQ-SIMFW-27#d
+// @verifies REQ-SIMFW-28#d
 test('every vendored file is listed in VENDOR.md with its SHA-256, and matches it', () => {
   const root = join(SIM, 'vendor');
   const listed = new Map([...read('vendor/VENDOR.md').matchAll(/^\| `([^`]+)` \| `([0-9a-f]{64})` \|$/gm)]

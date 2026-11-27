@@ -227,12 +227,13 @@ np_mu_key_t np_mu_key_port(uint8_t slot, np_hub_mod_type_t type)    { np_mu_key_
 void   np_mu_session_begin(void)                                    { UNEXPECTED(); }
 void   np_mu_mark_present(const np_mu_key_t *key)                   { (void)key; UNEXPECTED(); }
 void   np_mu_add_used(const np_mu_key_t *key, uint32_t on_ms)       { (void)key; (void)on_ms; UNEXPECTED(); }
-void   np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint32_t now_ms) { (void)slot; (void)type; (void)now_ms; UNEXPECTED(); }
+void   np_mu_slot_on(uint8_t slot, np_hub_mod_type_t type, uint8_t ch, uint32_t now_ms) { (void)slot; (void)type; (void)ch; (void)now_ms; UNEXPECTED(); }
 void   np_mu_slot_off(uint8_t slot, uint32_t now_ms)                { (void)slot; (void)now_ms; UNEXPECTED(); }
 np_hub_status_t np_mu_session_end(uint32_t session_ms)              { (void)session_ms; UNEXPECTED(); return NP_HUB_OK; }
-void   np_mu_add_dose(const np_mu_key_t *key, uint32_t mj)          { (void)key; (void)mj; UNEXPECTED(); }
+void   np_mu_add_channel_used(const np_mu_key_t *key, uint8_t ch, uint32_t ms) { (void)key; (void)ch; (void)ms; UNEXPECTED(); }
 void   np_mu_note_throttle(const np_mu_key_t *key)                  { (void)key; UNEXPECTED(); }
-uint32_t np_mu_dose_mJ_cm2(const float *d, size_t n)                { (void)d; (void)n; UNEXPECTED(); return 0U; }
+bool   np_pst_channel_usage(uint32_t i, uint8_t w, uint32_t *ms)    { (void)i; (void)w; (void)ms; UNEXPECTED(); return false; }
+uint8_t np_mod_intranasal_lit_channels(void)                        { UNEXPECTED(); return 0U; }
 bool   np_pst_get_record(uint16_t s, np_pst_socket_record_t *out)   { (void)s; (void)out; UNEXPECTED(); return false; }
 size_t np_fitting_build(uint8_t hw, const uint8_t *stamp, uint8_t *out, size_t cap) { (void)hw; (void)stamp; (void)out; (void)cap; UNEXPECTED(); return 0U; }
 void   np_log_command(const np_session_cmd_t *cmd, uint32_t session_ms, bool accepted)

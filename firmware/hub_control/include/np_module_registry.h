@@ -105,4 +105,16 @@ void np_mod_reg_shutdown_all(void);
  */
 np_hub_status_t np_mod_reg_rescan_slot(uint8_t slot);
 
+/*
+ * The emitter channels an accessory driver is driving now, for the per-channel
+ * running totals (REQ-FWHUB-93 (j); NP-FW-NVRAM-001 §3.3.1.6, OI-NVRAM-23).  Bit
+ * c is channel c in np_module_usage.h's port numbering.
+ *
+ * np_mod_intranasal_lit_channels: bit 0 left 660 nm, bit 1 left 808 nm, bit 2
+ * right 660 nm, bit 3 right 808 nm (REQ-NASAL-04).  A wavelength is lit when
+ * the last command that wrote its side gave it a current and a duty above
+ * zero; a stop, a failed command or an init lights nothing.
+ */
+uint8_t np_mod_intranasal_lit_channels(void);
+
 #endif /* NP_MODULE_REGISTRY_H */

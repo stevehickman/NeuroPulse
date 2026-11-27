@@ -56,7 +56,7 @@ The zone/protocol data (socket positions, named zones, and the full protocol lis
 
 ### Dependencies and how they are loaded
 
-Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-27`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
+Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-28`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
 
 | Library | Version | Where it is | Licence | Used for |
 |---------|---------|-------------|---------|---------|
@@ -141,6 +141,14 @@ python3 -m http.server 8080
 
 If the protocol library cannot be reached, the simulator says so on a red panel
 instead of starting with an empty or stale library.
+
+**Debug handles.** Open `http://localhost:8080/simulator/?debug=1` to get
+`window.__sim` (the whole simulator) and `window.__accessoriesInUse` in the
+devtools console, or in a test harness that drives the page. Without
+`?debug=1` (exactly that value) neither is attached: `window.__sim` reaches
+`DeviceAPI.sendFirmware`, and every script on the page, the CDN ones included,
+could otherwise read the session and send firmware commands (`REQ-SIMFW-27`,
+`OI-PRIV-45`).
 
 ### Option B — Embed in a web page
 
@@ -674,6 +682,8 @@ node index.js        # starts ws://localhost:9000
 Then open `simulator/index.html`. The **API** badge in the header turns green: **API: Connected**.
 
 If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
+
+The server's log never names a client's network address. A client's version (from `CLIENT_HELLO`) and a session's protocol ID (from `SESSION_START`) are printed only when the server is started with `NP_SIM_DEBUG=1 node index.js` (`REQ-SIMFW-27`, `OI-PRIV-45`).
 
 ### 17.2 Client roles
 
