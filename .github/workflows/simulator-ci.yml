@@ -17,6 +17,8 @@ name: Simulator CI (firmware in the loop, host only)
 #      removed from the contract or the sim layer fails until its row is written.
 #   4. `node --test` over simulator/server/*.test.js and simulator/js/*.test.mjs, with
 #      NP_SIM_FW_BIN set so the end-to-end tests run against the real firmware process and are not skipped.
+#      The device API's session gate (session-auth.test.js, REQ-SIMFW-29, OI-PRIV-43) checks signatures with the
+#      shared NPPS core as WebAssembly, so the core is built first (scripts/build-npps-wasm.sh).
 #
 # NOT in the host-test partition. The np_sim_* suites are opt-in custom-target executables, not add_test()
 # registrations, so ci/host-test-partition.txt, the NP_*_TEST_COUNT copies and ci/host-test-floors.txt
@@ -90,6 +92,11 @@ jobs:
         scripts/ci-changed-scope.sh
         scripts/check-sim-host-only.ts
         scripts/check-sim-seam-routes.ts
+        scripts/build-npps-wasm.sh
+        common/npps-core/**
+        common/npps-ffi/**
+        common/Cargo.toml
+        common/Cargo.lock
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -130,6 +137,7 @@ jobs:
           assert true  firmware/platform_sim/np_sim_seam_routes.txt
           assert true  firmware/platform/src/np_platform_stub.c
           assert true  .github/workflows/simulator-ci.yml
+          assert true  common/npps-core/src/primitives.rs
           assert false app/web/src/main.ts
           assert false docs/np_sim_fw_001.md
           assert false docs/np_sw_ci_001.md
@@ -200,10 +208,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y cmake ninja-build gcc
 
-      - name: Setup Bun
+      - name: Setup Bun and Rust
         uses: ./.github/actions/setup-toolchain
         with:
           bun: 'true'
+          rust: 'true'
+          rust-targets: wasm32-unknown-unknown
 
       # REQ-SIMFW-01 (OI-SIMFW-14). The guard's own assertions run before it is trusted: a guard that
       # passes on every tree would turn "the sim layer never reaches a device image" into a green tick.
@@ -266,6 +276,10 @@ jobs:
       - name: Install the simulator server's dependencies
         working-directory: simulator/server
         run: bun install --frozen-lockfile
+
+      # The device API's session gate verifies Ed25519 with the shared core (CLAUDE.md §22, REQ-SIMFW-29).
+      - name: Build the NPPS core as WebAssembly
+        run: scripts/build-npps-wasm.sh
 
       - name: Bridge and page tests (node --test)
         working-directory: simulator
