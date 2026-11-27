@@ -498,6 +498,13 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 `infra/posthog/read_log.py` is the part of §7.7 that does not wait on the deployment: what one entry is, how a proxied page or a ClickHouse query becomes one, and which entries raise which alert, routed how (`REQ-SW03-40`, tested by `ci/test_posthog_read_access.py`). It forwards nothing, stores nothing and sends nothing. The proxy, the forwarder, the bucket and the channel are built on it once the identity provider, the cloud provider and the alert channel are chosen (`docs/human-input/oi-priv-47-read-log-deployment.md`).
 
+**Working assumption: AWS (the user, 2026-11-27; the company has no cloud or identity provider yet, so nothing else decided it).** It may be revisited before anything is deployed. What it means for the build:
+
+- **The locked bucket** is S3 with Object Lock in compliance mode, a default retention of 12 months, and a lifecycle rule that expires each object after it. It sits in an EU region (Frankfurt or Ireland) wherever EU users are in scope (§6.3). It lives in its own AWS account under an AWS Organization, separate from any account that runs the analytics host, and the Privacy Lead is that account's only administrator.
+- **A9** reads CloudTrail for that account. It needs management events, which cover changes to the lock, retention, lifecycle or bucket policy. It also needs S3 data events for deletes and retention changes on objects; these must be switched on and cost extra.
+- **The identity provider is not decided.** There is no company directory. The proposal is an Amazon Cognito user pool with multi-factor sign-in required, behind `oauth2-proxy` over OIDC. The alternative is AWS IAM Identity Center. Either way, the proxy's own request log must be turned off, because it writes raw paths with the IDs in them; the page record comes from `read_log.from_proxy()` instead. For the same reason, a load balancer's built-in sign-in and its access logs must not be used to record pages.
+- **The alert channel is not decided.** If email to role addresses is chosen (Q3, option A), Amazon SNS can send it from the same account.
+
 **One entry** is one JSON object on one line:
 
 | Key | Holds |
@@ -523,7 +530,7 @@ The analytics store holds each installation's event timeline under its pseudonym
 | A1, A2, A3, A5, A6, A7 | One entry: an identity not on the approved list; `posthog` with origin `other`; outcome `refused`; kind `access_change`; kind `single_installation` from anyone but `np_erase`; kind `export` | Rule built |
 | A4 | PostHog's own request log showing a page the proxy did not record | No: needs the proxy |
 | A8 | No entry for `HEARTBEAT_SECONDS` × `HEARTBEAT_MISSED` (300 s × 3), or a gap in `seq`. The forwarder writes a heartbeat every 300 s whether or not anyone read anything | Rule built; the figures are `UC-221` |
-| A9 | The cloud provider's audit trail for the bucket | No: needs the cloud provider |
+| A9 | CloudTrail for the bucket's account: management events and S3 data events (AWS assumed, below) | No: the account and trail are not created |
 | A10 | `apply_project_settings.py --check` or `apply_event_retention.py --check` not exiting 0 (exit 2, unreadable, counts), or the checks not run in the last 7 days. They run once a day | Rule built; the 7-day bound follows from A10's within-the-week routing, the daily schedule is `UC-222` |
 | A11 | The erasure relay's `failed` counter rising, or resetting (a restart loses the counts in between, so a reset is raised too) | Rule built; the relay still prints its counters only at shutdown (§7.6), so it must expose them while it runs |
 

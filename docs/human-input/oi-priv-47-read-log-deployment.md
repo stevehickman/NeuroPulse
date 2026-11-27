@@ -1,6 +1,6 @@
 # OI-PRIV-47: three deployment choices for the analytics read log
 
-**Status:** DRAFT, put to the user in the session of 2026-11-26 · **From:** the session working `OI-PRIV-47` · **To:** the principal (or whoever the principal names to run the analytics stack)
+**Status:** PARTLY ANSWERED 2026-11-27: Q2 is AWS as a working assumption (the user; no cloud or identity provider exists yet). Q1 and Q3 remain open. First put to the user in the session of 2026-11-26 · **From:** the session working `OI-PRIV-47` · **To:** the principal (or whoever the principal names to run the analytics stack)
 **GitHub issue:** [#970](https://github.com/stevehickman/NeuroPulse/issues/970)
 
 ## What is already decided
@@ -21,6 +21,8 @@ The proxy signs a person in before any PostHog page loads, and it records who th
 
 **Recommendation: A**, whichever directory the company already uses. Once the proxy is built, the `who` field is that directory's account name.
 
+**Note (2026-11-27): the company has no identity provider either**, so option A has no directory to use. With AWS assumed, the proposal is an Amazon Cognito user pool with multi-factor sign-in required, behind `oauth2-proxy`. AWS IAM Identity Center is the alternative. It suits staff who also sign in to the AWS console, but it is less direct as an OIDC provider for a proxy. Whichever is chosen, `oauth2-proxy`'s own request log must be off: it writes the raw path, ID included, and the page record must come from the read-log module's redaction instead.
+
 ## Q2. Which cloud provider holds the locked bucket?
 
 The log needs write-once storage with a deletion lock that the Privacy Lead owns, in an EU region where EU users are in scope. All three providers below offer that. The policy names all three.
@@ -34,6 +36,8 @@ The log needs write-once storage with a deletion lock that the Privacy Lead owns
 **Recommendation:** the provider the company already holds an account and a data-processing agreement with, so that no new sub-processor is added. If there is none, A. The deciding fact is which agreement already exists, and the session does not know that.
 
 The bucket must sit in **a separate account or project from the analytics host**, with the Privacy Lead as its only administrator. Otherwise whoever runs the analytics host could change the lock, and A9 would be the only thing that noticed.
+
+**Answer (the user, 2026-11-27): assume AWS for now (option A).** It is recorded in `NP-ANALYTICS-001` §7.8 as a working assumption, and may be revisited before anything is deployed.
 
 **Note (2026-11-27): the company has no cloud provider yet**, so no existing agreement decides Q2. It then follows from Q1. With Microsoft 365 or Entra, choose C: the Privacy Lead administers the bucket with the account they already have. With Google Workspace, choose B for the same reason. With neither, or where the fullest A9 coverage matters most, choose A in Frankfurt or Ireland. At this log's volume, storage costs a few dollars a month or less on all three. All three are US companies and so reachable under the US CLOUD Act. The log holds no analytics ID, but it does hold staff account names. EU-owned providers with S3-compatible Object Lock (Scaleway, OVHcloud) avoid that exposure. Their audit trail for bucket-setting changes is thinner, though, and §7.7 names only S3, GCS and Azure, so choosing one would mean amending §7.7.
 
