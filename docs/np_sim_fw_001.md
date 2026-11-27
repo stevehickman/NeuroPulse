@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 59
+**Revision:** 60
 **Date:** 2026-11-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -213,6 +213,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | **`REQ-SIMFW-27`** | **The simulator hands no script on its page a handle on itself, and its server logs no client address, unless a debug flag asks (`OI-PRIV-45`).** (a) The page attaches `window.__sim` and `window.__accessoriesInUse` only when it was loaded with `?debug=1`, read once from the page's URL (`simulator/js/debug-handles.js`); without it neither is on `window`. (b) No server log line names a client's network address, and a client's version and a session's protocol ID are printed only with `NP_SIM_DEBUG=1` (`simulator/server/log-lines.js`). | (a) Any script on the page, a CDN script among them (`OI-PRIV-44`), reads session state through `window.__sim` and sends firmware commands through its `DeviceAPI.sendFirmware`. (b) Once the simulator is a test bench (`OI-SIMFW-05`, §11) its stdout is a record of which address connected when and which protocol it ran, kept by nobody's decision. | CLAUDE.md §23 (hardening against malware injection); GDPR Art. 5(1)(c) (data minimisation); `OI-PRIV-45` (privacy review PR #974, Findings S5, S6) |
 | **`REQ-SIMFW-28`** | **Only the developer's own machine, and on it only a native client or a page served from a loopback origin, reaches the simulator's device API (`OI-SIMFW-07`).** (a) The server (`simulator/server/index.js`) listens on `127.0.0.1` in every mode, with or without `NP_SIM_FW_BIN`. (b) A WebSocket upgrade is refused with HTTP 403, before any message is sent or accepted, unless it carries no `Origin` header (a native client) or its `Origin` is an `http:` or `https:` origin whose host is `localhost`, `127.0.0.1` or `[::1]`, on any port (the developer serves the page from a file server on a port they choose, `simulator/HOWTO.md` §2). `Origin: null` is refused. The rule is `simulator/server/origin.js`. (c) The `D-2` container, when built, publishes the port on the host's `127.0.0.1` only. Not built. | (a) Any host on the network joins as a controller and receives every `TELEMETRY` and `SESSION_COMPLETE`, joins as the display and feeds the controllers telemetry it made up, or, with the firmware bridge, injects faults into a process running the hub's stimulation logic. (b) Browsers apply no CORS to a WebSocket, so any page open in the developer's browser does all of (a) from the loopback address itself, and a DNS-rebinding page does it under its own name. (c) The container undoes (a) for everyone who runs it. | CWE-1327 (binding to an unrestricted IP address); CWE-1385 (missing origin validation in WebSockets); RFC 6455 §10.2 (the `Origin` header is the server's protection against an unauthorised cross-origin page); `D-2` (§9); `REQ-SIMFW-08`, `REQ-SIMFW-12` |
 | **`REQ-SIMFW-29`** | **The simulator's device API (`simulator/server/index.js`) refuses what the hub refuses (`OI-PRIV-43`; `CLAUDE.md` §4.2).** (a) A `SESSION_START` is relayed to the display only if its descriptor carries an Ed25519 signature that the shared core's `ed25519Verify` (`CLAUDE.md` §22) accepts against the TEST key; one with no signature, a malformed signature or another key's is refused with an `ERROR` and nothing reaches the display, and without the core built every one is refused. (b) The signature covers framed canonical bytes: a 4-byte little-endian length (the frame of `REQ-SIMFW-17` (a)), then the domain tag `NP-SIM-SESSION-START/1`, a zero byte and the descriptor without its `signature` as RFC 8785 canonical JSON, so the order of its keys does not change them. (c) While a session runs (one the server relayed and has not seen stopped or completed, or one a display reports running, paused or not), a second `SESSION_START` and a `ZONE_CONFIG` are refused. | (a) A client built against the simulator sends an unsigned protocol and fails on the hub, and the refusal is never exercised. (b) Two clients that build the same descriptor disagree on its signature. (c) Zones change under a running session, or a second session starts while one holds it, neither of which the hub allows. | `CLAUDE.md` §4.2 (the headset rejects an unsigned protocol); `REQ-SIMFW-17` (a), (e) (the frame, the session lease); RFC 8785 (JSON canonicalization); `REQ-SIMFW-08` (test keys only). The descriptor names a protocol by slug and is not the compiled blob the hub verifies: only the firmware-twin path (§26) carries that. The link is plain `ws://`, the `CLAUDE.md` §23 gap `OI-SIMFW-71`. |
+| **`REQ-SIMFW-30`** | **A page the simulator serves to a browser asks no third party for anything, and says so to the browser (`OI-PRIV-44`, §35).** (a) Every script, stylesheet, font and import the page names (its `src` and `href` attributes, its importmap and the `url()`s of its stylesheets) is a same-origin path to a file in the repository; a `data:` URI in a stylesheet is inline content and is the one other form allowed. (b) The page carries a Content-Security-Policy that allows scripts, styles and fonts from its own origin only, the inline importmap by its hash and nothing else inline, the compiling of WebAssembly, connections to its own origin and to the loopback WebSocket of the device API only, and nothing by default; and the page needs nothing it refuses (no other inline script, no style attribute). (c) The page sends no referrer. (d) Every vendored file is listed with its SHA-256 in `simulator/vendor/VENDOR.md`, matches it, and no unlisted file is there. | (a) Each viewer's network address, and with no referrer policy the page's URL, reach the third party on every load, without consent where the page is embedded in a marketing site (`simulator/HOWTO.md` §3 Option B). (b) A later edit brings a third-party load back and nothing refuses it; a script the page did not mean to run gets the page's access to the engine and the WebSocket (`OI-PRIV-45`, `OI-SIMFW-07`). (c) The page's URL reaches whatever it links to. (d) A vendored file changes with no record, so the copy in use is not the one whose licence and source were checked (`NP-SOUP-SIM-001`). | GDPR Art. 6(1) (a lawful basis for sending a viewer's address to Google) and Art. 44 (transfer to a third country); LG München I, 3 O 17493/20 (2022-01-20), which held loading Google Fonts this way unlawful; `OI-PRIV-44`; `NP-SOUP-SIM-001` for (d) |
 
 ---
 
@@ -334,7 +335,7 @@ traceable. None is tested yet, because nothing is built (CLAUDE.md §21).
 | | Decision | Recommended |
 |---|---|---|
 | **D-1** | Native firmware process behind the WebSocket bridge, or WebAssembly in the browser | **Native.** §2 shows WebAssembly needs a custom FreeRTOS port. |
-| ~~**D-2**~~ | ~~Keep the standalone mode (open `index.html`, no server, no native build) beside the firmware-driven mode~~ **DECIDED (the principal, 2026-11-09): retire it.** The simulator ships as one local container holding the firmware twin, the bridge and the Compose browser bundle, started with one `docker run` on the user's machine; marketing and training use that and have Docker (the principal's assumption). **Retired when the container replaces it, not before:** until then the page's standalone mode stays as it is, and nothing is deleted by this decision. The port is mapped to 127.0.0.1 only (`OI-SIMFW-07`). | — (decided) |
+| ~~**D-2**~~ | ~~Keep the standalone mode (open `index.html`, no server, no native build) beside the firmware-driven mode~~ **DECIDED (the principal, 2026-11-09): retire it.** The simulator ships as one local container holding the firmware twin, the bridge and the Compose browser bundle, started with one `docker run` on the user's machine; marketing and training use that and have Docker (the principal's assumption). **Retired when the container replaces it, not before:** until then the page's standalone mode stays as it is, and nothing is deleted by this decision. The port is mapped to 127.0.0.1 only (`OI-SIMFW-07`). **Checked 2026-11-26 for anything that assumes a CDN (`OI-PRIV-44`): nothing.** The decision names no network source; the page's fonts and Three.js, which it used to fetch from Google and jsDelivr, are now vendored in `simulator/vendor/` (§35), so the container needs no network for the page and no build step that fetches them. `REQ-SIMFW-30` binds every page the simulator serves, so the Compose browser bundle, when it is added to the container, is held to it too. | — (decided) |
 | **D-3** | A module with no injected response answers plausibly and is marked (`REQ-SIMFW-04`), or fails loudly as the trap layer does | **Plausible and marked.** A simulator that halts on the first call shows nothing. |
 
 ---
@@ -1177,6 +1178,40 @@ What a task, a tick and a timeout mean on the host was the central question, and
 
 **Scenarios** (`np_sim_hub_run_tests.c`, five): the lifecycle, a wrong credential, a changed credential, no key in any event, a bad command. The bridge test checks the whitelist.
 
+## 35. The page asks no third party for anything (`OI-PRIV-44`, `REQ-SIMFW-30`)
+
+**What changed.** The page loaded the Inter and JetBrains Mono fonts from `fonts.googleapis.com` and Three.js 0.164.1 with
+its OrbitControls addon from `cdn.jsdelivr.net`, on every load until cached. Each viewer's address, and with no referrer
+policy the page's URL, reached Google and jsDelivr, and the importmap carried no integrity metadata, so a changed file
+on the CDN would have run with the page's whole engine and its WebSocket. The files are now in `simulator/vendor/`, at
+the versions in use (Three.js 0.164.1 from the npm tarball; Inter 4.001 and JetBrains Mono 2.211, the woff2 subsets
+Google served), with a manifest of their SHA-256 sums (`simulator/vendor/VENDOR.md`) and a SOUP record
+(`NP-SOUP-SIM-001`). They are committed, and nothing builds, fetches or replaces them.
+
+**The policy.** The page carries, as `<meta>` elements because it is served by whatever static server the developer runs
+(`simulator/HOWTO.md` §2):
+
+| Directive | Value | Why |
+|-----------|-------|-----|
+| `default-src` | `'none'` | Anything not named below is refused |
+| `script-src` | `'self'`, the SHA-256 of the importmap's text, `'wasm-unsafe-eval'` | The modules; the inline importmap, which a CSP treats as an inline script; the NPPS core, which is WebAssembly (`simulator/js/vendor/npps-runtime.js`) |
+| `style-src`, `font-src` | `'self'` | The page's stylesheet and the vendored fonts. The four `style` attributes the page had, and the one `simulator/js/ui.js` wrote, are now classes or set through the CSSOM, which the CSP does not restrict |
+| `img-src` | `'self'`, `data:` | The select arrow in `css/app.css` is a `data:` SVG |
+| `connect-src` | `'self'`, `ws://localhost:9000` | The protocol library (`../protocols/predefined/`) and the device API WebSocket (`simulator/js/api.js`) |
+| `base-uri`, `form-action`, `object-src` | `'none'` | Nothing uses them |
+| referrer | `no-referrer` | The page's URL goes nowhere |
+
+**What it does not do.** `frame-ancestors` cannot be set from a `<meta>` element, so the page does not say who may
+frame it; a server or the container of D-2 can send it as a header. The CSP stops the page from loading a script from
+anywhere else; it is not what keeps the engine from the page's own scripts (the debug flag of `REQ-SIMFW-27`) or other
+pages from the WebSocket (the server's origin check of `REQ-SIMFW-28`). An edit to the importmap must change its hash in the CSP, and
+`simulator/js/page-policy.test.mjs` fails until it does.
+
+**Checked in a browser (2026-11-26, Chromium through Playwright, the repository root served on localhost):** the page
+made no request off localhost, the console reported no CSP refusal, the five font weights loaded from the vendored
+files, the 3D view drew, and choosing a protocol drew its modality pills in their colours. The one console error was the
+refused WebSocket, because the device API server was not running.
+
 ## Revision history
 
 | Rev | Date | Author | Change |
@@ -1240,3 +1275,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 57 | 2026-11-27 | NeurOne Software Engineering | **§5: REQ-SIMFW-27 added and built (OI-PRIV-45). (a) The page attaches window.__sim and window.__accessoriesInUse only when loaded with ?debug=1; (b) the server log names no client address, and prints a client's version and a session's protocol ID only with NP_SIM_DEBUG=1. Tests: simulator/js/debug-handles.test.mjs, simulator/server/log-lines.test.js.** |
 | 58 | 2026-11-27 | NeurOne Software Engineering | **§5 new `REQ-SIMFW-28` (loopback bind in every mode; a 403 for any Origin but a loopback one, a missing Origin let in; the D-2 container publishes on 127.0.0.1 only, not built); §7 `OI-SIMFW-07` closed: `simulator/server/origin.js`, `index.js` and `bind-origin.test.js`, run by `simulator-ci.yml`.** |
 | 59 | 2026-11-27 | NeurOne Software Engineering | **§5: new `REQ-SIMFW-29` (`OI-PRIV-43`): the device API in `simulator/server/index.js` relays a `SESSION_START` only with a signature the shared core's `ed25519Verify` accepts against the TEST key, over a 4-byte little-endian length then a domain tag and RFC 8785 canonical JSON of the descriptor, and refuses a second `SESSION_START` and a `ZONE_CONFIG` while a session runs; tested by `simulator/server/session-auth.test.js`.** |
+| 60 | 2026-11-27 | NeurOne Software Engineering | **§5, §9, new §35: `REQ-SIMFW-30` (a page the simulator serves asks no third party for anything, four parts); D-2 checked for anything that assumes a CDN (nothing); §35 records the vendored fonts and Three.js, the CSP and its reasons, and the browser check (`OI-PRIV-44`).** |

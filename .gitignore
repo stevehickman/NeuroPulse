@@ -12,6 +12,8 @@
 
 # ── Firmware build artifacts ───────────────────────────────────────────────────
 build/
+# The vendored Three.js keeps its upstream path (build/three.module.js); it is committed, not built (OI-PRIV-44).
+!simulator/vendor/three/build/
 firmware/build/
 firmware/*/build/
 # ARM/ELF outputs (never commit binaries)
