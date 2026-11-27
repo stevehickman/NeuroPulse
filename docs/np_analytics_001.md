@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 11
-**Date:** 2026-11-25  
+**Revision:** 12
+**Date:** 2026-11-27  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -284,30 +284,15 @@ The iOS Simulator runs on the Mac and shares its network stack. `http://localhos
 
 ### 6.2 Physical device testing on local network
 
-Option A — HTTP with NSExceptionDomains (development builds only):
-
-Add to `Info.plist`:
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSExceptionDomains</key>
-    <dict>
-        <key>192.168.x.x</key>  <!-- your Mac's LAN IP -->
-        <dict>
-            <key>NSExceptionAllowsInsecureHTTPLoads</key>
-            <true/>
-        </dict>
-    </dict>
-</dict>
-```
-
-Remove this exception before any TestFlight or App Store build.
-
-Option B — HTTPS with Caddy (recommended):
+A physical device reaches the stack through Caddy, the `https` compose profile, and no other way. PostHog's own port is published on `127.0.0.1` only (`docker-compose.yml`, checked by `ci/test_posthog_infra.py` P4), so that no client can skip Caddy's TLS: `http://<your Mac's LAN IP>:8000` does not answer from another device, and an App Transport Security exception for plain HTTP has nothing to reach. **Do not republish PostHog's port on the LAN to make plain HTTP work** (`OI-PRIV-50`); `.env.example` suggests no such address (P12).
 
 ```bash
-# Start with HTTPS profile
-POSTHOG_HOST=localhost docker compose --profile https up -d
+# Start with HTTPS profile, naming the Mac's LAN IP so Caddy issues its certificate for it
+POSTHOG_HOST=192.168.x.x docker compose --profile https up -d
+
+# In .env, so PostHog's links match what the device reaches:
+#   SITE_URL=https://192.168.x.x
+#   IS_BEHIND_PROXY=true
 
 # Install Caddy's CA into the Mac Keychain
 docker exec $(docker compose ps -q caddy) caddy trust
@@ -318,6 +303,8 @@ docker exec $(docker compose ps -q caddy) caddy trust
 # Settings → General → VPN & Device Management → Install Certificate
 # Then: Settings → General → About → Certificate Trust Settings → Enable full trust
 ```
+
+The app's host is then `https://192.168.x.x`.
 
 ### 6.3 Production / EU data residency
 
@@ -445,14 +432,14 @@ What the relay does (`OI-PRIV-48`, decided by the principal 2026-11-24, GitHub #
 - **Answers from the queue, then the store.** An ID already queued is `202`. Otherwise the relay asks ClickHouse whether any events table holds events under it (`SELECT DISTINCT distinct_id … WHERE distinct_id IN {ids:Array(String)}`, the ID bound). None is `200`: deleted, or there were none. Some is queued, on disk, and only then answered `202`. A store that cannot be read, or a queue that cannot be written, is `502`, so the app keeps the ID.
 - **Deletes in batches, in ClickHouse, not through PostHog's API.** The app sets `personProfiles = .never`, so PostHog may hold no person record for the ID, and the person-deletion call of §7.2 needs one. Every `ERASE_BATCH_SECONDS` a worker takes up to `ERASE_BATCH_MAX` queued IDs, oldest first, and runs one `ALTER TABLE … DELETE WHERE distinct_id IN {ids:Array(String)}` per table with `mutations_sync=2`, so the call returns when the rows are gone. Only then do the IDs leave the queue; a batch that fails or times out (`ERASE_MUTATION_TIMEOUT_SECONDS`) stays queued for the next. The three figures (60 s, 500, 600 s) have no derivation (`UC-210`).
 - **The app's later ask is answered from the store.** The relay keeps no list of erased IDs, so an ID that has left the queue is checked again: no events is `200`. Events that arrived after the delete (an event still in Kafka when the batch ran) are found and queued again.
-- **Connects as `np_erase`**, a ClickHouse user that may `ALTER DELETE` on the events table and read its `distinct_id` column, and nothing else: it cannot read any other column, insert or drop (`clickhouse/np-erase-user.xml`). Reading the column is what lets a later ask be answered without a list of erased IDs. **It also lets whoever holds this user's password list the pseudonymous IDs the store holds**: the price of keeping no such list (`OI-PRIV-48`).
+- **Connects as `np_erase`**, a ClickHouse user that may `ALTER DELETE` on the events table and read its `distinct_id` column, and nothing else: it cannot read any other column, insert or drop (`clickhouse/np-erase-user.xml`). Reading the column is what lets a later ask be answered without a list of erased IDs. **It also lets whoever holds this user's password list the pseudonymous IDs the store holds**: the price of keeping no such list (`OI-PRIV-48`). **ClickHouse admits the user from the relay's container only** (`OI-PRIV-50`): its `<networks>` is `<host>erase-relay</host>`, so ClickHouse resolves the relay's compose service name when a client connects and refuses any address the name does not resolve to. Another container on `analytics-internal` that has the password is refused, and a name that does not resolve admits nobody. It is a name, not a fixed address, so it needs no subnet and carries into any compose file whose relay service keeps the name and shares a network with ClickHouse, the rebuilt stack of `OI-ANALYTICS-03` included; `ci/test_posthog_infra.py` P11 finds the relay by the script it runs and fails if the file admits anything else, if the two share no network, or if another service claims the name. Not yet exercised on a live stack: the `--self-check` below is what shows ClickHouse accepts the relay by name.
 - **Keeps the pending IDs only.** The queue is one file on the `erase_queue` volume (`ERASE_QUEUE_PATH`), mode `0600`, rewritten whole and flushed to disk on each change; it holds the IDs still to be deleted and nothing else. Neither the source address (Caddy strips it, the relay logs none) nor any ID is written to a log; the counters (gone, queued, erased, refused, limited, failed) are numbers, printed at shutdown.
 
 **Order of release.** The app treats `202` as "keep the ID and go on to the next" and drops an ID only on `200` (`REQ-SW03-19` (b), built 2026-11-24). An app released before that drops on any `2xx`, so a `202` sent to it would drop an ID the store still holds. **Do not deploy this relay where such an app is still in use.**
 
-**Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm erase-relay python /app/erase_relay.py --self-check`. It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
+**Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm --use-aliases erase-relay python /app/erase_relay.py --self-check`. Without `--use-aliases`, `docker compose run` does not give its container the service name, and ClickHouse refuses `np_erase` from it (`OI-PRIV-50`). It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
 
-**Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so a batch's erased IDs can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay. An event still in Kafka when a batch runs is written afterwards; the next ask for that ID finds it and queues it again, but an ID the app has already dropped is not asked about again, so such an event stays until the TTL. **Container logs** are bounded by size, not by age (since 2026-11-25, `OI-PRIV-57`): every service in `docker-compose.yml` uses Docker's `local` driver with at most three files of 10 MB (`UC-211`, checked by `ci/test_posthog_infra.py` P10), so a quiet service can keep a line longer than the 30 days of `NP-APP-TELEMETRY-001` §5. The erasure relay writes no ID to its log (`REQ-SW03-22`), and Caddy's logs keep no address and no request header. **ClickHouse's own server log**, on the `clickhouse_log` volume, is bounded by size, not by age (since Rev {NP-ANALYTICS-001 to}, `OI-PRIV-46` (2)): the stock image logs at `trace`, which records every query's text, in ten files of 1000M per log; `clickhouse/np-privacy.xml` overrides that with a `<logger>` at `warning` (and `errorlog_level` `warning`), at most three archived files of 10 MB per log (`UC-221`, checked by `ci/test_posthog_infra.py` P11, which also checks that every ClickHouse server in the compose file mounts the override). ClickHouse's logger has no age option, so a quiet server can keep a line longer than 30 days, and **a failed query is logged at `error` with its text**, so a failed erase batch can leave its IDs there until the files rotate. **Neither log is yet bounded by age** (`OI-PRIV-46`): that waits on measuring each service's output rate or on a host setting that bounds age.
+**Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so a batch's erased IDs can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay. An event still in Kafka when a batch runs is written afterwards; the next ask for that ID finds it and queues it again, but an ID the app has already dropped is not asked about again, so such an event stays until the TTL. **Container logs** are bounded by size, not by age (since 2026-11-25, `OI-PRIV-57`): every service in `docker-compose.yml` uses Docker's `local` driver with at most three files of 10 MB (`UC-211`, checked by `ci/test_posthog_infra.py` P10), so a quiet service can keep a line longer than the 30 days of `NP-APP-TELEMETRY-001` §5. The erasure relay writes no ID to its log (`REQ-SW03-22`), and Caddy's logs keep no address and no request header. **ClickHouse's own server log**, on the `clickhouse_log` volume, is bounded by size, not by age (since Rev {NP-ANALYTICS-001 to}, `OI-PRIV-46` (2)): the stock image logs at `trace`, which records every query's text, in ten files of 1000M per log; `clickhouse/np-privacy.xml` overrides that with a `<logger>` at `warning` (and `errorlog_level` `warning`), at most three archived files of 10 MB per log (`UC-221`, checked by `ci/test_posthog_infra.py` P13, which also checks that every ClickHouse server in the compose file mounts the override). ClickHouse's logger has no age option, so a quiet server can keep a line longer than 30 days, and **a failed query is logged at `error` with its text**, so a failed erase batch can leave its IDs there until the files rotate. **Neither log is yet bounded by age** (`OI-PRIV-46`): that waits on measuring each service's output rate or on a host setting that bounds age.
 
 ### 7.7 Who may read the analytics data, and the read log (`OI-PRIV-47`, decided by the principal 2026-11-24; GitHub #970)
 
@@ -629,3 +616,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 9 | 2026-11-21 | NeurOne Software Engineering | **The network-address paragraph: the analytics proxy removes nine client-address headers before PostHog and the erasure relay, and its logs keep no request header (`OI-PRIV-51`).** |
 | 10 | 2026-11-25 | NeurOne Software Engineering | **New §7.7: the analytics access policy decided on OI-PRIV-47, with its alerts. Analytics Lead accounts approved by the CEO; separate ClickHouse users; every read recorded (PostHog through a sign-in proxy); a minimised log in write-once storage owned by the Privacy Lead, kept 12 months (CNIL 2021-122, UK NCSC); quarterly review; review records kept apart for at most 3 years. §7.6: the erasure relay's 202 for queued, decided on OI-PRIV-48 and built in both halves; the relay answers from its queue and the store and deletes in batches.** |
 | 11 | 2026-11-25 | NeurOne Software Engineering | **§7.6 Known residues: container logs are bounded by size, not age (P10, `UC-211`); ClickHouse's own server log is unbounded (`OI-PRIV-46` (2)).** |
+| 12 | 2026-11-27 | NeurOne Software Engineering | **§6.2: a physical device goes through Caddy (the https profile) and no other way; the plain-HTTP App Transport Security option is removed, because PostHog is published on 127.0.0.1 only (OI-PRIV-50). §7.6: np_erase is admitted from the host name erase-relay only, which carries into the rebuilt stack (OI-ANALYTICS-03), checked by P11; the self-check runs with --use-aliases.** |

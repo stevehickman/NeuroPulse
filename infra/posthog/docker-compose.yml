@@ -273,7 +273,9 @@ services:
   # nothing else (clickhouse/np-erase-user.xml). The queue holds pending IDs only; no address and no list of erased IDs is kept.
   # ORDER OF RELEASE: an app released before OI-PRIV-48's app half drops an ID on any 2xx, so do not run this relay where such
   # apps are in use (np_analytics_001 §7.6).
-  # NOT yet exercised against a live stack: run `docker compose run --rm erase-relay python /app/erase_relay.py --self-check`
+  # ClickHouse admits np_erase from this service's name only (clickhouse/np-erase-user.xml, OI-PRIV-50): keep the service called
+  # erase-relay and on a network ClickHouse shares, or change that file in the same change (ci/test_posthog_infra.py P11).
+  # NOT yet exercised against a live stack: run `docker compose run --rm --use-aliases erase-relay python /app/erase_relay.py --self-check`
   # (np_analytics_001 §7.6, OI-ANALYTICS-01) before relying on it.
   erase-relay:
     logging: *bounded-logging

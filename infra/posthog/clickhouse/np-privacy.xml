@@ -26,7 +26,7 @@
     level above warning. ClickHouse's logger has no age option (src/Loggers/Loggers.cpp sets no purgeAge),
     so this bounds size, not age. A failed query is logged at error level with its text, so a failed erase
     batch can still leave its IDs here: a residue named in §7.6.
-    ci/test_posthog_infra.py P11 fails without this block.
+    ci/test_posthog_infra.py P13 fails without this block.
   -->
   <logger>
     <level>warning</level>

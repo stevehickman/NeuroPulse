@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-MAN-OPS-001  
-**Revision:** 1
-**Date:** 2026-11-20  
+**Revision:** 2
+**Date:** 2026-11-27  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** NeurOne Software Engineering  
@@ -136,14 +136,14 @@ $CH --param_id "$PROBE" --query "SELECT count() FROM posthog.sharded_events WHER
 Set up a user that may insert and select, for this check only. The simplest is the `posthog` administrator already in `.env`:
 
 ```bash
-docker compose --profile https run --rm \
+docker compose --profile https run --rm --use-aliases \
   -e ERASE_CHECK_CLICKHOUSE_USER=posthog -e ERASE_CHECK_CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASSWORD" \
   erase-relay python /app/erase_relay.py --self-check
 ```
 
 The check writes a probe event under a throwaway ID, erases it through the relay's own code, and reads it back.
 
-**Pass:** it prints `self-check: 1 probe event(s) written, 0 left after the erase` and exits 0. This confirms the table name, the `np_erase` user's grant and the mutation for this version. **If it fails with a permission error:** `clickhouse/np-erase-user.xml` is not loaded or does not grant `ALTER DELETE` on the table; check that ClickHouse mounted it (`docker compose exec clickhouse ls /etc/clickhouse-server/users.d/`). **If the count after is not 0:** a mutation can lag by seconds on a loaded store; the check waits 30 seconds, so a persisting row is a real failure.
+**Pass:** it prints `self-check: 1 probe event(s) written, 0 left after the erase` and exits 0. This confirms the table name, the `np_erase` user's grant and the mutation for this version. **If it fails with a permission error:** `clickhouse/np-erase-user.xml` is not loaded or does not grant `ALTER DELETE` on the table; check that ClickHouse mounted it (`docker compose exec clickhouse ls /etc/clickhouse-server/users.d/`). **If it fails with an authentication error for `np_erase`:** ClickHouse admits that user only from an address the name `erase-relay` resolves to (`OI-PRIV-50`); check that the command carries `--use-aliases`, which gives the check's container that name. **If the count after is not 0:** a mutation can lag by seconds on a loaded store; the check waits 30 seconds, so a persisting row is a real failure.
 
 ### Step 6 · The relay answers as the app expects, through the proxy
 
@@ -249,3 +249,4 @@ Copy this table into the deployment's change log for each run of §4. **A blank 
 | Rev | Date | Author | Change |
 |-----|------|--------|--------|
 | 1 | 2026-11-20 | NeurOne Software Engineering | New document. PostHog configuration, the real-stack check for `OI-ANALYTICS-01` (2), maintenance and failure handling. Not yet exercised: every command in §4 is unrun. |
+| 2 | 2026-11-27 | NeurOne Software Engineering | **§4 step 5: the relay self-check runs with --use-aliases, because ClickHouse admits np_erase only from an address the name erase-relay resolves to (OI-PRIV-50); what an authentication error means.** |
