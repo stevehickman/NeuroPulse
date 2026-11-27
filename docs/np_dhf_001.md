@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 469
+**Revision:** 470
 **Date:** 2026-11-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,7 +79,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 469 | 2026-11-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 470 | 2026-11-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 5 | 2026-11-26 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | 226 | 2026-11-27 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
@@ -307,7 +307,7 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 6 | 2026-11-24 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
-| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 14 | 2026-11-27 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
+| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 15 | 2026-11-27 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 3 | 2026-11-26 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
