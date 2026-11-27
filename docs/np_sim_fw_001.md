@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 56
-**Date:** 2026-11-26
+**Revision:** 57
+**Date:** 2026-11-27
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
@@ -1235,3 +1235,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 54 | 2026-11-26 | NeurOne Software Engineering | **REQ-SIMFW-25 (e) and OI-SIMFW-51: np_map3_record.c is removed with the retired Map 3 journal; the scenario now checks Map 3's per-module record (np_module_usage.c).** |
 | 55 | 2026-11-26 | NeurOne Software Engineering | **`OI-SIMFW-71`: records the principal's 2026-11-26 addition to the Q8 ruling (from `OI-PRIV-27` brief §14): the clinic admin pairing is the warranty owner's and carries an Ed25519 signing key, sent in the SPAKE2 channel and kept in its table entry, for the factory-reset blob (NP-FW-HUB-001 §4.7.3). Nothing built.** |
 | 56 | 2026-11-26 | NeurOne Software Engineering | **The goggles' scenario drives at 70 Hz, outside the 3 to 60 Hz refused band (was 40 Hz, now inside it), and the refusal table names the 3 to 60 Hz zone (OI-FWHUB-37).** |
+| 57 | 2026-11-27 | NeurOne Software Engineering | **§5: REQ-SIMFW-27 added and built (OI-PRIV-45). (a) The page attaches window.__sim and window.__accessoriesInUse only when loaded with ?debug=1; (b) the server log names no client address, and prints a client's version and a session's protocol ID only with NP_SIM_DEBUG=1. Tests: simulator/js/debug-handles.test.mjs, simulator/server/log-lines.test.js.** |
