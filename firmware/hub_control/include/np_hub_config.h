@@ -338,9 +338,9 @@
  * NP_VISUAL_PPX_RISK_MIN_HZ to NP_VISUAL_PPX_RISK_MAX_HZ, 3 to 60 Hz.  The two edges are not written here: they are
  * VISUAL_HIGH_RISK_MIN_HZ / VISUAL_HIGH_RISK_MAX_HZ in common/npps/constants.json, the numbers the protocol validator and
  * the apps use, and scripts/sync-constants.ts generates them into np_app_wire_constants.h (included above), so the firmware
- * and the validator cannot disagree (OI-FWHUB-38).  The goggles refuse photic driving inside the zone until the Oz detector
+ * and the validator cannot disagree (OI-FWHUB-39).  The goggles refuse photic driving inside the zone until the Oz detector
  * exists.  The upper edge is 60 Hz, not 30, since 2026-11-25 (the principal, OI-FWHUB-37); the citations are in the JSON
- * notes and are checked by OI-FWHUB-38. */
+ * notes and are checked by OI-FWHUB-39. */
 #if !defined(NP_VISUAL_PPX_RISK_MIN_HZ) || !defined(NP_VISUAL_PPX_RISK_MAX_HZ)
 #error "np_app_wire_constants.h must define the photic zone edges: run bun scripts/sync-constants.ts"
 #endif

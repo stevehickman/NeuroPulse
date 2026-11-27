@@ -45,7 +45,7 @@ const UPPER_SNAKE = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
     seen.set(c.name, g.name);
     if (c.int && !Number.isInteger(c.value)) fail(`${g.name}.${c.name} is marked int and is ${c.value}`);
     // `firmware` sends one constant of a group the firmware does not otherwise read into np_app_wire_constants.h, so
-    // the hub has no hand-written copy to drift (OI-FWHUB-38). The firmware compares it as an unsigned whole number.
+    // the hub has no hand-written copy to drift (OI-FWHUB-39). The firmware compares it as an unsigned whole number.
     if (c.firmware) {
       if (g.targets.includes('c')) fail(`${g.name}.${c.name}: firmware is for a constant whose group has no c target`);
       if (!c.cName || !UPPER_SNAKE.test(c.cName)) fail(`${g.name}.${c.name}: a firmware constant names its C macro in an UPPER_SNAKE_CASE cName`);
@@ -159,7 +159,7 @@ function c(): string {
 
 /** The hub firmware's view of the constants it shares with the apps: GATT ids, the characteristics marked `hub`, and the base UUID in the order the ATT wire uses (least-
  *  significant byte first), so the firmware writes neither; and the single constants marked `firmware` from groups C does not otherwise get (the goggles'
- *  photic refusal zone, OI-FWHUB-38), as unsigned whole numbers. */
+ *  photic refusal zone, OI-FWHUB-39), as unsigned whole numbers. */
 function cGatt(): string {
   const g = groups.find(x => x.uuidBase && x.targets.includes('c'))!;
   const bytes = g.uuidBase!.replace(/-/g, '').match(/../g)!.reverse().map(b => `0x${b}u`);

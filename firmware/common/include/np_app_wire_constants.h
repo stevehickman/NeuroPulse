@@ -301,7 +301,7 @@
  * (inclusive): photic driving from here to VISUAL_HIGH_RISK_MAX_HZ is refused until the Oz detector is
  * built and validated (REQ-FWHUB-65, -66). Flashes faster than 3 per second are the hazard threshold
  * of the Epilepsy Foundation working group (Fisher et al., Epilepsia 2005;46:1426-41; checked by
- * OI-FWHUB-38)
+ * OI-FWHUB-39)
  */
 #define NP_VISUAL_PPX_RISK_MIN_HZ 3U
 /*
@@ -310,7 +310,7 @@
  * method tests photosensitivity up to 60 Hz, and about 49 % of photosensitive patients respond at 50
  * Hz and 15 % at 60 Hz, so 40 Hz gamma driving is inside the range (OI-FWHUB-37; Kasteleijn-Nolst
  * Trenite et al., Epilepsia 2012;53:16-24; Fisher et al., Epilepsia 2005;46:1426-41; checked by
- * OI-FWHUB-38)
+ * OI-FWHUB-39)
  */
 #define NP_VISUAL_PPX_RISK_MAX_HZ 60U
 
