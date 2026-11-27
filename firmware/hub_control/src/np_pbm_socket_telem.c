@@ -16,6 +16,7 @@
 #include "np_pbm_types.h"
 #include "np_sw02_platform_hal.h"
 #include "np_session_lease.h"      /* maintenance runs outside sessions only */
+#include "np_module_usage.h"       /* NP_MU_TILE_CH */
 #include <string.h>
 
 typedef char _np_pst_pool_matches_pbm_bound[
@@ -25,6 +26,8 @@ typedef char _np_pst_pool_matches_pbm_bound[
 typedef char _np_pst_pool_covers_every_address[
     (NP_PST_MAX_TRACKED >= NP_HEXMAP_MAX_SOCKETS) ? 1 : -1];
 typedef char _np_pst_three_wavelengths[(NP_PBM_WL_COUNT == 3U) ? 1 : -1];
+/* REQ-FWHUB-93 (j): a tile row has one channel slot per wavelength the meter integrates. */
+typedef char _np_pst_tile_channels_are_wavelengths[(NP_MU_TILE_CH == NP_PBM_WL_COUNT) ? 1 : -1];
 
 /* Wavelength index → the channel np_mod_pbm_socket_disable_channel() latches. */
 static const uint8_t WL_CH[NP_PBM_WL_COUNT] = {
@@ -47,6 +50,7 @@ typedef struct {
     np_pbm_cal_t        cal[NP_PBM_WL_COUNT];
     np_pbm_dose_state_t dose;
     uint32_t            driven_ticks;   /* dose ticks driven this session (REQ-FWHUB-93) */
+    uint32_t            ch_ticks[NP_PBM_WL_COUNT];   /* of those, the ticks each channel was lit (REQ-FWHUB-93 (j)) */
 } pst_entry_t;
 
 static pst_entry_t     s_pool[NP_PST_MAX_TRACKED];
@@ -135,6 +139,16 @@ bool np_pst_usage(uint32_t index, uint16_t *socket_id, uint32_t *on_ms)
     return true;
 }
 
+bool np_pst_channel_usage(uint32_t index, uint8_t wl, uint32_t *on_ms)
+{
+    if (index >= NP_PST_MAX_TRACKED || wl >= NP_PBM_WL_COUNT || on_ms == NULL || !s_pool[index].in_use) {
+        return false;
+    }
+    const uint32_t t = s_pool[index].ch_ticks[wl];
+    *on_ms = (t > UINT32_MAX / NP_PBM_DOSE_TICK_MS) ? UINT32_MAX : t * NP_PBM_DOSE_TICK_MS;
+    return true;
+}
+
 void np_pst_note_predrive_refusal(void)
 {
     s_counts.predrive_refusals++;
@@ -208,8 +222,13 @@ void np_pst_dose_poll(uint32_t now_ms)
         s_last_tick_ms += NP_PBM_DOSE_TICK_MS;
         for (uint32_t i = 0U; i < NP_PST_MAX_TRACKED; i++) {
             if (s_pool[i].in_use && s_pool[i].driving) {
+                /* The channels lit over the interval this tick closes, read before the tick may latch one off. */
+                const uint8_t lit = np_mod_pbm_socket_lit_channels(s_pool[i].socket_id);
                 tick_one(&s_pool[i]);
                 s_pool[i].driven_ticks++;
+                for (uint8_t w = 0U; w < NP_PBM_WL_COUNT; w++) {
+                    if ((lit & WL_CH[w]) != 0U && s_pool[i].ch_ticks[w] < UINT32_MAX) { s_pool[i].ch_ticks[w]++; }
+                }
             }
         }
     }

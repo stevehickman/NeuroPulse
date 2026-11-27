@@ -89,6 +89,9 @@ np_pbm_status_t np_pbm_drive_startup(uint8_t slot, np_pbm_drv_slot_t *drv,
     g_startup_mask   = preset->channel_mask;
     g_startup_freq_mhz = preset->freq_mhz;
     drv->ch_enable   = preset->channel_mask;
+    /* As np_pbm_drive_startup() keeps them: the currents from the preset, every duty 0 until set_duty. */
+    drv->cur[0] = preset->cur_a; drv->cur[1] = preset->cur_b; drv->cur[2] = preset->cur_c;
+    drv->duty[0] = drv->duty[1] = drv->duty[2] = 0U;
     drv->initialized = true;
     return NP_PBM_OK;
 }
@@ -104,7 +107,8 @@ np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot, np_pbm_drv_slot_t *drv,
 np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot, np_pbm_drv_slot_t *drv,
                                       uint8_t ch_mask, uint8_t duty)
 {
-    (void)slot; (void)drv;
+    (void)slot;
+    for (uint8_t c = 0U; c < 3U; c++) { if ((ch_mask & (1U << c)) != 0U) { drv->duty[c] = duty; } }   /* as the driver does */
     g_duty_mask = ch_mask;
     g_duty_last = duty;
     g_duty_writes++;
@@ -125,6 +129,7 @@ np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot, np_pbm_drv_slot_t *drv)
 {
     (void)slot;
     drv->ch_enable = 0U;
+    drv->duty[0] = drv->duty[1] = drv->duty[2] = 0U;   /* as np_pbm_drive_disable_all() */
     return NP_PBM_OK;
 }
 
@@ -257,6 +262,38 @@ static void test_base_disable_zeroes_only_that_channel(void)
           "frequency and duty are unchanged");
     check(np_mod_pbm_socket_disabled_channels(40U) == NP_PBM_CH_A_EN,
           "the latch reports CH_A");
+}
+
+/* @verifies REQ-FWHUB-93#j */
+static void test_lit_channels_follow_the_command_the_latch_and_the_stop(void)
+{
+    printf("\n[lit channels: what the socket is driving now]\n");
+    setup();
+    check(np_mod_pbm_socket_lit_channels(20U) == 0U, "an undriven socket lights nothing");
+    (void)drive_base(20U);
+    check(np_mod_pbm_socket_lit_channels(20U) == (NP_PBM_CH_A_EN | NP_PBM_CH_B_EN),
+          "a base tile driven at both currents lights 660 and 808 nm, never 1064");
+    (void)np_mod_pbm_socket_disable_channel(20U, NP_PBM_CH_A_EN);
+    check(np_mod_pbm_socket_lit_channels(20U) == NP_PBM_CH_B_EN, "a latched channel is dark");
+    (void)np_mod_pbm_socket_stop(20U);
+    check(np_mod_pbm_socket_lit_channels(20U) == 0U, "a stopped socket lights nothing");
+
+    (void)drive_smart(21U, NP_PBM_CH_B_EN | NP_PBM_CH_C_EN);
+    check(np_mod_pbm_socket_lit_channels(21U) == (NP_PBM_CH_B_EN | NP_PBM_CH_C_EN),
+          "a smart tile lights the channels its command enabled");
+    (void)np_mod_pbm_socket_disable_channel(21U, NP_PBM_CH_C_EN);
+    check(np_mod_pbm_socket_lit_channels(21U) == NP_PBM_CH_B_EN, "and not one latched since");
+
+    np_mod_pbm_smart_params_t p = smart_params(NP_PBM_CH_ALL_EN);
+    p.cur_b = 0U;
+    (void)np_mod_pbm_socket_drive(22U, NP_MOD_PBM_SMART, &p, sizeof p);
+    check(np_mod_pbm_socket_lit_channels(22U) == (NP_PBM_CH_A_EN | NP_PBM_CH_C_EN),
+          "an enabled channel at zero current is dark");
+    p = smart_params(NP_PBM_CH_ALL_EN);
+    p.duty = 0U;
+    (void)np_mod_pbm_socket_drive(23U, NP_MOD_PBM_SMART, &p, sizeof p);
+    check(np_mod_pbm_socket_lit_channels(23U) == 0U, "a duty of zero lights nothing");
+    check(np_mod_pbm_socket_lit_channels(NP_HEXMAP_MAX_SOCKETS) == 0U, "an address past the domain lights nothing");
 }
 
 /* @verifies REQ-FWHUB-59 */
@@ -504,6 +541,7 @@ int main(void)
 {
     printf("=== np_mod_pbm per-channel disable latch (OI-PBMCH-03) ===\n");
     test_base_disable_zeroes_only_that_channel();
+    test_lit_channels_follow_the_command_the_latch_and_the_stop();
     test_base_latch_survives_redrive_and_stop();
     test_base_both_channels_off();
     test_base_has_no_ch_c();

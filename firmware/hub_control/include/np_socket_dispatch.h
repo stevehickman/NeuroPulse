@@ -104,6 +104,10 @@ np_hub_status_t np_mod_pbm_socket_stop(uint16_t socket_id);
  * cleared at session load by np_sock_disp_reset(). */
 np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch_bit);
 uint8_t         np_mod_pbm_socket_disabled_channels(uint16_t socket_id);
+/* Channels the socket is driving now: enabled, current and duty not zero, not
+ * latched off (NP_PBM_CH_*_EN bits; 0 for a stopped socket).  For the
+ * per-channel running totals (REQ-FWHUB-93 (j)). */
+uint8_t         np_mod_pbm_socket_lit_channels(uint16_t socket_id);
 void            np_mod_pbm_socket_clear_channel_latches(void);
 
 /* ── API ──────────────────────────────────────────────────────────────────── */
