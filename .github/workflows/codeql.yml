@@ -86,6 +86,7 @@ jobs:
       NP_SCOPE_CPP: |
         firmware/**
         .github/workflows/codeql.yml
+        .github/codeql/codeql-config.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
@@ -100,6 +101,7 @@ jobs:
         common/cloudstore/**
         common/cloudauth/**
         .github/workflows/codeql.yml
+        .github/codeql/codeql-config.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
         scripts/ci-changed-scope.sh
@@ -110,6 +112,7 @@ jobs:
         scripts/**
         simulator/**
         .github/workflows/codeql.yml
+        .github/codeql/codeql-config.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
       NP_SCOPE_PYTHON: |
@@ -118,6 +121,7 @@ jobs:
         generate_privacy_report.py
         scripts/**
         .github/workflows/codeql.yml
+        .github/codeql/codeql-config.yml
         .github/toolchain.json
         .github/actions/setup-toolchain/**
     steps:
@@ -358,6 +362,8 @@ jobs:
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
+        # paths-ignore for vendored third-party code only (NP-SW-CI-001 §5.6, OI-PRIV-44).
+        config-file: ./.github/codeql/codeql-config.yml
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.

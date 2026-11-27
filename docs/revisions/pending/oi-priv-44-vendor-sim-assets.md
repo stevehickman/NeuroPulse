@@ -1,6 +1,9 @@
 ## DHF
 author: NeurOne Software Engineering
-text: **{NP-SIM-FW-001 from → to}; NP-SOUP-SIM-001 Rev 1 (new): the simulator page loads nothing from a third party; Three.js and the fonts are vendored, the page has a CSP and no-referrer (`OI-PRIV-44`, `REQ-SIMFW-30`).**
+text: **{NP-SIM-FW-001 from → to}, {NP-SW-CI-001 from → to}; NP-SOUP-SIM-001 Rev 1 (new): the simulator page loads nothing from a third party; Three.js and the fonts are vendored, the page has a CSP and no-referrer (`OI-PRIV-44`, `REQ-SIMFW-30`); CodeQL excludes the vendored files (NP-SW-CI-001 §5.6).**
+## NP-SW-CI-001
+author: NeurOne Software Engineering
+text: **§5.6: CodeQL excludes vendored third-party code, `simulator/vendor/**`, and nothing else (`.github/codeql/codeql-config.yml`, `OI-PRIV-44`). The files are pinned by hash, so a finding cannot be fixed in place; they are reviewed through `NP-SOUP-SIM-001`. The first finding was `js/insecure-randomness` on Three.js `generateUUID`, a false positive.**
 ## NP-SIM-FW-001
 author: NeurOne Software Engineering
 text: **§5, §9, new §35: `REQ-SIMFW-30` (a page the simulator serves asks no third party for anything, four parts); D-2 checked for anything that assumes a CDN (nothing); §35 records the vendored fonts and Three.js, the CSP and its reasons, and the browser check (`OI-PRIV-44`).**

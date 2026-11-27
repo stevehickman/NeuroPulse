@@ -60,8 +60,11 @@ The licences were read from the package's own file and from `google/fonts` (`ofl
 
 ## 4. What was not done
 
-- **No vulnerability scan.** No scan job of `NP-SOUP-KOTLIN-001` §6.2 reads `simulator/vendor/`. Three.js's public
-  advisories were not read.
+- **No vulnerability scan.** No scan job of `NP-SOUP-KOTLIN-001` §6.2 reads `simulator/vendor/`, and CodeQL excludes
+  it (`.github/codeql/codeql-config.yml`, `NP-SW-CI-001` §5.6), because a pinned file cannot be fixed in place. This record
+  is where a finding in these files is reviewed. CodeQL's one finding before the exclusion, `js/insecure-randomness` on
+  `MathUtils.generateUUID` (`Math.random()`), is a false positive: the value names a scene object for Three.js's own
+  bookkeeping and is never a token, key or session ID. Three.js's public advisories were not read.
 - **No anomaly list** for Three.js 0.164.1 beyond its release, which is not current; it is kept at the version the page
   used, and moving it is a change of its own.
 - **No check against upstream** beyond the npm tarball's registry checksum for Three.js. The font files were taken from
