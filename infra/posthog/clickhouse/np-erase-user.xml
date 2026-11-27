@@ -9,12 +9,21 @@
   drop. The column read lets whoever holds this password list the pseudonymous IDs the store holds; that is the price of keeping
   no list of erased IDs (OI-PRIV-48). The password comes from the container's environment (ERASE_CLICKHOUSE_PASSWORD, set in
   .env). The table name must match ERASE_TABLES and POSTHOG_VERSION's schema.
+
+  WHO MAY CONNECT (OI-PRIV-50): the relay's container only, by its compose service name, never an address range. ClickHouse
+  resolves a <host> name when a client connects and admits the client only if its address is one the name resolves to; in a
+  compose network the name `erase-relay` is answered by Docker's DNS with the relay's own address and nothing else, so another
+  container on analytics-internal that has this password is refused. A name that does not resolve admits nobody (fail closed).
+  A name, not a fixed address, so the rule needs no subnet and carries into any compose file whose relay service keeps this
+  name and shares a network with ClickHouse (OI-ANALYTICS-03): renaming the service means changing this line in the same
+  change. ci/test_posthog_infra.py P11 holds the two together. `docker compose run` does not give its container the service
+  name unless it is given the use-aliases option, so the relay self-check is run with that option (np_analytics_001 §7.6).
 -->
 <clickhouse>
   <users>
     <np_erase>
       <password from_env="ERASE_CLICKHOUSE_PASSWORD"/>
-      <networks><ip>::/0</ip></networks>
+      <networks><host>erase-relay</host></networks>
       <profile>default</profile>
       <quota>default</quota>
       <grants>

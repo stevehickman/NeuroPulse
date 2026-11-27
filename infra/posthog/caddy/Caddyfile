@@ -5,9 +5,9 @@
 # Disabled by default — HTTP on port 8000 is sufficient for iOS Simulator testing.
 #
 # ── When you need this ───────────────────────────────────────────────────────
-# 1. Physical device testing: iOS App Transport Security (ATS) requires HTTPS
-#    for all network connections in production builds. Debug builds can use
-#    NSExceptionDomains to permit HTTP, but HTTPS is the clean path.
+# 1. Physical device testing: iOS App Transport Security (ATS) requires HTTPS,
+#    and PostHog's own port is published on 127.0.0.1 only, so another device
+#    can reach the stack through this proxy and no other way (OI-PRIV-50).
 #
 # 2. Any deployment beyond a single developer's machine (staging, production).
 #

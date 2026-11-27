@@ -56,7 +56,7 @@ The zone/protocol data (socket positions, named zones, and the full protocol lis
 
 ### Dependencies and how they are loaded
 
-Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-28`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
+Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-29`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
 
 | Library | Version | Where it is | Licence | Used for |
 |---------|---------|-------------|---------|---------|
@@ -682,6 +682,8 @@ node index.js        # starts ws://localhost:9000
 Then open `simulator/index.html`. The **API** badge in the header turns green: **API: Connected**.
 
 If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
+
+**Who can connect** (NP-SIM-FW-001 `REQ-SIMFW-28`). The server listens on `127.0.0.1` only, so no other machine can reach it. A browser page may connect only if it was served from `http://localhost`, `http://127.0.0.1` or `http://[::1]` (any port, so the file servers of §2 work); a page from any other origin, or a `file://` page, is refused with HTTP 403. A native client that sends no `Origin` header, such as Node's `ws` in the examples below, connects as before. Set `NP_SIM_PORT` to run it on a port other than 9000.
 
 The server's log never names a client's network address. A client's version (from `CLIENT_HELLO`) and a session's protocol ID (from `SESSION_START`) are printed only when the server is started with `NP_SIM_DEBUG=1 node index.js` (`REQ-SIMFW-27`, `OI-PRIV-45`).
 
