@@ -10,7 +10,7 @@ to version control. See NP-FW-EMMC-001 Rev 1 §8.3.
 ## Signing a test descriptor
 
 Every `SESSION_START` must carry a signature: the server refuses one without, as the hub refuses an
-unsigned protocol (CLAUDE.md §4.2; `NP-SIM-FW-001` `REQ-SIMFW-28`; `OI-PRIV-43`).
+unsigned protocol (CLAUDE.md §4.2; `NP-SIM-FW-001` `REQ-SIMFW-29`; `OI-PRIV-43`).
 
 The signature is Ed25519 over **framed canonical bytes**, not over the JSON text: a 4-byte little-endian
 length, then `NP-SIM-SESSION-START/1`, a zero byte and the descriptor without `signature` as RFC 8785

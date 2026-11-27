@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The simulator device API's session gate (OI-PRIV-43, REQ-SIMFW-28).
+ * The simulator device API's session gate (OI-PRIV-43, REQ-SIMFW-29).
  *
  * The server says it speaks "the same wire protocol the NeurOne hub uses", so it refuses what the hub
  * refuses (CLAUDE.md §4.2):
