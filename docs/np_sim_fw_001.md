@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-SIM-FW-001
-**Revision:** 57
+**Revision:** 58
 **Date:** 2026-11-27
 **Status:** DRAFT
 **Effective Date:** —
@@ -1237,3 +1237,4 @@ What a task, a tick and a timeout mean on the host was the central question, and
 | 55 | 2026-11-26 | NeurOne Software Engineering | **`OI-SIMFW-71`: records the principal's 2026-11-26 addition to the Q8 ruling (from `OI-PRIV-27` brief §14): the clinic admin pairing is the warranty owner's and carries an Ed25519 signing key, sent in the SPAKE2 channel and kept in its table entry, for the factory-reset blob (NP-FW-HUB-001 §4.7.3). Nothing built.** |
 | 56 | 2026-11-26 | NeurOne Software Engineering | **The goggles' scenario drives at 70 Hz, outside the 3 to 60 Hz refused band (was 40 Hz, now inside it), and the refusal table names the 3 to 60 Hz zone (OI-FWHUB-37).** |
 | 57 | 2026-11-27 | NeurOne Software Engineering | **§5: REQ-SIMFW-27 added and built (OI-PRIV-45). (a) The page attaches window.__sim and window.__accessoriesInUse only when loaded with ?debug=1; (b) the server log names no client address, and prints a client's version and a session's protocol ID only with NP_SIM_DEBUG=1. Tests: simulator/js/debug-handles.test.mjs, simulator/server/log-lines.test.js.** |
+| 58 | 2026-11-27 | NeurOne Software Engineering | **§5 new `REQ-SIMFW-28` (loopback bind in every mode; a 403 for any Origin but a loopback one, a missing Origin let in; the D-2 container publishes on 127.0.0.1 only, not built); §7 `OI-SIMFW-07` closed: `simulator/server/origin.js`, `index.js` and `bind-origin.test.js`, run by `simulator-ci.yml`.** |
