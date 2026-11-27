@@ -23,18 +23,27 @@ renders the stack with `docker compose config` and reads the Caddyfile and .env.
       `json-file` with `max-size` and `max-file` no larger than the ceilings below, or `none`. Docker's default keeps a
       container's output with no limit, and a driver that ships logs off the host (syslog, fluentd, a cloud service)
       moves them where no bound here reaches. A size bound is not an age bound: Docker's drivers have no age option.
+  P11 the erasure relay's ClickHouse user (clickhouse/np-erase-user.xml) is admitted from the relay's container only
+      (OI-PRIV-50): its <networks> holds <host> entries and nothing else, each the compose name of the service that runs
+      erase_relay.py; that service shares a network with the ClickHouse service that mounts the file into users.d; and no
+      other service claims the name as a container_name or network alias. An <ip> range (the old ::/0) or a <host_regexp>
+      would admit any container on the internal network that has the password. The relay and ClickHouse are found by what
+      they run and mount, not by fixed service names, so the check carries into the rebuilt stack (OI-ANALYTICS-03).
+  P12 .env.example names no plain-http URL to a host other than this machine (OI-PRIV-50): PostHog's port is published on
+      127.0.0.1 only (P4), so `http://<LAN address>:8000` cannot work, and suggesting it invites rebinding PostHog to the
+      LAN over plain HTTP. Another device goes through the https profile.
 
 `--self-test` proves each check goes red on a copy broken in exactly that way. Without Docker the compose checks are reported as
-SKIPPED, and without a Docker daemon P9 is, and the run still fails if --require-docker is given (CI gives it), so a missing
+SKIPPED (P11 among them: it reads the rendered file), and without a Docker daemon P9 is, and the run still fails if --require-docker is given (CI gives it), so a missing
 Docker never reads as a pass.
 
 Run: python3 ci/test_posthog_infra.py [--self-test] [--require-docker]
 
 CI-Kind: gate
 CI-Self-Test: python3 ci/test_posthog_infra.py --self-test --require-docker
-CI-Scans: the rendered PostHog compose file, its Caddyfile and .env.example, for the privacy configuration P1-P10
-CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example
-CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile and .env.example and breaks the copy in one way, so the real files are the base the mutants are made from
+CI-Scans: the rendered PostHog compose file, its Caddyfile, .env.example and the erasure relay's ClickHouse user file, for the privacy configuration P1-P12
+CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example infra/posthog/clickhouse/np-erase-user.xml
+CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile, .env.example and ClickHouse user file and breaks the copy in one way, so the real files are the base the mutants are made from
 """
 import copy
 import json
@@ -44,6 +53,8 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
+import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 INFRA = ROOT / "infra" / "posthog"
@@ -51,6 +62,13 @@ ENV = {"SECRET_KEY": "x", "POSTGRES_PASSWORD": "x", "CLICKHOUSE_PASSWORD": "x", 
 POSTHOG_SWITCHES = {"DISABLE_MMDB": "true", "OBJECT_STORAGE_ENABLED": "false", "CAPTURE_INTERNAL_METRICS": "false", "SENTRY_DSN": ""}
 DATA_SERVICES = ("db", "redis", "zookeeper", "clickhouse", "kafka")
 PROXY = "caddy"
+# P11: the erasure relay's ClickHouse user, the file that defines it, and what identifies the relay's service and ClickHouse's.
+ERASE_USER = "np_erase"
+ERASE_USER_FILE = INFRA / "clickhouse" / "np-erase-user.xml"
+ERASE_RELAY_SCRIPT = "erase_relay.py"
+USERS_D = "/etc/clickhouse-server/users.d/"
+# P12: the hosts a plain-http URL may name: this machine.
+LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "::1")
 # P10 ceilings, per container: the figures the compose file uses, with no derivation (UC-211). Lowering one is free;
 # raising one is a register change.
 LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
@@ -219,6 +237,65 @@ def caddy_adapt_problems(text):
     return []
 
 
+def erase_user_problems(c, xml_text):
+    """P11 on the rendered compose file and the ClickHouse user file."""
+    out = []
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as e:
+        return [f"P11 {ERASE_USER_FILE.name} does not parse: {e}"]
+    user = root.find(f"users/{ERASE_USER}")
+    if user is None:
+        return [f"P11 {ERASE_USER_FILE.name} defines no {ERASE_USER} user"]
+    nets = user.find("networks")
+    if nets is None or len(nets) == 0:
+        # ClickHouse's default for a user with no <networks> is to admit it from anywhere.
+        return [f"P11 {ERASE_USER}: no <networks>, so ClickHouse admits it from any address"]
+    services = c["services"]
+    relays = [n for n, s in services.items() if any(ERASE_RELAY_SCRIPT in str(a) for a in (s.get("command") or []))]
+    if len(relays) != 1:
+        return [f"P11 the compose file has {len(relays)} services that run {ERASE_RELAY_SCRIPT} ({relays}); required exactly one"]
+    relay = relays[0]
+    hosts = []
+    for e in nets:
+        if e.tag != "host":
+            out.append(f"P11 {ERASE_USER}: <{e.tag}>{(e.text or '').strip()}</{e.tag}> admits by address or pattern; only <host>{relay}</host> may")
+            continue
+        hosts.append((e.text or "").strip())
+        if hosts[-1] != relay:
+            out.append(f"P11 {ERASE_USER}: <host>{hosts[-1]}</host> is not the erasure relay's service name ({relay})")
+    if relay not in hosts:
+        return out
+    houses = [n for n, s in services.items()
+              if any(str(v.get("source", "")).endswith(ERASE_USER_FILE.name) and str(v.get("target", "")).startswith(USERS_D)
+                     for v in (s.get("volumes") or []) if isinstance(v, dict))]
+    if len(houses) != 1:
+        out.append(f"P11 {len(houses)} services mount {ERASE_USER_FILE.name} into {USERS_D} ({houses}); required exactly one, ClickHouse")
+    else:
+        shared = set(services[houses[0]].get("networks") or {}) & set(services[relay].get("networks") or {})
+        if not shared:
+            out.append(f"P11 {relay} shares no network with {houses[0]}, so ClickHouse cannot resolve its name and the relay cannot connect")
+    for n, s in services.items():
+        if n == relay:
+            continue
+        if s.get("container_name") == relay:
+            out.append(f"P11 {n}: container_name {relay} lets it answer to the relay's name and connect as {ERASE_USER}")
+        for net, cfg in (s.get("networks") or {}).items():
+            if relay in ((cfg or {}).get("aliases") or []):
+                out.append(f"P11 {n}: network alias {relay} on {net} lets it answer to the relay's name and connect as {ERASE_USER}")
+    return out
+
+
+def env_url_problems(text):
+    """P12 on .env.example: every plain-http URL, comments included, names this machine."""
+    out = []
+    for m in re.finditer(r"http://[^\s'\"<>]+", text):
+        host = urllib.parse.urlsplit(m.group(0)).hostname or ""
+        if host not in LOOPBACK_HOSTS:
+            out.append(f"P12 .env.example suggests {m.group(0)}: PostHog is published on 127.0.0.1 only, so another device goes through the https profile")
+    return out
+
+
 def env_problems(text):
     m = re.search(r"^POSTHOG_VERSION=(.*)$", text, re.M)
     if not m:
@@ -232,12 +309,16 @@ def read():
     return (INFRA / "caddy" / "Caddyfile").read_text(), (INFRA / ".env.example").read_text()
 
 
+def read_erase_user():
+    return ERASE_USER_FILE.read_text()
+
+
 def check(require_docker):
     problems = []
     caddy, env = read()
-    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env)
+    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env) + env_url_problems(env)
     if shutil.which("docker") is None:
-        msg = "compose checks P1-P5 and the Caddy check P9 SKIPPED: docker is not installed"
+        msg = "compose checks P1-P5, P10, P11 and the Caddy check P9 SKIPPED: docker is not installed"
         if require_docker:
             problems.append(msg + " (and --require-docker was given)")
         else:
@@ -247,7 +328,7 @@ def check(require_docker):
         if code != 0:
             problems.append(f"P1 the compose file does not render: {err.strip().splitlines()[-1] if err.strip() else code}")
         else:
-            problems += compose_problems(cfg) + logging_problems(cfg)
+            problems += compose_problems(cfg) + logging_problems(cfg) + erase_user_problems(cfg, read_erase_user())
         if docker_daemon():
             problems += caddy_adapt_problems(caddy)
         elif require_docker:
@@ -287,7 +368,9 @@ def self_test(require_docker):
     expect("a filter only in a comment", caddy_log_problems(caddy.replace("request>remote_ip delete", "# request>remote_ip delete")), "P8")
     expect(".env.example pins latest", env_problems(re.sub(r"^POSTHOG_VERSION=.*$", "POSTHOG_VERSION=latest", env, flags=re.M)), "P7")
     expect(".env.example lacks the line", env_problems(re.sub(r"^POSTHOG_VERSION=.*$", "", env, flags=re.M)), "P7")
-    for label, got in (("the real Caddyfile", caddy_problems(caddy) + caddy_log_problems(caddy)), ("the real .env.example", env_problems(env))):
+    expect(".env.example suggests a LAN address over http", env_url_problems(env + "#   Physical device (local net): http://192.168.x.x:8000\n"), "P12")
+    expect(".env.example sets SITE_URL to a LAN address over http", env_url_problems(re.sub(r"^SITE_URL=.*$", "SITE_URL=http://10.0.0.5:8000", env, flags=re.M)), "P12")
+    for label, got in (("the real Caddyfile", caddy_problems(caddy) + caddy_log_problems(caddy)), ("the real .env.example", env_problems(env) + env_url_problems(env))):
         if got:
             failures.append(f"self-test: {label} should be clean but raised {got}")
 
@@ -337,6 +420,32 @@ def self_test(require_docker):
             mutate_log("PostHog keeps a larger file", lambda c: c["services"]["posthog"]["logging"]["options"].update({"max-size": "500m"}))
             mutate_log("ClickHouse keeps more files", lambda c: c["services"]["clickhouse"]["logging"]["options"].update({"max-file": "50"}))
             mutate_log("Kafka has no max-file", lambda c: c["services"]["kafka"]["logging"]["options"].pop("max-file"))
+
+            xml = read_erase_user()
+            if erase_user_problems(cfg, xml):
+                failures.append(f"self-test: the real erasure user and compose file should be clean but raised {erase_user_problems(cfg, xml)}")
+            host = "<host>erase-relay</host>"
+            for label, broken in (("np_erase from ::/0", xml.replace(host, "<ip>::/0</ip>")),
+                                  ("np_erase from the internal subnet", xml.replace(host, "<ip>172.16.0.0/12</ip>")),
+                                  ("np_erase from the relay and a range", xml.replace(host, host + "<ip>::/0</ip>")),
+                                  ("np_erase by host_regexp", xml.replace(host, "<host_regexp>.*</host_regexp>")),
+                                  ("np_erase from another service", xml.replace(host, "<host>posthog</host>")),
+                                  ("np_erase with no networks", re.sub(r"<networks>.*?</networks>", "", xml, flags=re.S)),
+                                  ("np_erase renamed away", xml.replace("<np_erase>", "<np_other>").replace("</np_erase>", "</np_other>"))):
+                expect(label, erase_user_problems(cfg, broken), "P11")
+
+            def mutate_erase(label, fn):
+                c = copy.deepcopy(cfg)
+                fn(c)
+                expect(label, erase_user_problems(c, xml), "P11")
+            def rename_relay(c):
+                c["services"]["np-relay"] = c["services"].pop("erase-relay")
+            mutate_erase("the relay renamed without the user file", rename_relay)
+            mutate_erase("the relay off ClickHouse's network", lambda c: c["services"]["erase-relay"].update(networks={"analytics-external": None}))
+            mutate_erase("PostHog aliased as the relay", lambda c: c["services"]["posthog"].update(networks={"analytics-internal": {"aliases": ["erase-relay"]}, "analytics-external": None}))
+            mutate_erase("Kafka's container named as the relay", lambda c: c["services"]["kafka"].update(container_name="erase-relay"))
+            mutate_erase("a second service runs the relay", lambda c: c["services"].update({"erase-relay-2": copy.deepcopy(c["services"]["erase-relay"])}))
+            mutate_erase("ClickHouse does not mount the user file", lambda c: c["services"]["clickhouse"].update(volumes=[v for v in c["services"]["clickhouse"]["volumes"] if "np-erase-user" not in str(v.get("source"))]))
             if logging_problems({"services": {"x": {"logging": {"driver": "none"}}}}):
                 failures.append("self-test: P10 refused the `none` driver, which keeps nothing")
     return failures
@@ -353,8 +462,8 @@ def main(argv):
     problems = check(require_docker)
     for p in problems:
         print("FAIL " + p, file=sys.stderr)
-    print("scanned: 3 files (docker-compose.yml, Caddyfile, .env.example)")
-    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P10 hold"))
+    print("scanned: 4 files (docker-compose.yml, Caddyfile, .env.example, clickhouse/np-erase-user.xml)")
+    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P12 hold"))
     return 1 if problems else 0
 
 
