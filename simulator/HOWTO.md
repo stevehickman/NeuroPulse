@@ -715,9 +715,9 @@ Identify your client by sending `CLIENT_HELLO` immediately after connecting:
 
 | Message type | Fields | Rate | Description |
 |-------------|--------|------|-------------|
-| `TELEMETRY` | `timestamp`, `snap` | 10 Hz | Full session snapshot (see §17.5). |
+| `TELEMETRY` | `session_id`, `phase`, `hub_temp_c` | 10 Hz | The session's phase, never its values (see §17.5). |
 | `FAULT` | `code`, _(modality fields)_ | On event | Simulated safety interlock. |
-| `SESSION_COMPLETE` | `uhdr_summary`, `shdr_summary` | Once | End-of-session summary. |
+| `SESSION_COMPLETE` | `session_id`, `uhdr_written` | Once | The session ended; no summary (see §17.10). |
 
 #### Server → all clients (on connect)
 
@@ -788,31 +788,22 @@ ws.send(JSON.stringify({ type: 'SESSION_START', descriptor }));
 
 From Swift or C#, compute the same bytes (`signedBytes()` above) and sign them through the app's shared core (`CLAUDE.md` §22), never with a platform library. The examples in §17.7 take a descriptor already signed this way.
 
-### 17.5 TELEMETRY snapshot format
+### 17.5 TELEMETRY message
 
 ```json
-{
-  "type": "TELEMETRY",
-  "timestamp": 1716000000000,
-  "snap": {
-    "running":  true,
-    "paused":   false,
-    "elapsed":  47.3,
-    "duration": 1200,
-    "progress": 0.039,
-    "pbm":    { "active": true, "zones": ["Frontal Left","Frontal Right"], "intensity": 0.94, "dose": { "Frontal Left": "9.3", "Frontal Right": "9.1" } },
-    "eeg":    { "active": true, "bands": { "alpha": 38.2, "theta": 29.1, "beta": 21.4, "delta": 44.5, "gamma": 15.8 },
-                "impedance": { "Fp1": "good", "F3": "marginal" }, "alphaPower": 38.2, "neurofeedbackScore": 7.1 },
-    "bes":    { "active": false, "frequency": 0, "intensity_ma": "0.00" },
-    "tdcs":   { "active": false, "intensity_ma": "0.00" },
-    "vns":    { "active": false, "coherence": 0, "rmssd": 0, "hr": 0 },
-    "audio":  { "active": true, "binaural_hz": 40, "type": "isochronic" },
-    "visual": { "active": true, "frequency": 40, "mode": "photic_driving" },
-    "tms":    { "active": false },
-    "hdtdcs": { "active": false }
-  }
-}
+{ "type": "TELEMETRY", "session_id": "sess_3f9a0c41d27be865", "phase": "running", "hub_temp_c": null }
 ```
+
+- `session_id` is random, one per session (`sess_` and 16 hex digits). It names no protocol, person, device or time.
+- `phase` is `running`, `paused` or `stopped`.
+- `hub_temp_c` is always `null`, because the simulator models no hub temperature.
+
+TELEMETRY carries no UHDR value (User Health Data Record, `CLAUDE.md` §5.1). That rules out the EEG bands, HRV,
+coherence, impedance, dose, the protocol and its parameters, and the session's time stamps and elapsed time. The
+server relays these three fields only, whatever the page sends (`NP-SIM-FW-001` `REQ-SIMFW-30`, `OI-PRIV-42`). An
+app that needs the session's own values reads them from the user's record, under the user's key, and never from the
+device API. NP-API-001 §4.4 lists more fields than these, and how the two documents are to agree is `OI-PRIV-81`. The
+page itself still draws every value on screen from its own snapshot. None of them leaves the page.
 
 ### 17.6 ZONE_CONFIG message
 
@@ -982,24 +973,13 @@ Common fault codes:
 ### 17.10 SESSION_COMPLETE message
 
 ```json
-{
-  "type": "SESSION_COMPLETE",
-  "uhdr_summary": {
-    "protocol":            "01-gamma-focus",
-    "duration_s":          1200,
-    "pbm_dose_jcm2":       { "Vault (excl. Occipital)": "96.0" },
-    "eeg_nf_score_final":  7.23,
-    "hrv_rmssd_final_ms":  44.1,
-    "hrv_coherence_final": 6.82
-  },
-  "shdr_summary": {
-    "protocol_id":         "01-gamma-focus",
-    "session_count_delta": 1,
-    "modalities_active":   ["pbm", "eeg", "visual", "audio"],
-    "sim_version":         "0.1.0-sim"
-  }
-}
+{ "type": "SESSION_COMPLETE", "session_id": "sess_3f9a0c41d27be865", "uhdr_written": false }
 ```
+
+The session's end, and nothing about it. `uhdr_written` is `false` because the page writes no UHDR record. There is
+no summary, and nothing is labelled SHDR (System Health Data Record): a protocol, its modalities and its duration
+describe the person (`docs/reference/data-architecture-detail.md` §5.1). NP-API-001 §4.3 also lists `duration_s`,
+which §5.1 classes as UHDR, so the simulator leaves it out until `OI-PRIV-81` settles it.
 
 ### 17.11 File structure
 

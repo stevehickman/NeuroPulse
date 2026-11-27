@@ -20,6 +20,7 @@ import { accessoryStates } from './accessories.js';
 import { AccessoryWindows } from './acc-windows.js';
 import { SIM_VERSION }  from './version.js';
 import { debugHandlesEnabled, setDebugHandle } from './debug-handles.js';
+import { newSessionId } from './device-messages.js';
 
 // Read once, from the URL the page was loaded with (REQ-SIMFW-27 (a), debug-handles.js).
 const DEBUG_HANDLES = debugHandlesEnabled(window.location.search);
@@ -46,6 +47,7 @@ class NeurOneSimulator {
 
     this._lastRaf = 0;
     this._prevRunning = false;
+    this._sessionId = null;   // random, one per session; the only thing the device API says about which session (REQ-SIMFW-30)
     this._raf();
   }
 
@@ -289,13 +291,12 @@ class NeurOneSimulator {
     this._session.tick();
     const snap = this._session.snapshot(wallTime);
 
-    // WebSocket device API — telemetry and session-complete events
-    this._api.maybeSendTelemetry(snap, wallTime);
+    // WebSocket device API — telemetry and session-complete events. Neither carries a UHDR value, and nothing is
+    // labelled SHDR: the session's id and phase, and whether a UHDR record was written (REQ-SIMFW-30, OI-PRIV-42).
+    if (!this._prevRunning && snap.running) this._sessionId = newSessionId();
+    this._api.maybeSendTelemetry(snap, wallTime, this._sessionId);
     if (this._prevRunning && !snap.running && this._session.protocol) {
-      this._api.sendSessionComplete(
-        this._buildUhdrSummary(snap),
-        this._buildShdrSummary(snap)
-      );
+      this._api.sendSessionComplete(this._sessionId);
     }
     this._prevRunning = snap.running;
 
@@ -337,30 +338,6 @@ class NeurOneSimulator {
 
     // Render
     this._renderer.render(this._scene, this._camera);
-  }
-
-  _buildUhdrSummary(snap) {
-    return {
-      protocol:            this._session.protocol?.id ?? null,
-      duration_s:          Math.round(snap.elapsed),
-      pbm_dose_jcm2:       snap.pbm.dose,
-      eeg_nf_score_final:  +snap.eeg.neurofeedbackScore.toFixed(2),
-      hrv_rmssd_final_ms:  +snap.vns.rmssd.toFixed(1),
-      hrv_coherence_final: +snap.vns.coherence.toFixed(2),
-    };
-  }
-
-  _buildShdrSummary(snap) {
-    const active = [];
-    for (const [key, val] of Object.entries(snap)) {
-      if (val && typeof val === 'object' && val.active === true) active.push(key);
-    }
-    return {
-      protocol_id:       this._session.protocol?.id ?? null,
-      session_count_delta: 1,
-      modalities_active: active,
-      sim_version:       SIM_VERSION,
-    };
   }
 
   _onResize() {

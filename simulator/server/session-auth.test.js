@@ -91,14 +91,14 @@ test('a second SESSION_START and a ZONE_CONFIG are refused while a session runs,
   assert.strictEqual(gate.admitStart(sign({ protocolId: '01-gamma-focus' })).code, 'SESSION_ACTIVE');
   assert.strictEqual(gate.admitZoneConfig().code, 'SESSION_ACTIVE');
 
-  gate.noteTelemetry({ running: true, paused: true });
+  gate.noteTelemetry({ phase: 'paused' });
   assert.strictEqual(gate.admitZoneConfig().code, 'SESSION_ACTIVE', 'a paused session still runs');
 
   gate.noteStop();
   assert.deepStrictEqual(gate.admitZoneConfig(), { ok: true });
 
   // A session the page started from its own controls, reported in TELEMETRY.
-  gate.noteTelemetry({ running: true });
+  gate.noteTelemetry({ phase: 'running' });
   assert.strictEqual(gate.admitZoneConfig().code, 'SESSION_ACTIVE');
   assert.strictEqual(gate.admitStart(sign(DESCRIPTOR)).code, 'SESSION_ACTIVE');
   gate.noteComplete();
@@ -106,7 +106,7 @@ test('a second SESSION_START and a ZONE_CONFIG are refused while a session runs,
 
   // A relayed session stays running though a TELEMETRY says otherwise (the display may not have taken it yet).
   assert.deepStrictEqual(gate.admitStart(sign(DESCRIPTOR)), { ok: true });
-  gate.noteTelemetry({ running: false });
+  gate.noteTelemetry({ phase: 'stopped' });
   assert.strictEqual(gate.admitZoneConfig().code, 'SESSION_ACTIVE');
 
   // With no display left, nothing runs.

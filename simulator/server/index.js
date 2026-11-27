@@ -17,6 +17,7 @@
 
 const { WebSocketServer } = require('ws');
 const { createVerifier, SessionGate } = require('./session-auth');
+const { narrowDisplayMessage } = require('./device-messages');
 
 // NP_SIM_PORT exists so a test can run the server beside a developer's own on 9000.
 const PORT = process.env.NP_SIM_PORT === undefined ? 9000 : Number(process.env.NP_SIM_PORT);
@@ -192,12 +193,15 @@ function handleMessage(ws, msg) {
     case 'TELEMETRY':
     case 'FAULT':
     case 'SESSION_COMPLETE': {
+      // No UHDR value reaches a controller: of TELEMETRY and SESSION_COMPLETE only the fields of NP-SIM-FW-001
+      // REQ-SIMFW-30 are relayed, whatever the display sent (OI-PRIV-42).
+      const out = narrowDisplayMessage(msg);
       // Only a display's report moves the session state: a controller cannot clear it by claiming the session ended.
       if (ws.role === 'display') {
-        if (msg.type === 'TELEMETRY') gate.noteTelemetry(msg.snap);
-        if (msg.type === 'SESSION_COMPLETE') gate.noteComplete();
+        if (out.type === 'TELEMETRY') gate.noteTelemetry(out);
+        if (out.type === 'SESSION_COMPLETE') gate.noteComplete();
       }
-      broadcast(msg, { exclude: ws, toRole: 'controller' });
+      broadcast(out, { exclude: ws, toRole: 'controller' });
       break;
     }
 
