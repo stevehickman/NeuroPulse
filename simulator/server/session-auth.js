@@ -163,7 +163,7 @@ class SessionGate {
   constructor(verifier) {
     this.verifier = verifier;
     this.started = false;           // relayed by this server, not yet stopped or completed
-    this.displayRunning = false;    // the last TELEMETRY from a display said running
+    this.displayRunning = false;    // the last TELEMETRY from a display said running or paused
   }
 
   get running() { return this.started || this.displayRunning; }
@@ -185,7 +185,8 @@ class SessionGate {
 
   noteStop() { this.started = false; this.displayRunning = false; }
   noteComplete() { this.noteStop(); }
-  noteTelemetry(snap) { if (typeof snap?.running === 'boolean') this.displayRunning = snap.running; }
+  // A display's TELEMETRY states the session's phase (REQ-SIMFW-31): running or paused holds the session, stopped frees it.
+  noteTelemetry(t) { if (typeof t?.phase === 'string') this.displayRunning = t.phase === 'running' || t.phase === 'paused'; }
   noteDisplays(count) { if (count === 0) this.noteStop(); }
 }
 

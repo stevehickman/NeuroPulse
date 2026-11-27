@@ -12,6 +12,7 @@
  */
 
 import { SIM_VERSION } from './version.js';
+import { telemetryMessage, sessionCompleteMessage } from './device-messages.js';
 
 const WS_URL              = 'ws://localhost:9000';
 const RECONNECT_DELAY_MS  = 5_000;
@@ -42,18 +43,21 @@ export class DeviceAPI {
   // ─── public ───────────────────────────────────────────────────────────────
 
   /**
-   * Called from the app's RAF loop. Sends a TELEMETRY snapshot if the server
+   * Called from the app's RAF loop. Sends a TELEMETRY message if the server
    * is connected and at least TELEMETRY_PERIOD_MS has elapsed since the last send.
+   * The message carries the session's id and phase only, never the snapshot
+   * (device-messages.js, REQ-SIMFW-31, OI-PRIV-42).
    *
    * @param {object} snap  - SessionEngine.snapshot() result
    * @param {number} wallTime  - seconds since page load (from RAF)
+   * @param {string|null} sessionId - the current session's random id (device-messages.js newSessionId)
    */
-  maybeSendTelemetry(snap, wallTime) {
+  maybeSendTelemetry(snap, wallTime, sessionId) {
     if (!this._open()) return;
     const nowMs = wallTime * 1000;
     if (nowMs - this._lastTelemetry < TELEMETRY_PERIOD_MS) return;
     this._lastTelemetry = nowMs;
-    this._send({ type: 'TELEMETRY', timestamp: Date.now(), snap });
+    this._send(telemetryMessage(sessionId, snap));
   }
 
   /**
@@ -68,11 +72,12 @@ export class DeviceAPI {
   }
 
   /**
-   * Send SESSION_COMPLETE with UHDR and SHDR summary objects.
+   * Send SESSION_COMPLETE: the session's id and whether a UHDR record was written,
+   * and no UHDR or SHDR value (device-messages.js, REQ-SIMFW-31, OI-PRIV-42).
    */
-  sendSessionComplete(uhdr_summary, shdr_summary) {
+  sendSessionComplete(sessionId) {
     if (!this._open()) return;
-    this._send({ type: 'SESSION_COMPLETE', uhdr_summary, shdr_summary });
+    this._send(sessionCompleteMessage(sessionId));
   }
 
   get connected() { return this._open(); }
