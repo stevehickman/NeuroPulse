@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 52
-**Date:** 2026-11-26  
+**Revision:** 53
+**Date:** 2026-11-27  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -4564,3 +4564,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 50 | 2026-11-26 | NeurOne Software Engineering | **§6.21.3, §6.21.5, new §6.21.6 and the OI-SWCI-54 row: the audit's first real read found 3 commits by the revision App that touch CLAUDE.md; the principal decided to allow CLAUDE.md beside docs/. The allowance is `allowed_paths` on the App's bypass in ci/main-ruleset.json, and the offline mode fails a pull request where it differs from the paths assign-revisions.yml stages.** |
 | 51 | 2026-11-26 | NeurOne Software Engineering | **§6.21.5 and the OI-SWCI-54 row: the first manual Build All run after #1077 passed all 6 jobs, main-pushes-audit and main-ruleset-live included. A duplicated copy of §6.21.5 is removed. No workflow, script or setting changed.** |
 | 52 | 2026-11-26 | NeurOne Software Engineering | **§6.21.4, §6.21.5 and the OI-SWCI-54 row: the log of main-ruleset-live says the bypass list is not visible to the job's token, so the weekly job does not compare the bypass entries; --require-bypass is not added; a token that can read them is open and undecided. A line in §6.21.4 that the previous revision overwrote is restored. No workflow, script or setting changed.** |
+| 53 | 2026-11-27 | NeurOne Software Engineering | **§5.6: CodeQL excludes vendored third-party code, `simulator/vendor/**`, and nothing else (`.github/codeql/codeql-config.yml`, `OI-PRIV-44`). The files are pinned by hash, so a finding cannot be fixed in place; they are reviewed through `NP-SOUP-SIM-001`. The first finding was `js/insecure-randomness` on Three.js `generateUUID`, a false positive.** |
