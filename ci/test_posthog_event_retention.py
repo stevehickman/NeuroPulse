@@ -18,7 +18,9 @@ import importlib.util
 import io
 import pathlib
 import sys
+import os
 import unittest
+import unittest.mock
 import urllib.error
 import urllib.parse
 
@@ -70,7 +72,21 @@ class FakeClickHouse:
 
 
 def store(fake):
-    return aer.ClickHouse("http://localhost:8123", "posthog", "secret", opener=fake)
+    return aer.ClickHouse("http://localhost:8123", "np_retention", "secret", opener=fake)
+
+
+def main_with(env, fake):
+    """Run the script's main() with exactly this environment, its store answered by `fake`. Returns (exit code, headers sent)."""
+    real = aer.ClickHouse
+
+    class Faked(real):
+        def __init__(self, url, user, password, opener=None):
+            super().__init__(url, user, password, opener=fake)
+
+    with unittest.mock.patch.dict(os.environ, env, clear=True), unittest.mock.patch.object(aer, "ClickHouse", Faked), \
+            unittest.mock.patch("sys.stderr", io.StringIO()), unittest.mock.patch("sys.stdout", io.StringIO()):
+        code = aer.main(["--url", "http://localhost:8123", "--check"])
+    return code, [h for _, h in fake.seen]
 
 
 def run(fake, days=30, apply=False):
@@ -143,6 +159,24 @@ class Retention(unittest.TestCase):
         with self.assertRaises(aer.RetentionError):
             aer.run(store(FakeClickHouse(30)), ["posthog.events; DROP TABLE x"], 30, False, err=io.StringIO())
 
+    # @verifies REQ-SW03-34#e
+    def test_it_runs_as_its_own_clickhouse_user_by_default(self):
+        code, headers = main_with({"RETENTION_CLICKHOUSE_PASSWORD": "secret"}, FakeClickHouse(30))
+        self.assertEqual(code, 0)
+        self.assertTrue(headers and all(h.get("X-clickhouse-user") == "np_retention" for h in headers))
+
+    # @verifies REQ-SW03-34#e
+    def test_it_refuses_posthogs_application_user_and_sends_nothing(self):
+        for name in ("posthog", " posthog "):
+            fake = FakeClickHouse(30)
+            code, headers = main_with({"RETENTION_CLICKHOUSE_USER": name, "RETENTION_CLICKHOUSE_PASSWORD": "secret"}, fake)
+            self.assertEqual((code, headers), (2, []), name)
+
+    # @verifies REQ-SW03-34#e
+    def test_the_application_password_alone_does_not_run_it(self):
+        code, headers = main_with({"CLICKHOUSE_USER": "posthog", "CLICKHOUSE_PASSWORD": "secret"}, FakeClickHouse(30))
+        self.assertEqual((code, headers), (2, []))
+
     def test_a_password_is_required_and_a_clear_text_remote_url_is_refused(self):
         self.assertEqual(aer.main(["--url", "http://localhost:8123", "--check"]), 2)
         with self.assertRaises(aer.RetentionError):
@@ -159,6 +193,7 @@ def self_test() -> int:
 
     Mutant 1: the comparison says every table is fine. Mutant 2: --apply trusts its ALTER and skips the read-back.
     Mutant 3: the policy warning is dropped (someone raises the value above 30 and is told nothing).
+    Mutant 4: the refusal of PostHog's application user is dropped (OI-PRIV-47: the script would read as PostHog in any log).
     """
     problems = []
     if run_suite() != 0:
@@ -190,6 +225,13 @@ def self_test() -> int:
             problems.append("mutant 3 (no policy warning above 30) was not caught")
     finally:
         aer.POLICY_NOTICE = real_notice
+    real_app = aer.APPLICATION_USER
+    try:
+        aer.APPLICATION_USER = "\0no such user"
+        if run_suite() == 0:
+            problems.append("mutant 4 (runs as PostHog's application user) was not caught")
+    finally:
+        aer.APPLICATION_USER = real_app
     for p in problems:
         print("FAIL self-test: " + p, file=sys.stderr)
     print("SELF-TEST " + ("FAIL" if problems else "PASS — the suite goes red on each broken script"))
