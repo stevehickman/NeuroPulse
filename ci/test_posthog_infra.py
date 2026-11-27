@@ -8,7 +8,7 @@ The stack is three compose files (OI-ANALYTICS-03; NP-ANALYTICS-001 §7.3): Post
 digests (docker-compose.pin.yml) and NeurOne's layer (docker-compose.neurone.yml), rendered together through the COMPOSE_FILE line
 of .env.example, which is what an operator's `docker compose` reads.
 
-  P1  the stack renders, and refuses to without each secret it needs (REQUIRED_SECRETS: PostHog's own file reads two of them as
+  P1  the stack renders, and refuses to without each required variable (REQUIRED_VARIABLES, names only: PostHog's own file reads two of them as
       plain $VARs, so NeurOne's layer requires them);
   P2  every service PostHog defines runs an image by sha256 digest, the pin holds (pin_posthog.py --check: the vendored PostHog
       files unedited, every service pinned, every PostHog-built image's revision the commit or an ancestor), and the two images
@@ -84,9 +84,9 @@ sys.path.insert(0, str(INFRA))
 import pin_posthog  # noqa: E402  (P2 runs the pin's own offline check)
 
 COMPOSE_FILES = ("docker-compose.hobby.yml", "docker-compose.pin.yml", "docker-compose.neurone.yml")
-REQUIRED_SECRETS = ("POSTHOG_SECRET", "ENCRYPTION_SALT_KEYS", "OBJECT_STORAGE_ACCESS_KEY_ID", "OBJECT_STORAGE_SECRET_ACCESS_KEY",
+REQUIRED_VARIABLES = ("POSTHOG_SECRET", "ENCRYPTION_SALT_KEYS", "OBJECT_STORAGE_ACCESS_KEY_ID", "OBJECT_STORAGE_SECRET_ACCESS_KEY",
                     "ERASE_CLICKHOUSE_PASSWORD", "RETENTION_CLICKHOUSE_PASSWORD")
-ENV = {**{k: "x" for k in REQUIRED_SECRETS}, "DOMAIN": "localhost", "REGISTRY_URL": "posthog/posthog", "POSTHOG_APP_TAG": "pinned",
+ENV = {**{k: "x" for k in REQUIRED_VARIABLES}, "DOMAIN": "localhost", "REGISTRY_URL": "posthog/posthog", "POSTHOG_APP_TAG": "pinned",
        "TLS_BLOCK": "", "COMPOSE_FILE": ":".join(COMPOSE_FILES)}
 POSTHOG_SWITCHES = {"DISABLE_MMDB": "true", "OPT_OUT_CAPTURE": "true", "MULTI_ORG_ENABLED": "false"}
 # P3: the images that run PostHog's Django app or its Node services (by repository, digest or tag after it).
@@ -554,10 +554,10 @@ def check(require_docker):
             problems.append("Caddy check P9 SKIPPED: no Docker daemon answers (and --require-docker was given)")
         else:
             print("Caddy check P9 SKIPPED: no Docker daemon answers")
-        # P1: it must refuse to start without each secret.
-        for var in REQUIRED_SECRETS:
-            if compose(drop=(var,))[0] == 0:
-                problems.append(f"P1 the compose file renders without {var}: it should refuse to start")
+        # P1: it must refuse to start without each required variable (only the names are printed; every value here is "x").
+        for name in REQUIRED_VARIABLES:
+            if compose(drop=(name,))[0] == 0:
+                problems.append(f"P1 the compose file renders without {name}: it should refuse to start")
     return problems
 
 
