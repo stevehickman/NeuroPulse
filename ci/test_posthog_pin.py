@@ -211,6 +211,7 @@ def main(argv):
     if "--self-test" in argv:
         return self_test()
     code = run_suite()
+    print(f"scanned: {len(PINNED)} pinned files and the version guard")
     print("posthog pin and version guard: " + ("FAIL" if code else "hold"))
     return code
 

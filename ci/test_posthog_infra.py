@@ -734,7 +734,9 @@ def main(argv):
     problems = check(require_docker)
     for p in problems:
         print("FAIL " + p, file=sys.stderr)
-    print("scanned: the three compose files and the pin, Caddyfile, .env.example, clickhouse/np-erase-user.xml, clickhouse/np-privacy.xml")
+    # Eight files: the three compose files, posthog-pin.json, the Caddyfile, .env.example and the two ClickHouse files.
+    print("scanned: 8 files (docker-compose.hobby.yml, docker-compose.pin.yml, docker-compose.neurone.yml, posthog-pin.json, "
+          "Caddyfile, .env.example, clickhouse/np-erase-user.xml, clickhouse/np-privacy.xml)")
     print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P14 hold"))
     return 1 if problems else 0
 
