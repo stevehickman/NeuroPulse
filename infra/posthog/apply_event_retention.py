@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply, or check, how long the analytics store keeps events (NP-ANALYTICS-001 §3.4 and §7.1, OI-ANALYTICS-01 (3), REQ-SW03-34).
 
-    EVENT_RETENTION_DAYS=30 CLICKHOUSE_USER=posthog CLICKHOUSE_PASSWORD=... python3 apply_event_retention.py --url http://localhost:8123 --check
+    EVENT_RETENTION_DAYS=30 RETENTION_CLICKHOUSE_PASSWORD=... python3 apply_event_retention.py --url http://localhost:8123 --check
     ... python3 apply_event_retention.py --url http://localhost:8123 --apply
 
 WHY 30. `NP-APP-TELEMETRY-001` §5 says a person who withdraws research consent has their pseudonymous analytics ID deleted
@@ -18,8 +18,14 @@ ClickHouse enforces itself when it merges parts. --check changes nothing and exi
 --apply runs `ALTER TABLE ... MODIFY TTL`, then READS THE TTL BACK and exits 0 only if it matches (a table that silently kept an
 old TTL is a failure). A TTL is removed from rows at the next merge, not at the instant it expires.
 
+WHO IT RUNS AS (OI-PRIV-47, np_analytics_001 §7.7, REQ-SW03-34 (e)). Its own ClickHouse user, `np_retention`
+(clickhouse/np-retention-user.xml), which may read system.tables and change the events table's TTL and nothing else. The user is
+RETENTION_CLICKHOUSE_USER (default np_retention) and the password RETENTION_CLICKHOUSE_PASSWORD. It refuses to run as `posthog`,
+PostHog's application user: every script and operator has a user of its own, so that the read log can say who read what, and the
+application's credential is used by the application alone.
+
 Exit codes: 0 every table is as required; 1 a table differs (named on stderr); 2 the store could not be read or changed (no
-password, a refused request, an unreachable host, an answer with no TTL to read). Anything that cannot be read counts as not met.
+password, PostHog's own user named, a refused request, an unreachable host, an answer with no TTL to read). Anything that cannot be read counts as not met.
 
 NOT YET EXERCISED AGAINST A REAL POSTHOG STACK (OI-ANALYTICS-01 (2)): the table name (posthog.sharded_events) is the single-node
 self-host's and must be checked against POSTHOG_VERSION; a PostHog upgrade that recreates the table drops the TTL, so run --check
@@ -38,6 +44,10 @@ POLICY_DAYS = 30
 DEFAULT_DAYS = 30
 MAX_DAYS = 365
 DEFAULT_TABLES = ("posthog.sharded_events",)
+# The script's own ClickHouse user (clickhouse/np-retention-user.xml), and PostHog's application user, which it must never use
+# (np_analytics_001 §7.7: PostHog's application and every script and operator are separate ClickHouse users).
+DEFAULT_USER = "np_retention"
+APPLICATION_USER = "posthog"
 TIMEOUT_SECONDS = 30
 TABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
 TTL_IN_DDL = re.compile(r"\bTTL\s+toDate\(timestamp\)\s*\+\s*toIntervalDay\((\d+)\)")
@@ -144,10 +154,14 @@ def main(argv) -> int:
     args = ap.parse_args(argv)
     try:
         days = parse_days(args.days if args.days is not None else os.environ.get("EVENT_RETENTION_DAYS", DEFAULT_DAYS))
-        password = os.environ.get("CLICKHOUSE_PASSWORD")
+        user = os.environ.get("RETENTION_CLICKHOUSE_USER", DEFAULT_USER).strip()
+        if user == APPLICATION_USER:
+            raise RetentionError(f"refusing to run as {APPLICATION_USER!r}, PostHog's own ClickHouse user: this script has its own "
+                                 f"({DEFAULT_USER}, np_analytics_001 §7.7)")
+        password = os.environ.get("RETENTION_CLICKHOUSE_PASSWORD")
         if not password:
-            raise RetentionError("CLICKHOUSE_PASSWORD is not set")
-        store = ClickHouse(args.url, os.environ.get("CLICKHOUSE_USER", "posthog"), password)
+            raise RetentionError("RETENTION_CLICKHOUSE_PASSWORD is not set")
+        store = ClickHouse(args.url, user, password)
         return run(store, [t.strip() for t in args.tables.split(",") if t.strip()], days, args.apply)
     except RetentionError as e:
         print(f"error: {e}", file=sys.stderr)

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-MAN-OPS-001  
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-11-27  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -61,7 +61,7 @@ Do these once for a new stack, and again for a stack that has been recreated, in
    python3 infra/posthog/apply_event_retention.py --url http://<clickhouse> --apply
    python3 infra/posthog/apply_event_retention.py --url http://<clickhouse> --check
    ```
-   (It reads `CLICKHOUSE_PASSWORD`, and `EVENT_RETENTION_DAYS` from the environment; export both from `.env`.)
+   (It reads `RETENTION_CLICKHOUSE_PASSWORD` and `EVENT_RETENTION_DAYS` from the environment; export both from `.env`. It runs as its own ClickHouse user, `np_retention`, and refuses to run as `posthog`: `NP-ANALYTICS-001` §7.7. Do not give it PostHog's `CLICKHOUSE_PASSWORD`.)
 7. **Person retention, by hand** (`NP-ANALYTICS-001` §3.4, the note under the retention table). Nothing checks it, so record it in the change log.
 8. **Heatmaps, web analytics and the Property Filter app** (`NP-ANALYTICS-001` §3.4 and §4). Not covered by any script; do them by hand and verify the denylist as `NP-ANALYTICS-001` §4.4 says.
 
@@ -250,3 +250,4 @@ Copy this table into the deployment's change log for each run of §4. **A blank 
 |-----|------|--------|--------|
 | 1 | 2026-11-20 | NeurOne Software Engineering | New document. PostHog configuration, the real-stack check for `OI-ANALYTICS-01` (2), maintenance and failure handling. Not yet exercised: every command in §4 is unrun. |
 | 2 | 2026-11-27 | NeurOne Software Engineering | **§4 step 5: the relay self-check runs with --use-aliases, because ClickHouse admits np_erase only from an address the name erase-relay resolves to (OI-PRIV-50); what an authentication error means.** |
+| 3 | 2026-11-27 | NeurOne Software Engineering | **§3 step 6: the retention script reads `RETENTION_CLICKHOUSE_PASSWORD` and runs as `np_retention`, not with PostHog's ClickHouse password (`OI-PRIV-47`).** |

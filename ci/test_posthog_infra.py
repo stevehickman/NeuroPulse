@@ -65,7 +65,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 INFRA = ROOT / "infra" / "posthog"
-ENV = {"SECRET_KEY": "x", "POSTGRES_PASSWORD": "x", "CLICKHOUSE_PASSWORD": "x", "ERASE_CLICKHOUSE_PASSWORD": "x", "POSTHOG_VERSION": "release-test"}
+ENV = {"SECRET_KEY": "x", "POSTGRES_PASSWORD": "x", "CLICKHOUSE_PASSWORD": "x", "ERASE_CLICKHOUSE_PASSWORD": "x", "RETENTION_CLICKHOUSE_PASSWORD": "x", "POSTHOG_VERSION": "release-test"}
 POSTHOG_SWITCHES = {"DISABLE_MMDB": "true", "OBJECT_STORAGE_ENABLED": "false", "CAPTURE_INTERNAL_METRICS": "false", "SENTRY_DSN": ""}
 DATA_SERVICES = ("db", "redis", "zookeeper", "clickhouse", "kafka")
 PROXY = "caddy"
@@ -82,7 +82,7 @@ LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 LOG_MAX_FILES = 3
 LOG_DRIVERS_BOUNDED = ("local", "json-file")
 # P13 ceilings for ClickHouse's server log, per log file (clickhouse-server.log and .err.log): the figures np-privacy.xml
-# uses, with no derivation (UC-221). Lowering one is free; raising one is a register change.
+# uses, with no derivation (UC-223). Lowering one is free; raising one is a register change.
 CH_LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 CH_LOG_MAX_COUNT = 3
 # Poco's level names from `warning` down: anything here keeps no information, debug or trace line, and so no query text
@@ -204,12 +204,12 @@ def clickhouse_logger_problems(text):
     if size is None or size <= 0:
         out.append(f"P13 <logger><size> is {lg.findtext('size')!r}, not a size bound")
     elif size > CH_LOG_MAX_SIZE_BYTES:
-        out.append(f"P13 <logger><size> {lg.findtext('size').strip()} is over the {CH_LOG_MAX_SIZE_BYTES // 1024 ** 2}M ceiling (UC-221)")
+        out.append(f"P13 <logger><size> {lg.findtext('size').strip()} is over the {CH_LOG_MAX_SIZE_BYTES // 1024 ** 2}M ceiling (UC-223)")
     count = (lg.findtext("count") or "").strip()
     if not count.isdigit() or int(count) < 1:
         out.append(f"P13 <logger><count> is {lg.findtext('count')!r}, not a file count")
     elif int(count) > CH_LOG_MAX_COUNT:
-        out.append(f"P13 <logger><count> {count} is over the ceiling of {CH_LOG_MAX_COUNT} (UC-221)")
+        out.append(f"P13 <logger><count> {count} is over the ceiling of {CH_LOG_MAX_COUNT} (UC-223)")
     if (lg.findtext("use_syslog") or "").strip().lower() in ("1", "true", "yes"):
         out.append("P13 <logger><use_syslog> is on: syslog takes the log where no bound here reaches")
     levels = lg.find("levels")
