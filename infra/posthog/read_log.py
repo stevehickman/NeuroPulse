@@ -35,8 +35,8 @@ other segment with ":id", so a page whose path carries an ID is recorded as its 
 version is recorded as ":id" until it joins ROUTE_WORDS: over-redaction, never a leak. `validate()` refuses an entry that breaks
 any of this, so a forwarder built on this module cannot write one.
 
-NOT YET EXERCISED AGAINST A REAL STACK: ROUTE_WORDS is PostHog's route vocabulary as far as known, to be checked against the pinned
-POSTHOG_VERSION when the proxy is built; the query-log columns are ClickHouse 23.12's.
+NOT YET EXERCISED AGAINST A REAL STACK: ROUTE_WORDS is PostHog's route vocabulary as far as known, to be checked against the PostHog
+commit pinned in posthog-pin.json when the proxy is built; the query-log columns are ClickHouse 23.12's (OI-ANALYTICS-03 (4)).
 """
 import json
 import re

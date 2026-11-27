@@ -124,6 +124,10 @@ jobs:
         run: python3 ci/test_posthog_event_retention.py --self-test
       - name: Event-retention script against a fake ClickHouse
         run: python3 ci/test_posthog_event_retention.py
+      - name: Pin and version-guard self-test (prove the suite goes red on a broken pin check or guard)
+        run: python3 ci/test_posthog_pin.py --self-test
+      - name: PostHog pin holds and the ClickHouse version guard refuses an old server
+        run: python3 ci/test_posthog_pin.py
       - name: Erasure-relay self-test (prove the suite goes red on a broken relay)
         run: python3 ci/test_posthog_erase_relay.py --self-test
       - name: Erasure relay against a fake ClickHouse
@@ -138,7 +142,7 @@ jobs:
         run: |
           image=$(python3 - <<'PY'
           import re
-          print(re.search(r'image:\s*(caddy:[^\s]+)', open('infra/posthog/docker-compose.yml').read()).group(1))
+          print(re.search(r'image:\s*(caddy:[^\s]+)', open('infra/posthog/docker-compose.neurone.yml').read()).group(1))
           PY
           )
           docker run --rm -e POSTHOG_HOST=localhost \

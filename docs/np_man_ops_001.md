@@ -33,7 +33,7 @@ The other services (the SHDR fleet database, OTA firmware distribution, the cons
 
 | You need | Why |
 |----------|-----|
-| A host with Docker and the `docker compose` plugin | The stack is `infra/posthog/docker-compose.yml` |
+| A host with Docker and the `docker compose` plugin | The stack is three compose files in `infra/posthog` (PostHog's hobby file at the pinned commit, the pin, NeurOne's layer), selected by `COMPOSE_FILE` in `.env` (`NP-ANALYTICS-001` §2, §7.3) |
 | A checkout of this repository at the revision you are deploying | The scripts named below are in `infra/posthog/` and `ci/` |
 | `infra/posthog/.env`, made from `.env.example` | Every secret and setting; **never committed** (it is git-ignored) |
 | A PostHog personal API key, in the shell as `POSTHOG_PERSONAL_API_KEY` | Only `apply_project_settings.py` uses it. Create it under your PostHog user settings. Never pass it as an argument: arguments show in process listings |
@@ -46,9 +46,9 @@ The other services (the SHDR fleet database, OTA firmware distribution, the cons
 
 Do these once for a new stack, and again for a stack that has been recreated, in this order.
 
-1. **Secrets and version.** `cd infra/posthog && cp .env.example .env`. Fill `SECRET_KEY`, `POSTGRES_PASSWORD`, `CLICKHOUSE_PASSWORD` and `ERASE_CLICKHOUSE_PASSWORD` (four different values, generated as `.env.example` shows). Set `POSTHOG_VERSION` to one release tag. The stack refuses to start while it is empty, and `latest` is not a pin.
+1. **Secrets and version.** `cd infra/posthog && cp .env.example .env && chmod 600 .env`. Fill every empty value, each different, generated as `.env.example` shows; the stack refuses to start without each secret it needs. **There is no version to set:** the version is the PostHog commit in `posthog-pin.json`, moved only by `pin_posthog.py` (`NP-ANALYTICS-001` §7.3). Run `python3 pin_posthog.py --check` (the pin holds) and `python3 pin_posthog.py --fetch-tree` (PostHog's mounted config files, at that commit).
 2. **Retention.** Leave `EVENT_RETENTION_DAYS` at **30** unless the principal has decided otherwise. The reason is in `.env.example` and `NP-ANALYTICS-001` §7.1: `NP-APP-TELEMETRY-001` §5 promises that a withdrawn person's analytics ID is deleted from the vendor within 30 days, and a value above 30 breaks that promise for each day over.
-3. **Start.** `docker compose up -d`, then `docker compose logs -f posthog` until it serves. The first start runs database migrations and takes several minutes. For the HTTPS profile (the erasure relay and the TLS proxy run in it), `docker compose --profile https up -d`.
+3. **Start.** `docker compose up -d`, then `docker compose logs -f web` until it serves. The first start runs database migrations and takes several minutes. Caddy, the erasure relay and its ClickHouse version guard always run; the relay's log starts with the guard's line (`version guard: ClickHouse …`), and a relay that exits at once has met a ClickHouse older than 24.10. **Never run PostHog's `bin/deploy-hobby` or `bin/upgrade-hobby`** (they report the install to PostHog, download a GeoIP database and move to that day's `master`).
 4. **Organization and project.** `NP-ANALYTICS-001` §3.3: an organization named "NeurOne", a project named "NeurOne App". Note the project number (the `<id>` in `/api/projects/<id>/`) and copy the Project API Key into the build's `POSTHOG_PROJECT_TOKEN`.
 5. **Project privacy settings, by script.** From the checkout:
    ```bash
@@ -67,7 +67,7 @@ Do these once for a new stack, and again for a stack that has been recreated, in
 
 ## 4. The real-stack check
 
-**Why this exists.** Every script above was tested only against a fake. The erasure relay, the retention TTL and the project-settings script each assume a PostHog table name, a field name or a grant that has never been confirmed on a real stack for the pinned `POSTHOG_VERSION` (`OI-ANALYTICS-01` (2), `OI-ANALYTICS-02`). **Until each step below has passed on a real stack, no ID can be called erased and retention is a wish, not a control** (`NP-ANALYTICS-001` §3.4). This section is the process for finding out.
+**Why this exists.** Every script above was tested only against a fake. The erasure relay, the retention TTL and the project-settings script each assume a PostHog table name, a field name or a grant that has never been confirmed on a real stack for the pinned PostHog commit (`OI-ANALYTICS-01` (2), `OI-ANALYTICS-02`). **Until each step below has passed on a real stack, no ID can be called erased and retention is a wish, not a control** (`NP-ANALYTICS-001` §3.4). This section is the process for finding out.
 
 **Rules for running it.**
 - **Use a stack with no real person's data**, or accept that a failure of step 4 or 5 could leave a probe row behind. Every step writes only rows under a throwaway random ID, never under an ID a phone is using.
@@ -75,18 +75,19 @@ Do these once for a new stack, and again for a stack that has been recreated, in
 - **Write down the result of every step** in the record of §7, including a failure. A step with no entry did not happen.
 - **Never edit a script or a check to make a step pass.** A failure means the stack or the assumption is wrong. If an assumption is wrong (a different table name, a field PostHog renamed), that is a change to the script and its tests, and a new revision of `NP-ANALYTICS-001`.
 - All commands run from `infra/posthog/`.
+- **The ClickHouse commands in steps 1 to 7 were written for the old layout**, whose ClickHouse had a `posthog` user with `CLICKHOUSE_PASSWORD`. PostHog's current layout has neither (its `users.xml` defines `default`, with an empty password, and its own service users). They are rewritten for the rebuilt stack under `OI-ANALYTICS-03` (4); until then, run them as `default` with no password and record that you did.
 
 ### Step 1 · The stack is the one you think it is
 
 ```bash
 docker compose ps                                  # every service running or healthy
 curl -fsS http://localhost:8000/_health            # {"status": "ok"}   (adjust the port to POSTHOG_PORT)
-grep '^POSTHOG_VERSION=' .env                      # a release tag, not empty, not "latest"
+python3 pin_posthog.py --check                     # the pin holds; posthog-pin.json names the commit
 docker compose exec clickhouse clickhouse-client --user posthog --password "$CLICKHOUSE_PASSWORD" \
   --query "SELECT version()"
 ```
 
-**Pass:** all services up, health `ok`, a pinned tag. **Record:** the tag and ClickHouse's version. Every later result is true for that pair only.
+**Pass:** all services up, health `ok`, the pin holds, and ClickHouse is the version the pinned compose file names. **Record:** the PostHog commit (`posthog-pin.json`) and ClickHouse's version. Every later result is true for that pair only.
 
 ### Step 2 · The events table is the table the scripts name
 
@@ -136,7 +137,7 @@ $CH --param_id "$PROBE" --query "SELECT count() FROM posthog.sharded_events WHER
 Set up a user that may insert and select, for this check only. The simplest is the `posthog` administrator already in `.env`:
 
 ```bash
-docker compose --profile https run --rm --use-aliases \
+docker compose run --rm --use-aliases \
   -e ERASE_CHECK_CLICKHOUSE_USER=posthog -e ERASE_CHECK_CLICKHOUSE_PASSWORD="$CLICKHOUSE_PASSWORD" \
   erase-relay python /app/erase_relay.py --self-check
 ```
@@ -180,7 +181,7 @@ $CH --query "SELECT command, is_done, create_time FROM system.mutations WHERE ta
 
 ### Step 8 · It all still holds after an upgrade
 
-A PostHog upgrade can recreate the events table, which drops its TTL, or rename it, which breaks the relay. After any change to `POSTHOG_VERSION` (and the first time, by rehearsing one on a copy), repeat steps 1 to 6. `apply_event_retention.py --check` is the quick test for the TTL.
+A PostHog upgrade can recreate the events table, which drops its TTL, or rename it, which breaks the relay. After any move to a new PostHog commit (`NP-ANALYTICS-001` §7.3; and the first time, by rehearsing one on a copy), repeat steps 1 to 6. `apply_event_retention.py --check` is the quick test for the TTL.
 
 ## 5. Maintain PostHog
 
@@ -189,7 +190,7 @@ None of these has a calendar interval: each is tied to an event or to something 
 | When | Do |
 |------|----|
 | **Every time the stack is started or restarted** | `docker compose ps`, then `curl /_health`. Both must be clean. |
-| **Before and after changing `POSTHOG_VERSION`** | Back up (below). Change the tag, `docker compose pull && docker compose up -d`, watch `docker compose logs -f posthog` until it serves, then run steps 1 to 6 of §4. Do not leave an upgraded stack unchecked: until step 4 and step 5 pass, the 30-day promise is not kept. |
+| **Before and after moving to a new PostHog commit** | Back up (below). Follow the upgrade procedure of `NP-ANALYTICS-001` §7.3 (`pin_posthog.py --commit`, the checks, `--fetch-tree`, `docker compose up -d`), watch `docker compose logs -f web` until it serves, then run steps 1 to 6 of §4. Never `docker compose pull` a floating tag. Do not leave an upgraded stack unchecked: until step 4 and step 5 pass, the 30-day promise is not kept. |
 | **When `EVENT_RETENTION_DAYS` changes** | `apply_event_retention.py --apply`, then `--check`; repeat the person-retention step by hand (§3 step 7); write both in the change log. A value above 30 prints the policy warning: that decision is the principal's. |
 | **When the project or the stack is recreated** | All of §3, then all of §4. A recreated project starts with PostHog's defaults. |
 | **When a disk alarm or `df` shows the volumes filling** | `NP-ANALYTICS-001` §7.5 has the expected usage. At 30-day retention the event storage is about a third of the 90-day figure. Check that step 4's TTL is still present before adding disk. |
@@ -204,7 +205,8 @@ None of these has a calendar interval: each is tied to an event or to something 
 
 | Symptom | Likely cause | What to do |
 |---------|--------------|------------|
-| `docker compose up` stops with "Set POSTHOG_VERSION in .env" | The version is empty | Set it to a release tag. It never defaults. |
+| `docker compose up` stops with "Set … in .env" | A secret is empty | Fill it as `.env.example` shows. None defaults. |
+| The erasure relay exits at once with "version guard: ClickHouse … is older than 24.10" | The ClickHouse running is not the pinned one | Find what overrides the image (`CLICKHOUSE_SERVER_IMAGE`, an edited file); run the pinned stack (`NP-ANALYTICS-001` §7.3) |
 | `apply_project_settings.py` exits 2, "refused with HTTP 401/403" | The personal API key is wrong or lacks the project | Create a key in PostHog under the user that owns the project |
 | `apply_project_settings.py` exits 2, "not in the server's answer" | This PostHog version names the field differently | Record the version, raise it against `OI-ANALYTICS-02`. Do not edit the script to skip the field. |
 | `apply_event_retention.py` exits 2, "was not found in the store" | The events table is not `posthog.sharded_events` | §4 step 2 |
@@ -220,7 +222,7 @@ Copy this table into the deployment's change log for each run of §4. **A blank 
 
 | Step | Date | Run by | Result (pass, or what failed) | Evidence (the output that shows it) |
 |------|------|--------|-------------------------------|-------------------------------------|
-| 1 stack, with `POSTHOG_VERSION` and ClickHouse version | | | | |
+| 1 stack, with the PostHog commit and ClickHouse version | | | | |
 | 2 events table is `posthog.sharded_events` | | | | |
 | 3 project settings take | | | | |
 | 4 retention TTL takes and deletes | | | | |

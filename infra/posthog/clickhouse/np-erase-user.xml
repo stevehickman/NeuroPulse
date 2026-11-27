@@ -8,7 +8,7 @@
   held (queue it, answer 202) without keeping a list of erased IDs (OI-PRIV-48). It cannot read any other column, insert or
   drop. The column read lets whoever holds this password list the pseudonymous IDs the store holds; that is the price of keeping
   no list of erased IDs (OI-PRIV-48). The password comes from the container's environment (ERASE_CLICKHOUSE_PASSWORD, set in
-  .env). The table name must match ERASE_TABLES and POSTHOG_VERSION's schema.
+  .env). The table name must match ERASE_TABLES and the schema of the PostHog commit pinned in posthog-pin.json.
 
   WHO MAY CONNECT (OI-PRIV-50): the relay's container only, by its compose service name, never an address range. ClickHouse
   resolves a <host> name when a client connects and admits the client only if its address is one the name resolves to; in a

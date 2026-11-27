@@ -1,42 +1,38 @@
-# NeurOne PostHog — Caddy HTTPS Termination
-# NP-ANALYTICS-001 Rev A
+# NeurOne PostHog — Caddy: the stack's only entrance
+# NP-ANALYTICS-001 §7.8 (OI-ANALYTICS-03)
 #
-# Activated with: docker compose --profile https up -d
-# Disabled by default — HTTP on port 8000 is sufficient for iOS Simulator testing.
+# This proxy replaces PostHog's own `proxy` service (docker-compose.neurone.yml). It always runs: on PostHog's current layout
+# events go to the Rust `capture` service, not to Django, so nothing reaches PostHog except through here. It serves two sites:
 #
-# ── When you need this ───────────────────────────────────────────────────────
-# 1. Physical device testing: iOS App Transport Security (ATS) requires HTTPS,
-#    and PostHog's own port is published on 127.0.0.1 only, so another device
-#    can reach the stack through this proxy and no other way (OI-PRIV-50).
+#   {$POSTHOG_HOST}   TLS, on 80/443, for another device and for any deployment beyond this machine.
+#   http://:8000      plain HTTP, published on 127.0.0.1 only (docker-compose.neurone.yml), for the iOS Simulator and a
+#                     browser on this machine. No other device can reach it, so none can skip TLS (OI-PRIV-50).
 #
-# 2. Any deployment beyond a single developer's machine (staging, production).
+# ── Which PostHog endpoints are served (OI-ANALYTICS-03) ─────────────────────
+# Only what NeurOne uses: the capture endpoints (the app posts to /capture/, PostHogAnalyticsBackend), the erasure request
+# (/np/erase), and the PostHog UI and API for the team. Every other public endpoint PostHog's own proxy exposes is answered 404
+# here, so it cannot fall through to Django either: session recordings (/s), LLM and OpenTelemetry capture, object storage
+# (/posthog), live events, webhooks, surveys, remote config and feature flags. A feature that needs one of them is a decision,
+# not a routing detail: each carries data this stack was not set up to hold. ci/test_posthog_infra.py P14 holds the list.
 #
 # ── Local setup (self-signed certificate for localhost / LAN IP) ─────────────
-#   1. Start with HTTPS profile:
-#        POSTHOG_HOST=localhost docker compose --profile https up -d
+#   1. Start with POSTHOG_HOST=localhost (the default) and `docker compose up -d`.
 #   2. Install Caddy's local CA on your Mac:
-#        docker exec $(docker compose ps -q caddy) caddy trust
+#        docker exec $(docker compose ps -q proxy) caddy trust
 #        # Then open Keychain Access and trust "Caddy Local Authority"
 #   3. For iOS Simulator: the Simulator shares the Mac's Keychain, so
 #      trusting in Keychain Access is sufficient.
 #   4. For physical devices: export the CA cert and install via Settings →
 #      General → VPN & Device Management → Install Certificate → Trust.
 #
-#   To use a LAN IP (e.g. 192.168.1.100) instead of localhost:
-#     POSTHOG_HOST=192.168.1.100 docker compose --profile https up -d
+#   To use a LAN IP (e.g. 192.168.1.100) instead of localhost, set POSTHOG_HOST=192.168.1.100 in .env.
 #   Caddy will issue a self-signed cert for that IP.
 #
 # ── Production setup (Let's Encrypt) ────────────────────────────────────────
 #   1. Point a DNS A record to the server's public IP.
 #   2. Ensure ports 80 and 443 are reachable from the internet.
-#   3. Start:
-#        POSTHOG_HOST=analytics.yourdomain.example docker compose --profile https up -d
+#   3. Set POSTHOG_HOST and DOMAIN in .env to the host name, then `docker compose up -d`.
 #   4. Caddy obtains and auto-renews the Let's Encrypt certificate.
-#   5. Update SITE_URL in .env to match:
-#        SITE_URL=https://analytics.yourdomain.example
-#        IS_BEHIND_PROXY=true
-#   6. Restart posthog and posthog-worker:
-#        docker compose restart posthog posthog-worker
 #
 # ── EU data residency note ───────────────────────────────────────────────────
 # For T2 clinical cloud (EU data residency requirement per NP-PRIV-REM-001
@@ -69,8 +65,8 @@
   }
 }
 
-# {$VAR} is read when the file is parsed; a site address cannot use the runtime {env.VAR} placeholder.
-{$POSTHOG_HOST} {
+# The routes, the headers and the access log, shared by both sites below.
+(posthog_routes) {
 
   # The erasure request (np_analytics_001 §7.6) goes to the relay, which deletes the ID's events from ClickHouse. It is a
   # separate service because PostHog's person-delete needs a person record, and the app creates none (personProfiles = .never).
@@ -89,9 +85,50 @@
     }
   }
 
-  # Reverse proxy all other traffic to the PostHog web server
+  # PostHog endpoints NeurOne does not serve (see the top of this file). Caddy tries `handle` blocks with named matchers in
+  # the order written, so this comes before @capture, whose /i/v0/* would otherwise take the LLM-capture path /i/v0/ai, and
+  # before the catch-all, so none of these reaches Django.
+  @unserved {
+    path /s /s/ /s/*
+    path /i/v0/ai /i/v0/ai/ /i/v0/ai/* /i/v1/ai/events /i/v1/ai/events/
+    path /i/v1/logs /i/v1/logs/ /i/v1/logs/* /i/v1/traces /i/v1/traces/ /i/v1/traces/* /i/v1/metrics /i/v1/metrics/ /i/v1/metrics/*
+    path /posthog /posthog/ /posthog/*
+    path /livestream /livestream/ /livestream/*
+    path /public/webhooks /public/webhooks/ /public/webhooks/* /public/m/ /public/m/*
+    path /surveys /surveys/ /api/surveys /api/surveys/
+    path /array/*
+    path /flags /flags/ /flags/* /api/feature_flag/local_evaluation /api/feature_flag/local_evaluation/ /api/feature_flag/local_evaluation/*
+  }
+  handle @unserved {
+    respond 404
+  }
+
+  # PostHog's capture endpoints go to its Rust capture service (the paths PostHog's own proxy sends there, at the pinned
+  # commit). The address is withheld exactly as from the web server below.
+  @capture {
+    path /e /e/ /e/*
+    path /i/v0 /i/v0/ /i/v0/*
+    path /i/v1/analytics/events /i/v1/analytics/events/
+    path /batch /batch/ /batch/*
+    path /capture /capture/ /capture/*
+  }
+  handle @capture {
+    reverse_proxy capture:3000 {
+      header_up -X-Forwarded-For
+      header_up -X-Real-IP
+      header_up -Forwarded
+      header_up -True-Client-IP
+      header_up -CF-Connecting-IP
+      header_up -X-Client-IP
+      header_up -X-Cluster-Client-IP
+      header_up -Fastly-Client-IP
+      header_up -Via
+    }
+  }
+
+  # All other traffic (the PostHog UI and its API) goes to the PostHog web server.
   handle {
-    reverse_proxy posthog:8000 {
+    reverse_proxy web:8000 {
       # Do NOT pass the client's address on. An IP next to an anonymous ID is linkable (a household, a clinic's network), and the
       # policy keeps no IP with any event (NP-APP-TELEMETRY-001 §4). Caddy sets X-Forwarded-For itself unless told not to, so it is
       # removed here, with X-Real-IP; PostHog then sees only this proxy's address. The project's IP setting (np_analytics_001 §3.4)
@@ -159,4 +196,14 @@
       }
     }
   }
+}
+
+# {$VAR} is read when the file is parsed; a site address cannot use the runtime {env.VAR} placeholder.
+{$POSTHOG_HOST} {
+  import posthog_routes
+}
+
+# Plain HTTP for this machine only: the compose file publishes container port 8000 on 127.0.0.1 and nowhere else.
+http://:8000 {
+  import posthog_routes
 }

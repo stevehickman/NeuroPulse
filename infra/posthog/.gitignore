@@ -3,3 +3,10 @@
 
 # Caddy auto-generated TLS certificates and state
 caddy/data/
+
+# PostHog's repository at the pinned commit, checked out by `python3 pin_posthog.py --fetch-tree` (only the mounted paths)
+posthog/
+
+# Mounted by PostHog's plugin and feature-flag services as /share, where PostHog's deploy-hobby puts a GeoIP database. It stays
+# empty here: no GeoIP (docker-compose.neurone.yml, DISABLE_MMDB).
+share/
