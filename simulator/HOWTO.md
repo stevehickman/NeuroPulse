@@ -135,6 +135,14 @@ python3 -m http.server 8080
 If the protocol library cannot be reached, the simulator says so on a red panel
 instead of starting with an empty or stale library.
 
+**Debug handles.** Open `http://localhost:8080/simulator/?debug=1` to get
+`window.__sim` (the whole simulator) and `window.__accessoriesInUse` in the
+devtools console, or in a test harness that drives the page. Without
+`?debug=1` (exactly that value) neither is attached: `window.__sim` reaches
+`DeviceAPI.sendFirmware`, and every script on the page, the CDN ones included,
+could otherwise read the session and send firmware commands (`REQ-SIMFW-27`,
+`OI-PRIV-45`).
+
 ### Option B — Embed in a web page
 
 Copy **both** `simulator/` and `protocols/predefined/` to your web server,
@@ -666,7 +674,9 @@ Then open `simulator/index.html`. The **API** badge in the header turns green: *
 
 If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
 
-**Who can connect** (NP-SIM-FW-001 `REQ-SIMFW-27`). The server listens on `127.0.0.1` only, so no other machine can reach it. A browser page may connect only if it was served from `http://localhost`, `http://127.0.0.1` or `http://[::1]` (any port, so the file servers of §2 work); a page from any other origin, or a `file://` page, is refused with HTTP 403. A native client that sends no `Origin` header, such as Node's `ws` in the examples below, connects as before. Set `NP_SIM_PORT` to run it on a port other than 9000.
+**Who can connect** (NP-SIM-FW-001 `REQ-SIMFW-28`). The server listens on `127.0.0.1` only, so no other machine can reach it. A browser page may connect only if it was served from `http://localhost`, `http://127.0.0.1` or `http://[::1]` (any port, so the file servers of §2 work); a page from any other origin, or a `file://` page, is refused with HTTP 403. A native client that sends no `Origin` header, such as Node's `ws` in the examples below, connects as before. Set `NP_SIM_PORT` to run it on a port other than 9000.
+
+The server's log never names a client's network address. A client's version (from `CLIENT_HELLO`) and a session's protocol ID (from `SESSION_START`) are printed only when the server is started with `NP_SIM_DEBUG=1 node index.js` (`REQ-SIMFW-27`, `OI-PRIV-45`).
 
 ### 17.2 Client roles
 

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Who may reach the simulator's device API (NP-SIM-FW-001 REQ-SIMFW-27, OI-SIMFW-07).  Run: node --test server/
+ * Who may reach the simulator's device API (NP-SIM-FW-001 REQ-SIMFW-28, OI-SIMFW-07).  Run: node --test server/
  * The end-to-end tests start index.js in its default mode (no NP_SIM_FW_BIN), the mode that used to listen on
  * every interface, and speak raw HTTP upgrades to it so the Origin header is under the test's control.
  * They need `ws` installed in simulator/server (bun install).
@@ -15,7 +15,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { BIND_HOST, isAllowedOrigin } = require('./origin');
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('loopback origins and a missing Origin are allowed', () => {
   for (const o of [undefined, 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://[::1]:8080',
                    'http://localhost', 'https://localhost:3000', 'http://127.0.0.1:5173']) {
@@ -23,7 +23,7 @@ test('loopback origins and a missing Origin are allowed', () => {
   }
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('every other origin is refused', () => {
   for (const o of ['null', '', 'https://example.com', 'http://localhost.example.com', 'http://127.0.0.1.nip.io',
                    'http://evil.example:9000', 'file://', 'chrome-extension://abcdef', 'http://192.168.1.10:8080',
@@ -33,7 +33,7 @@ test('every other origin is refused', () => {
   }
 });
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('the bind address is the IPv4 loopback', () => {
   assert.strictEqual(BIND_HOST, '127.0.0.1');
 });
@@ -86,7 +86,7 @@ let server;
 test.before(async () => { server = await startServer(); });
 test.after(() => { if (server) server.child.kill(); });
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('the running server listens on the loopback address only, in the default mode', async () => {
   const { port, listening } = server;
   assert.deepStrictEqual(listening, { address: '127.0.0.1', port });
@@ -98,7 +98,7 @@ test('the running server listens on the loopback address only, in the default mo
   }
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('the running server accepts a native client and the loopback origins', async () => {
   const { port } = server;
   assert.strictEqual(await upgrade('127.0.0.1', port, undefined), 101);
@@ -106,7 +106,7 @@ test('the running server accepts a native client and the loopback origins', asyn
   assert.strictEqual(await upgrade('127.0.0.1', port, 'http://127.0.0.1:8080'), 101);
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('the running server refuses any other page with a 403 before the upgrade', async () => {
   const { port } = server;
   for (const o of ['https://example.com', 'null', 'http://localhost.example.com:8080']) {

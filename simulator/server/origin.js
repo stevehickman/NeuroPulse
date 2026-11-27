@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Who may reach the simulator's device API (NP-SIM-FW-001 REQ-SIMFW-27, OI-SIMFW-07).
+ * Who may reach the simulator's device API (NP-SIM-FW-001 REQ-SIMFW-28, OI-SIMFW-07).
  *
  * The server runs commands that inject faults into a process running the hub's own stimulation logic, and it
  * broadcasts every TELEMETRY and SESSION_COMPLETE to its controllers. Two doors are closed here:

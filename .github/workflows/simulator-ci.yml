@@ -262,7 +262,7 @@ jobs:
       - name: Record the Node version
         run: node --version
 
-      # bind-origin.test.js starts index.js, which needs `ws` (REQ-SIMFW-27, OI-SIMFW-07).
+      # bind-origin.test.js starts index.js, which needs `ws` (REQ-SIMFW-28, OI-SIMFW-07).
       - name: Install the simulator server's dependencies
         working-directory: simulator/server
         run: bun install --frozen-lockfile

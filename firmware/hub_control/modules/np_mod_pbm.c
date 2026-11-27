@@ -495,6 +495,48 @@ np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch
     }
 }
 
+/*
+ * Channels this socket is driving now (NP_PBM_CH_*_EN bits), for the per-channel
+ * running totals (REQ-FWHUB-93 (j), NP-FW-NVRAM-001 OI-NVRAM-23): a channel is
+ * lit when it is enabled, its current and the duty are not zero, and it is not
+ * latched off.  A base tile has no CH_C.  A stopped or undriven socket lights
+ * nothing.
+ */
+uint8_t np_mod_pbm_socket_lit_channels(uint16_t socket_id)
+{
+    if (socket_id >= NP_HEXMAP_MAX_SOCKETS) {
+        return 0U;
+    }
+    const uint8_t off = s_sock_ch_off[socket_id];
+    uint8_t lit = 0U;
+    switch (s_sock_type[socket_id]) {
+    case NP_MOD_PBM_SMART: {
+        /* What the driver wrote to the IC: CH_ENABLE (the command's mask less any latch), and each channel's
+         * current and duty setpoints.  Read from the driver slot, not a copy of the command. */
+        const np_pbm_drv_slot_t *drv = &s_sock_drv[socket_id];
+        for (uint8_t c = 0U; c < 3U; c++) {
+            const uint8_t bit = (uint8_t)(1U << c);
+            if ((drv->ch_enable & bit) != 0U && drv->cur[c] != 0U && drv->duty[c] != 0U) {
+                lit |= bit;
+            }
+        }
+        break;
+    }
+    case NP_MOD_PBM_BASE: {
+        const np_mod_pbm_base_params_t *p = &s_sock_base[socket_id];
+        if (p->duty == 0U) {
+            return 0U;
+        }
+        if (p->cur_a != 0U) { lit |= NP_PBM_CH_A_EN; }
+        if (p->cur_b != 0U) { lit |= NP_PBM_CH_B_EN; }
+        break;
+    }
+    default:
+        return 0U;
+    }
+    return (uint8_t)(lit & (uint8_t)~off);
+}
+
 /* Channels latched off on this socket this session (NP_PBM_CH_*_EN bits). */
 uint8_t np_mod_pbm_socket_disabled_channels(uint16_t socket_id)
 {
