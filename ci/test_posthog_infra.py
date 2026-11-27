@@ -32,6 +32,13 @@ renders the stack with `docker compose config` and reads the Caddyfile and .env.
   P12 .env.example names no plain-http URL to a host other than this machine (OI-PRIV-50): PostHog's port is published on
       127.0.0.1 only (P4), so `http://<LAN address>:8000` cannot work, and suggesting it invites rebinding PostHog to the
       LAN over plain HTTP. Another device goes through the https profile.
+  P13 ClickHouse's own server log is bounded (OI-PRIV-46 (2)). clickhouse/np-privacy.xml has one `<logger>` whose `level` and
+      `errorlog_level` are `warning` or quieter (the stock image logs at `trace`, which records query text, an erase's
+      distinct_id included), whose `size` and `count` are within the ceilings below (the stock image keeps ten files of
+      1000M), that sends nothing to syslog and raises no logger above `warning` in `<levels>`; and, on the rendered compose
+      file, every service whose image is a ClickHouse server mounts that file into a `config.d/` directory, so the override
+      is applied. The file check needs no Docker; the mount check is written for any compose layout, the rebuilt one
+      (OI-ANALYTICS-03) included.
 
 `--self-test` proves each check goes red on a copy broken in exactly that way. Without Docker the compose checks are reported as
 SKIPPED (P11 among them: it reads the rendered file), and without a Docker daemon P9 is, and the run still fails if --require-docker is given (CI gives it), so a missing
@@ -41,9 +48,9 @@ Run: python3 ci/test_posthog_infra.py [--self-test] [--require-docker]
 
 CI-Kind: gate
 CI-Self-Test: python3 ci/test_posthog_infra.py --self-test --require-docker
-CI-Scans: the rendered PostHog compose file, its Caddyfile, .env.example and the erasure relay's ClickHouse user file, for the privacy configuration P1-P12
-CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example infra/posthog/clickhouse/np-erase-user.xml
-CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile, .env.example and ClickHouse user file and breaks the copy in one way, so the real files are the base the mutants are made from
+CI-Scans: the rendered PostHog compose file, its Caddyfile, .env.example, the erasure relay's ClickHouse user file and ClickHouse's np-privacy.xml, for the privacy configuration P1-P13
+CI-Scan-Paths: infra/posthog/docker-compose.yml infra/posthog/caddy/Caddyfile infra/posthog/.env.example infra/posthog/clickhouse/np-erase-user.xml infra/posthog/clickhouse/np-privacy.xml
+CI-Self-Test-Reads-Tree: each case copies the real compose file, Caddyfile, .env.example and ClickHouse config files and breaks the copy in one way, so the real files are the base the mutants are made from
 """
 import copy
 import json
@@ -74,6 +81,13 @@ LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "::1")
 LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 LOG_MAX_FILES = 3
 LOG_DRIVERS_BOUNDED = ("local", "json-file")
+# P13 ceilings for ClickHouse's server log, per log file (clickhouse-server.log and .err.log): the figures np-privacy.xml
+# uses, with no derivation (UC-223). Lowering one is free; raising one is a register change.
+CH_LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
+CH_LOG_MAX_COUNT = 3
+# Poco's level names from `warning` down: anything here keeps no information, debug or trace line, and so no query text
+# from a query that succeeds.
+CH_LOG_QUIET_LEVELS = ("none", "fatal", "critical", "error", "warning")
 # The request headers a proxy can carry the client's address in. Caddy forwards every header it does not set itself, so each is
 # removed by name before the upstream; the logs delete the whole header map instead (OI-PRIV-51; the same list as
 # ci/test_fleet_ingest_config.py).
@@ -157,6 +171,76 @@ def logging_problems(c):
             out.append(f"P10 {name}: no usable max-file ({opts.get('max-file')!r})")
         elif int(files) > LOG_MAX_FILES:
             out.append(f"P10 {name}: max-file {files} is over the ceiling of {LOG_MAX_FILES} (UC-211)")
+    return out
+
+
+def ch_log_size_bytes(value):
+    """Poco FileChannel's size rotation (`10M`, `512K`, plain bytes) as bytes, or None for anything else (a time rotation
+    such as `daily` bounds no size)."""
+    m = re.fullmatch(r"\s*(\d+)\s*([KM]?)\s*", str(value or ""), re.I)
+    if not m:
+        return None
+    return int(m.group(1)) * {"": 1, "k": 1024, "m": 1024 ** 2}[m.group(2).lower()]
+
+
+def clickhouse_logger_problems(text):
+    """P13 on np-privacy.xml: the server's file log at `warning` or quieter, bounded in size and file count."""
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as e:
+        return [f"P13 np-privacy.xml does not parse: {e}"]
+    loggers = root.findall("logger")
+    if len(loggers) != 1:
+        return [f"P13 np-privacy.xml has {len(loggers)} <logger> blocks, required exactly one: without it the stock image "
+                "logs at trace, ten files of 1000M per log"]
+    lg = loggers[0]
+    out = []
+    for key in ("level", "errorlog_level"):
+        v = (lg.findtext(key) or "").strip().lower()
+        if v not in CH_LOG_QUIET_LEVELS:
+            out.append(f"P13 <logger><{key}> is {v or 'unset'!r}, required one of {', '.join(CH_LOG_QUIET_LEVELS)}"
+                       + (" (unset, errorlog_level defaults to notice, which raises the server's level)" if key == "errorlog_level" and not v else ""))
+    size = ch_log_size_bytes(lg.findtext("size"))
+    if size is None or size <= 0:
+        out.append(f"P13 <logger><size> is {lg.findtext('size')!r}, not a size bound")
+    elif size > CH_LOG_MAX_SIZE_BYTES:
+        out.append(f"P13 <logger><size> {lg.findtext('size').strip()} is over the {CH_LOG_MAX_SIZE_BYTES // 1024 ** 2}M ceiling (UC-223)")
+    count = (lg.findtext("count") or "").strip()
+    if not count.isdigit() or int(count) < 1:
+        out.append(f"P13 <logger><count> is {lg.findtext('count')!r}, not a file count")
+    elif int(count) > CH_LOG_MAX_COUNT:
+        out.append(f"P13 <logger><count> {count} is over the ceiling of {CH_LOG_MAX_COUNT} (UC-223)")
+    if (lg.findtext("use_syslog") or "").strip().lower() in ("1", "true", "yes"):
+        out.append("P13 <logger><use_syslog> is on: syslog takes the log where no bound here reaches")
+    levels = lg.find("levels")
+    if levels is not None:
+        for el in levels.iter():
+            if el is levels or len(el):
+                continue
+            if el.tag == "name":
+                continue
+            v = (el.text or "").strip().lower()
+            if v not in CH_LOG_QUIET_LEVELS:
+                out.append(f"P13 <logger><levels> sets {el.tag} to {v!r}, louder than warning")
+    return out
+
+
+CLICKHOUSE_IMAGE = re.compile(r"(^|/)clickhouse(-server|-posthog)?(:|@|$)")
+
+
+def clickhouse_mount_problems(c):
+    """P13 on the rendered compose file: every ClickHouse server mounts np-privacy.xml into a config.d directory."""
+    out = []
+    servers = [(n, s) for n, s in sorted(c["services"].items()) if CLICKHOUSE_IMAGE.search(s.get("image") or "")]
+    if not servers:
+        return ["P13 no service runs a ClickHouse server image, so nothing applies np-privacy.xml"]
+    for name, s in servers:
+        mounted = any(pathlib.PurePosixPath(str(v.get("source", ""))).name == "np-privacy.xml"
+                      and re.search(r"/config\.d/[^/]+\.xml$", str(v.get("target", "")))
+                      for v in s.get("volumes") or [] if isinstance(v, dict))
+        if not mounted:
+            out.append(f"P13 {name}: does not mount clickhouse/np-privacy.xml into a config.d/ directory, so the server "
+                       "keeps the stock logger (trace, ten files of 1000M)")
     return out
 
 
@@ -313,12 +397,16 @@ def read_erase_user():
     return ERASE_USER_FILE.read_text()
 
 
+def read_ch():
+    return (INFRA / "clickhouse" / "np-privacy.xml").read_text()
+
+
 def check(require_docker):
     problems = []
     caddy, env = read()
-    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env) + env_url_problems(env)
+    problems += caddy_problems(caddy) + caddy_log_problems(caddy) + env_problems(env) + env_url_problems(env) + clickhouse_logger_problems(read_ch())
     if shutil.which("docker") is None:
-        msg = "compose checks P1-P5, P10, P11 and the Caddy check P9 SKIPPED: docker is not installed"
+        msg = "compose checks P1-P5, P10, P11, the P13 mount check and the Caddy check P9 SKIPPED: docker is not installed"
         if require_docker:
             problems.append(msg + " (and --require-docker was given)")
         else:
@@ -328,7 +416,7 @@ def check(require_docker):
         if code != 0:
             problems.append(f"P1 the compose file does not render: {err.strip().splitlines()[-1] if err.strip() else code}")
         else:
-            problems += compose_problems(cfg) + logging_problems(cfg) + erase_user_problems(cfg, read_erase_user())
+            problems += compose_problems(cfg) + logging_problems(cfg) + erase_user_problems(cfg, read_erase_user()) + clickhouse_mount_problems(cfg)
         if docker_daemon():
             problems += caddy_adapt_problems(caddy)
         elif require_docker:
@@ -370,7 +458,24 @@ def self_test(require_docker):
     expect(".env.example lacks the line", env_problems(re.sub(r"^POSTHOG_VERSION=.*$", "", env, flags=re.M)), "P7")
     expect(".env.example suggests a LAN address over http", env_url_problems(env + "#   Physical device (local net): http://192.168.x.x:8000\n"), "P12")
     expect(".env.example sets SITE_URL to a LAN address over http", env_url_problems(re.sub(r"^SITE_URL=.*$", "SITE_URL=http://10.0.0.5:8000", env, flags=re.M)), "P12")
-    for label, got in (("the real Caddyfile", caddy_problems(caddy) + caddy_log_problems(caddy)), ("the real .env.example", env_problems(env) + env_url_problems(env))):
+    ch = read_ch()
+    expect("no <logger> block", clickhouse_logger_problems(re.sub(r"<logger>.*?</logger>", "", ch, flags=re.S)), "P13")
+    expect("the logger at trace", clickhouse_logger_problems(ch.replace("<level>warning</level>", "<level>trace</level>")), "P13")
+    expect("the logger at information", clickhouse_logger_problems(ch.replace("<level>warning</level>", "<level>information</level>")), "P13")
+    expect("no errorlog_level (defaults to notice)", clickhouse_logger_problems(ch.replace("<errorlog_level>warning</errorlog_level>", "")), "P13")
+    expect("the stock size", clickhouse_logger_problems(ch.replace("<size>10M</size>", "<size>1000M</size>")), "P13")
+    expect("no size", clickhouse_logger_problems(ch.replace("<size>10M</size>", "")), "P13")
+    expect("a time rotation", clickhouse_logger_problems(ch.replace("<size>10M</size>", "<size>daily</size>")), "P13")
+    expect("the stock count", clickhouse_logger_problems(ch.replace("<count>3</count>", "<count>10</count>")), "P13")
+    expect("no count", clickhouse_logger_problems(ch.replace("<count>3</count>", "")), "P13")
+    expect("syslog on", clickhouse_logger_problems(ch.replace("<count>3</count>", "<count>3</count><use_syslog>1</use_syslog>")), "P13")
+    expect("a logger raised to trace", clickhouse_logger_problems(ch.replace("<count>3</count>", "<count>3</count><levels><logger><name>executeQuery</name><level>trace</level></logger></levels>")), "P13")
+    expect("a logger only in a comment", clickhouse_logger_problems(re.sub(r"(<logger>.*?</logger>)", r"<!-- \1 -->", ch, flags=re.S)), "P13")
+    expect("a second logger", clickhouse_logger_problems(ch.replace("</clickhouse>", "<logger><level>trace</level></logger></clickhouse>")), "P13")
+    if clickhouse_logger_problems(ch.replace("<count>3</count>", "<count>3</count><levels><logger><name>executeQuery</name><level>none</level></logger></levels>")):
+        failures.append("self-test: P13 refused a <levels> entry that silences a logger")
+    for label, got in (("the real Caddyfile", caddy_problems(caddy) + caddy_log_problems(caddy)), ("the real .env.example", env_problems(env) + env_url_problems(env)),
+                       ("the real np-privacy.xml", clickhouse_logger_problems(ch))):
         if got:
             failures.append(f"self-test: {label} should be clean but raised {got}")
 
@@ -394,8 +499,9 @@ def self_test(require_docker):
         if code != 0:
             failures.append(f"self-test: the real compose file does not render: {err.strip()}")
         else:
-            if compose_problems(cfg) + logging_problems(cfg):
-                failures.append(f"self-test: the real compose file should be clean but raised {compose_problems(cfg) + logging_problems(cfg)}")
+            real = compose_problems(cfg) + logging_problems(cfg) + clickhouse_mount_problems(cfg)
+            if real:
+                failures.append(f"self-test: the real compose file should be clean but raised {real}")
             def mutate(label, tag, fn):
                 c = copy.deepcopy(cfg)
                 fn(c)
@@ -446,6 +552,18 @@ def self_test(require_docker):
             mutate_erase("Kafka's container named as the relay", lambda c: c["services"]["kafka"].update(container_name="erase-relay"))
             mutate_erase("a second service runs the relay", lambda c: c["services"].update({"erase-relay-2": copy.deepcopy(c["services"]["erase-relay"])}))
             mutate_erase("ClickHouse does not mount the user file", lambda c: c["services"]["clickhouse"].update(volumes=[v for v in c["services"]["clickhouse"]["volumes"] if "np-erase-user" not in str(v.get("source"))]))
+            def mutate_ch(label, fn):
+                c = copy.deepcopy(cfg)
+                fn(c)
+                expect(label, clickhouse_mount_problems(c), "P13")
+            ch_name = next(n for n, s in cfg["services"].items() if CLICKHOUSE_IMAGE.search(s.get("image") or ""))
+            mutate_ch("ClickHouse without np-privacy.xml", lambda c: c["services"][ch_name].update(
+                volumes=[v for v in c["services"][ch_name]["volumes"] if not str(v.get("source", "")).endswith("np-privacy.xml")]))
+            mutate_ch("np-privacy.xml mounted outside config.d", lambda c: [v.update(target="/etc/np-privacy.xml")
+                for v in c["services"][ch_name]["volumes"] if str(v.get("source", "")).endswith("np-privacy.xml")])
+            mutate_ch("a second ClickHouse server without it", lambda c: c["services"].update(
+                clickhouse2={"image": "ghcr.io/posthog/clickhouse-posthog:26.9.5.2", "volumes": []}))
+            mutate_ch("no ClickHouse server at all", lambda c: c["services"].pop(ch_name))
             if logging_problems({"services": {"x": {"logging": {"driver": "none"}}}}):
                 failures.append("self-test: P10 refused the `none` driver, which keeps nothing")
     return failures
@@ -462,8 +580,8 @@ def main(argv):
     problems = check(require_docker)
     for p in problems:
         print("FAIL " + p, file=sys.stderr)
-    print("scanned: 4 files (docker-compose.yml, Caddyfile, .env.example, clickhouse/np-erase-user.xml)")
-    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P12 hold"))
+    print("scanned: 5 files (docker-compose.yml, Caddyfile, .env.example, clickhouse/np-erase-user.xml, clickhouse/np-privacy.xml)")
+    print("posthog infra: " + (f"{len(problems)} problem(s)" if problems else "P1-P13 hold"))
     return 1 if problems else 0
 
 
