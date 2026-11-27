@@ -15,6 +15,27 @@
 <clickhouse>
 
   <!--
+    Server file log (OI-PRIV-46 (2); NP-ANALYTICS-001 §7.6). The stock config.xml of the image sets
+    <level>trace</level>, <size>1000M</size> and <count>10</count> for both clickhouse-server.log and
+    clickhouse-server.err.log on the persistent clickhouse_log volume (checked for v23.12.1.1368-stable:
+    programs/server/config.xml; the image's docker_related_config.xml sets no logger). At trace and
+    debug the log records every query's text, which includes an erase mutation's distinct_id.
+    This override, merged over the stock file, keeps warnings and errors only, in at most three archived
+    files of 10 MB per log plus the current one (archives are compressed by default). The figures have no
+    derivation (UC-223). errorlog_level is set too: its default, notice, would otherwise raise the server's
+    level above warning. ClickHouse's logger has no age option (src/Loggers/Loggers.cpp sets no purgeAge),
+    so this bounds size, not age. A failed query is logged at error level with its text, so a failed erase
+    batch can still leave its IDs here: a residue named in §7.6.
+    ci/test_posthog_infra.py P13 fails without this block.
+  -->
+  <logger>
+    <level>warning</level>
+    <errorlog_level>warning</errorlog_level>
+    <size>10M</size>
+    <count>3</count>
+  </logger>
+
+  <!--
     Query log: ClickHouse logs every SQL statement by default.
     PostHog queries may embed event property values in WHERE clauses,
     meaning raw query text could contain analytics data.

@@ -8,7 +8,7 @@
 **Effective Date:** —
 **Author:** NeurOne Software Engineering
 **Approved By:** — (DRAFT, not approved)
-**References:** `simulator/vendor/VENDOR.md` (the sources and each file's SHA-256), `simulator/index.html` (the importmap and the policy), `NP-SIM-FW-001` §35 and `REQ-SIMFW-29`, `NP-SOUP-NATIVE-001` and `NP-SOUP-KOTLIN-001` (the method precedent; §2a of the latter for the selection rules), `CLAUDE.md` §22
+**References:** `simulator/vendor/VENDOR.md` (the sources and each file's SHA-256), `simulator/index.html` (the importmap and the policy), `NP-SIM-FW-001` §35 and `REQ-SIMFW-30`, `NP-SOUP-NATIVE-001` and `NP-SOUP-KOTLIN-001` (the method precedent; §2a of the latter for the selection rules), `CLAUDE.md` §22
 **Related Issues:** `OI-PRIV-44` (`docs/status/pending-decisions.md`), GitHub #974 (the privacy review of `simulator/`, Finding S4)
 **Gate:** N/A — the simulator is a development and demonstration tool, not part of the device
 **IEC 62304 Class:** N/A — the page is never linked into a device image (`NP-SIM-FW-001` `REQ-SIMFW-01`) and is never verification evidence (`REQ-SIMFW-06`)
@@ -40,7 +40,7 @@ The versions are the ones the page was loading: Three.js was pinned at 0.164.1 i
 Google served for the page's own request on 2026-11-26, the version read from each file's name table. The files are
 byte for byte what was served, renamed by subset; `fonts/fonts.css`, the stylesheet that names them, is NeurOne's
 (Google's stylesheet with each `url()` made local). Each file's SHA-256 is in `simulator/vendor/VENDOR.md` and is
-checked by `simulator/js/page-policy.test.mjs` (`REQ-SIMFW-29`#d).
+checked by `simulator/js/page-policy.test.mjs` (`REQ-SIMFW-30`#d).
 
 **Licences.** MIT and the SIL Open Font License 1.1 are permissive: neither obliges NeurOne's own code to be copyleft
 (`CLAUDE.md` §22; `NP-SOUP-KOTLIN-001` §2a, rule 5). The OFL's conditions bind the fonts themselves (they may be
@@ -71,12 +71,12 @@ The licences were read from the package's own file and from `google/fonts` (`ofl
 
 | Item | Fault | Effect | Held by |
 |------|-------|--------|---------|
-| Three.js, OrbitControls | A defect, or a changed copy, runs with the page's access | The page's engine, `window.__sim` and its WebSocket to the bridge are reachable to that code; in firmware mode the bridge accepts fault injection (`OI-SIMFW-07`) | The copy is fixed in the repository with its hash (`REQ-SIMFW-29`#d); the CSP refuses any script not from the page's origin (`REQ-SIMFW-29`#b). Not held: a defect in the vendored code itself. The page is a development tool and drives no hardware |
+| Three.js, OrbitControls | A defect, or a changed copy, runs with the page's access | The page's engine, `window.__sim` and its WebSocket to the bridge are reachable to that code; in firmware mode the bridge accepts fault injection (`OI-SIMFW-07`) | The copy is fixed in the repository with its hash (`REQ-SIMFW-30`#d); the CSP refuses any script not from the page's origin (`REQ-SIMFW-30`#b). Not held: a defect in the vendored code itself. The page is a development tool and drives no hardware |
 | Inter, JetBrains Mono | A malformed font | A rendering fault in the browser | The browser's font sanitiser; the files are fixed by hash |
-| all | A load from a third party | A viewer's network address and the page's URL reach that service | Removed: nothing is fetched from a third party (`REQ-SIMFW-29`#a) |
+| all | A load from a third party | A viewer's network address and the page's URL reach that service | Removed: nothing is fetched from a third party (`REQ-SIMFW-30`#a) |
 
 ## 6. Keeping this record true
 
 - A change to a file under `simulator/vendor/` changes `VENDOR.md` and §2 in the same change, and for Three.js the
   importmap and its hash in the CSP of `simulator/index.html`.
-- A new third-party item the page uses is vendored and added here; it is never loaded from a CDN (`REQ-SIMFW-29`).
+- A new third-party item the page uses is vendored and added here; it is never loaded from a CDN (`REQ-SIMFW-30`).

@@ -16,9 +16,7 @@
 'use strict';
 
 const { WebSocketServer } = require('ws');
-const { verify }          = require('crypto');
-const fs                  = require('fs');
-const path                = require('path');
+const { createVerifier, SessionGate } = require('./session-auth');
 
 // NP_SIM_PORT exists so a test can run the server beside a developer's own on 9000.
 const PORT = process.env.NP_SIM_PORT === undefined ? 9000 : Number(process.env.NP_SIM_PORT);
@@ -42,9 +40,10 @@ const SERVER_VERSION = require('../version.json').version;
 const { logDetailEnabled, connectedLine, helloLine, sessionStartLine } = require('./log-lines');
 const LOG_DETAIL = logDetailEnabled(process.env);
 
-const TEST_PUBLIC_KEY = fs.readFileSync(
-  path.join(__dirname, 'keys', 'test-public.pem'), 'utf8'
-);
+// OI-PRIV-43, REQ-SIMFW-29: refuse what the hub refuses. A SESSION_START needs a valid signature (the shared
+// core's Ed25519 over framed canonical bytes, against the TEST key), and neither a second SESSION_START nor a
+// ZONE_CONFIG is taken while a session runs. The link itself is plain ws://: the CLAUDE.md §23 gap OI-SIMFW-71.
+const gate = new SessionGate(createVerifier());
 
 // ─── server setup ─────────────────────────────────────────────────────────────
 
@@ -55,6 +54,9 @@ wss.on('listening', () => {
   const a = wss.address();
   console.log(`[NP-SIM] WebSocket server listening on ws://${a.address}:${a.port}  (loopback only)`);
 });
+if (!gate.verifier.available) {
+  console.warn(`[NP-SIM] The NPPS core is not built (${gate.verifier.loadError}); every SESSION_START will be refused. Run scripts/build-npps-wasm.sh`);
+}
 let fw = null;
 if (FW_BIN) {
   fw = new FwBridge({ bin: FW_BIN, autoStatus: 40 }).start();
@@ -95,12 +97,14 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clients.delete(ws);
+    gate.noteDisplays(displayCount());
     console.log(`[NP-SIM] Client disconnected  (${clients.size} remaining)`);
   });
 
   ws.on('error', (err) => {
     console.error(`[NP-SIM] Client error: ${err.message}`);
     clients.delete(ws);
+    gate.noteDisplays(displayCount());
   });
 });
 
@@ -129,14 +133,13 @@ function handleMessage(ws, msg) {
     }
 
     case 'SESSION_START': {
-      if (msg.descriptor?.signature) {
-        if (!verifyDescriptor(msg.descriptor)) {
-          send(ws, { type: 'ERROR', code: 'INVALID_SIGNATURE',
-            message: 'Ed25519 signature failed — check test key pair (simulator/server/keys/)' });
-          return;
-        }
-        console.log('[NP-SIM] SESSION_START signature verified ✓');
+      const verdict = gate.admitStart(msg.descriptor);
+      if (!verdict.ok) {
+        console.log(`[NP-SIM] SESSION_START refused: ${verdict.code}`);
+        send(ws, { type: 'ERROR', code: verdict.code, message: verdict.message });
+        return;
       }
+      console.log('[NP-SIM] SESSION_START signature verified against the TEST key ✓');
       console.log(sessionStartLine(msg.descriptor?.protocolId, LOG_DETAIL));
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
@@ -145,11 +148,17 @@ function handleMessage(ws, msg) {
     case 'SESSION_PAUSE':
     case 'SESSION_STOP': {
       console.log(`[NP-SIM] ${msg.type}`);
+      if (msg.type === 'SESSION_STOP') gate.noteStop();
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
     }
 
     case 'ZONE_CONFIG': {
+      const verdict = gate.admitZoneConfig();
+      if (!verdict.ok) {
+        send(ws, { type: 'ERROR', code: verdict.code, message: verdict.message });
+        return;
+      }
       console.log(`[NP-SIM] ZONE_CONFIG  zone=${msg.zoneId}`);
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
@@ -183,6 +192,11 @@ function handleMessage(ws, msg) {
     case 'TELEMETRY':
     case 'FAULT':
     case 'SESSION_COMPLETE': {
+      // Only a display's report moves the session state: a controller cannot clear it by claiming the session ended.
+      if (ws.role === 'display') {
+        if (msg.type === 'TELEMETRY') gate.noteTelemetry(msg.snap);
+        if (msg.type === 'SESSION_COMPLETE') gate.noteComplete();
+      }
       broadcast(msg, { exclude: ws, toRole: 'controller' });
       break;
     }
@@ -194,18 +208,10 @@ function handleMessage(ws, msg) {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-function verifyDescriptor(descriptor) {
-  try {
-    const { signature, ...payload } = descriptor;
-    return verify(
-      null,
-      Buffer.from(JSON.stringify(payload)),
-      { key: TEST_PUBLIC_KEY, format: 'pem', type: 'spki' },
-      Buffer.from(signature, 'base64')
-    );
-  } catch {
-    return false;
-  }
+function displayCount() {
+  let n = 0;
+  for (const c of clients) if (c.role === 'display') n++;
+  return n;
 }
 
 function broadcast(msg, { exclude, toRole } = {}) {

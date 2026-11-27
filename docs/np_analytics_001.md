@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 12
+**Revision:** 14
 **Date:** 2026-11-27  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -338,7 +338,7 @@ Event retention is `EVENT_RETENTION_DAYS` in `.env` (default **30**), applied as
 **Why 30, and what changing it means.** `NP-APP-TELEMETRY-001` §5 promises that a person who withdraws research consent has their pseudonymous analytics ID deleted from the vendor within **30 days**. Retention is what keeps that true while the erasure relay is unverified (`OI-ANALYTICS-01`). **Raising the value above 30 breaks that promise for each day over 30**, and the script says so on stderr; that is the principal's decision, not a tuning choice. Lowering it only loses trend data.
 
 To change:
-- Set `EVENT_RETENTION_DAYS` in `.env`, then run `python3 apply_event_retention.py --url <clickhouse> --apply` and then `--check`
+- Set `EVENT_RETENTION_DAYS` in `.env`, then run `python3 apply_event_retention.py --url <clickhouse> --apply` and then `--check`, with `RETENTION_CLICKHOUSE_PASSWORD` exported: the script runs as its own ClickHouse user, `np_retention`, which may read `system.tables` and change the TTL and nothing else, and it refuses to run as `posthog` (§7.7, `REQ-SW03-34` (e))
 - A TTL removes rows when ClickHouse next merges the parts, not at the instant they expire
 - Re-run `--check` after every PostHog upgrade
 
@@ -439,11 +439,11 @@ What the relay does (`OI-PRIV-48`, decided by the principal 2026-11-24, GitHub #
 
 **Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm --use-aliases erase-relay python /app/erase_relay.py --self-check`. Without `--use-aliases`, `docker compose run` does not give its container the service name, and ClickHouse refuses `np_erase` from it (`OI-PRIV-50`). It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
 
-**Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so a batch's erased IDs can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay. An event still in Kafka when a batch runs is written afterwards; the next ask for that ID finds it and queues it again, but an ID the app has already dropped is not asked about again, so such an event stays until the TTL. **Container logs** are bounded by size, not by age (since 2026-11-25, `OI-PRIV-57`): every service in `docker-compose.yml` uses Docker's `local` driver with at most three files of 10 MB (`UC-211`, checked by `ci/test_posthog_infra.py` P10), so a quiet service can keep a line longer than the 30 days of `NP-APP-TELEMETRY-001` §5. The erasure relay writes no ID to its log (`REQ-SW03-22`), and Caddy's logs keep no address and no request header. **ClickHouse's own server log**, on the `clickhouse_log` volume, has no bound set here, and at a verbose level it can record the erase mutation's text (`OI-PRIV-46` (2)).
+**Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so a batch's erased IDs can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay. An event still in Kafka when a batch runs is written afterwards; the next ask for that ID finds it and queues it again, but an ID the app has already dropped is not asked about again, so such an event stays until the TTL. **Container logs** are bounded by size, not by age (since 2026-11-25, `OI-PRIV-57`): every service in `docker-compose.yml` uses Docker's `local` driver with at most three files of 10 MB (`UC-211`, checked by `ci/test_posthog_infra.py` P10), so a quiet service can keep a line longer than the 30 days of `NP-APP-TELEMETRY-001` §5. The erasure relay writes no ID to its log (`REQ-SW03-22`), and Caddy's logs keep no address and no request header. **ClickHouse's own server log**, on the `clickhouse_log` volume, is bounded by size, not by age (since Rev 14, `OI-PRIV-46` (2)): the stock image logs at `trace`, which records every query's text, in ten files of 1000M per log; `clickhouse/np-privacy.xml` overrides that with a `<logger>` at `warning` (and `errorlog_level` `warning`), at most three archived files of 10 MB per log (`UC-223`, checked by `ci/test_posthog_infra.py` P13, which also checks that every ClickHouse server in the compose file mounts the override). ClickHouse's logger has no age option, so a quiet server can keep a line longer than 30 days, and **a failed query is logged at `error` with its text**, so a failed erase batch can leave its IDs there until the files rotate. **Neither log is yet bounded by age** (`OI-PRIV-46`): that waits on measuring each service's output rate or on a host setting that bounds age.
 
 ### 7.7 Who may read the analytics data, and the read log (`OI-PRIV-47`, decided by the principal 2026-11-24; GitHub #970)
 
-The analytics store holds each installation's event timeline under its pseudonymous ID. NeurOne holds no link from that ID to a person, but a timeline per installation is still an internal read that needs an owner and a record. This section is the policy. **Only the erasure relay's own ClickHouse user (`np_erase`, §7.6) is built; everything else here is decided and not built.**
+The analytics store holds each installation's event timeline under its pseudonymous ID. NeurOne holds no link from that ID to a person, but a timeline per installation is still an internal read that needs an owner and a record. This section is the policy. **Built:** the erasure relay's ClickHouse user (`np_erase`, §7.6), the retention script's (`np_retention`, §7.1), and the read log's entry format and alert rules as a module that nothing runs yet (§7.8). Everything else here is decided and not built.
 
 **Who holds an account.**
 
@@ -453,7 +453,7 @@ The analytics store holds each installation's event timeline under its pseudonym
 **Separate users.**
 
 - PostHog's application reaches ClickHouse as its own user, and nothing else uses that credential.
-- Each script and each operator has its own ClickHouse user, with only the rights its task needs: `np_erase` may only delete (§7.6), and the retention script's user may only read `system.tables` and change the TTL (§7.1). An operator who needs to read data does so as a named user of their own, so the read log shows who.
+- Each script and each operator has its own ClickHouse user, with only the rights its task needs: `np_erase` may only delete (§7.6), and the retention script's user, `np_retention`, may only read `system.tables` and change the TTL (§7.1; `clickhouse/np-retention-user.xml`, built 2026-11-26). The compose file refuses to start ClickHouse without each of these users' passwords, because a `from_env` password whose variable is unset is an empty one. An operator who needs to read data does so as a named user of their own, so the read log shows who.
 
 **Every read is recorded.**
 
@@ -492,7 +492,44 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 **Deferred until a baseline exists.** Three triggers need a threshold: (B1) rows returned by one person in a day well above their measured normal; (B2) access at an unusual time or from a new device or location, where the identity provider's own signal is preferred; (B3) a burst of `429` answers from the erasure relay (`OI-PRIV-48`). Their values are set from the measured log at the first quarterly review after the log is running, not chosen beforehand, so each rests on a measurement (`CLAUDE.md` §19).
 
-**To build** (`OI-PRIV-47`): the sign-in proxy and the identity provider behind it, recording each page's type so A6 and A7 can be seen; the log forwarder, its heartbeat (A8) and the locked bucket; a ClickHouse user per script and operator; alerts A1 to A11, including the schedule A10 runs on and counters the erasure relay exposes while it runs (today it prints them only at shutdown) for A11; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
+**To build** (`OI-PRIV-47`; what is built is in §7.8): the sign-in proxy and the identity provider behind it, recording each page's type so A6 and A7 can be seen; the log forwarder, its heartbeat (A8) and the locked bucket; a ClickHouse user per remaining script and per operator; alerts A1 to A11 wired to a channel, including the schedule A10 runs on and counters the erasure relay exposes while it runs (today it prints them only at shutdown) for A11; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
+
+### 7.8 The read log's entry format and alert rules (`OI-PRIV-47`; built as a module, not deployed)
+
+`infra/posthog/read_log.py` is the part of §7.7 that does not wait on the deployment: what one entry is, how a proxied page or a ClickHouse query becomes one, and which entries raise which alert, routed how (`REQ-SW03-40`, tested by `ci/test_posthog_read_access.py`). It forwards nothing, stores nothing and sends nothing. The proxy, the forwarder, the bucket and the channel are built on it once the identity provider, the cloud provider and the alert channel are chosen (`docs/human-input/oi-priv-47-read-log-deployment.md`).
+
+**One entry** is one JSON object on one line:
+
+| Key | Holds |
+|---|---|
+| `v` | `1`, the format version |
+| `seq` | The forwarder's counter, one more per entry, so a lost entry shows as a gap (A8) |
+| `at` | When the read happened, UTC, whole seconds |
+| `source` | `proxy` (a PostHog page), `clickhouse` (a query) or `heartbeat` |
+| `who` | The identity provider's account name, the ClickHouse user, or the forwarder's name |
+| `object` | `proxy`: the path with every segment not on the module's list of route words replaced by `:id`, and no query string. `clickhouse`: the tables read. `heartbeat`: empty |
+| `kind` | `read`, `single_installation` (A6), `export` (A7), `access_change` (A5) or `heartbeat` |
+| `rows` | Rows returned, or `null` for a page (the proxy cannot see them) |
+| `query` | ClickHouse's `normalized_query_hash`, which ClickHouse computes with every literal removed, or `null` |
+| `outcome` | `ok`, `refused` (A3) or `error` |
+| `origin` | For a query: `application` if it came from PostHog's own container, else `other` (A2). The address it was decided from is not kept |
+
+**What is never in an entry:** an analytics ID, a query's text or any value in it, a client address, a user agent or a request header. The redaction is unconditional (`CLAUDE.md` §5.1 rule 2): it keeps the segments on a fixed list and replaces every other segment, so it never has to recognise an ID, and a route word PostHog adds later is recorded as `:id` until the list learns it. The query's text and address are read only to classify the query, then dropped. The module refuses to produce an entry that breaks any of this. **Known limit:** the per-query `kind` reads the query text with patterns, so a single-installation filter written in a form the pattern does not know is recorded as `read`. That makes A6 for ClickHouse a best effort. The table and the user are still recorded.
+
+**Where each alert comes from:**
+
+| # | Raised by | Built |
+|---|---|---|
+| A1, A2, A3, A5, A6, A7 | One entry: an identity not on the approved list; `posthog` with origin `other`; outcome `refused`; kind `access_change`; kind `single_installation` from anyone but `np_erase`; kind `export` | Rule built |
+| A4 | PostHog's own request log showing a page the proxy did not record | No: needs the proxy |
+| A8 | No entry for `HEARTBEAT_SECONDS` × `HEARTBEAT_MISSED` (300 s × 3), or a gap in `seq`. The forwarder writes a heartbeat every 300 s whether or not anyone read anything | Rule built; the figures are `UC-221` |
+| A9 | The cloud provider's audit trail for the bucket | No: needs the cloud provider |
+| A10 | `apply_project_settings.py --check` or `apply_event_retention.py --check` not exiting 0 (exit 2, unreadable, counts), or the checks not run in the last 7 days. They run once a day | Rule built; the 7-day bound follows from A10's within-the-week routing, the daily schedule is `UC-222` |
+| A11 | The erasure relay's `failed` counter rising, or resetting (a restart loses the counts in between, so a reset is raised too) | Rule built; the relay still prints its counters only at shutdown (§7.6), so it must expose them while it runs |
+
+Routing is as §7.7 decides: every alert goes to the Privacy Lead; A1, A2, A4, A8, A9 and A11 at once, the rest within the week; the CEO is copied on A9 and on any alert whose `who` is one of the Privacy Lead's own identities.
+
+**What the forwarder must establish on a real stack before it is trusted:** that ClickHouse's query log records every query of every named user. `np-privacy.xml` keeps the query log for 3 days and sets `log_queries_min_query_duration_ms` to 1000 inside the `<query_log>` element, which is a per-query setting, not a log setting, so whether short queries are logged is unconfirmed. The forwarder must read the log well inside 3 days, and must keep only the fields above when it does.
 
 ## 8. Permitted and prohibited property reference
 
@@ -617,3 +654,5 @@ Revisions before the first row below were not recorded in a table in this docume
 | 10 | 2026-11-25 | NeurOne Software Engineering | **New §7.7: the analytics access policy decided on OI-PRIV-47, with its alerts. Analytics Lead accounts approved by the CEO; separate ClickHouse users; every read recorded (PostHog through a sign-in proxy); a minimised log in write-once storage owned by the Privacy Lead, kept 12 months (CNIL 2021-122, UK NCSC); quarterly review; review records kept apart for at most 3 years. §7.6: the erasure relay's 202 for queued, decided on OI-PRIV-48 and built in both halves; the relay answers from its queue and the store and deletes in batches.** |
 | 11 | 2026-11-25 | NeurOne Software Engineering | **§7.6 Known residues: container logs are bounded by size, not age (P10, `UC-211`); ClickHouse's own server log is unbounded (`OI-PRIV-46` (2)).** |
 | 12 | 2026-11-27 | NeurOne Software Engineering | **§6.2: a physical device goes through Caddy (the https profile) and no other way; the plain-HTTP App Transport Security option is removed, because PostHog is published on 127.0.0.1 only (OI-PRIV-50). §7.6: np_erase is admitted from the host name erase-relay only, which carries into the rebuilt stack (OI-ANALYTICS-03), checked by P11; the self-check runs with --use-aliases.** |
+| 13 | 2026-11-27 | NeurOne Software Engineering | **§7.1, §7.7, new §7.8: the retention script's ClickHouse user `np_retention` is built, and ClickHouse refuses to start without each script user's password; §7.8 specifies the read log's entry format and where each alert comes from, with the A8 heartbeat (`UC-221`) and A10's schedule (`UC-222`). Nothing is deployed (`OI-PRIV-47`).** |
+| 14 | 2026-11-27 | NeurOne Software Engineering | **§7.6 Known residues: ClickHouse's server log is bounded by size, not age (`np-privacy.xml` `<logger>` at `warning`, three archived files of 10 MB per log, `UC-223`, checked by `ci/test_posthog_infra.py` P13 with the mount); a failed query is still logged with its text; neither log is bounded by age (`OI-PRIV-46`).** |

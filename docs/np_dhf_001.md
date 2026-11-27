@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DHF-001
-**Revision:** 465
+**Revision:** 468
 **Date:** 2026-11-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-21
@@ -79,10 +79,10 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | NeurOne Quality Management System Manual | 1 | 2026-05-13 | [np_qms_001.md](./np_qms_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | NeurOne Design History File Index | 465 | 2026-11-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | NeurOne Design History File Index | 468 | 2026-11-27 | [np_dhf_001.md](./np_dhf_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | 3 | 2026-11-02 | [np_qms_dc_001.md](./np_qms_dc_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | 5 | 2026-11-26 | [np_rm_001.md](./np_rm_001.md) | ACTIVE | RISK |
-| NP-SW-001 | IEC 62304 Software Development Plan | 225 | 2026-11-26 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
+| NP-SW-001 | IEC 62304 Software Development Plan | 226 | 2026-11-27 | [np_sw_001.md](./np_sw_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | Corrective and Preventive Action Procedure | 1 | 2026-05-13 | [np_qms_capa_001.md](./np_qms_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | 1 | 2026-05-17 | [np_dp_001.md](./np_dp_001.md) | ACTIVE | QMS |
 | NP-DT-001 | Design Input/Output Traceability Matrix | 9 | 2026-11-11 | [np_dt_001.md](./np_dt_001.md) | DRAFT | QMS |
@@ -170,7 +170,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-NPPS-REF-001 | NPPS Language Reference | 46 | 2026-11-26 | [np_npps_ref_001.md](./np_npps_ref_001.md) | ACTIVE | SES |
 | NP-API-001 | T2 Clinical Scripting API Specification | 1 | 2026-06-07 | [np_api_001.md](./np_api_001.md) | DRAFT | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE | SIM |
-| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 58 | 2026-11-27 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
+| NP-SIM-FW-001 | Firmware-in-the-Loop Helmet Simulator — Design | 59 | 2026-11-27 | [np_sim_fw_001.md](./np_sim_fw_001.md) | DRAFT | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev 2:** The §9 Privacy Constraints added in Rev 2 are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
 
@@ -307,14 +307,14 @@ These controlled documents had **no master-index row** in §5.1–§5.14 when `O
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-ACC-PRIORITY-001 | Accessory and Companion-Software Priority Set | 6 | 2026-11-24 | [np_acc_priority_001.md](./np_acc_priority_001.md) | DRAFT | COORD |
-| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 12 | 2026-11-27 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
+| NP-ANALYTICS-001 | NeurOne PostHog Analytics — Self-Hosted Configuration Reference | 14 | 2026-11-27 | [np_analytics_001.md](./np_analytics_001.md) | ACTIVE | APP |
 | NP-BIB-EMF-001 | EMF Shielding — Evidence Base and Claim Substantiation Record | 6 | 2026-09-23 | [np_bib_emf_001.md](./np_bib_emf_001.md) | ACTIVE | CLIN |
 | NP-COND-LINK-001 | NP-COND-LINK-001 — Condition external-link UI | 3 | 2026-11-26 | [np_cond_link_001.md](./np_cond_link_001.md) | ACTIVE | CLIN |
 | NP-CONV-001 | NeurOne Naming and Notation Conventions | 11 | 2026-10-01 | [np_conv_001.md](./np_conv_001.md) | ACTIVE | QMS |
 | NP-HW-EEGNET-001 | EEG Electrode Net — Architecture, Sizing, and Interference Control | 10 | 2026-11-21 | [np_hw_eegnet_001.md](./np_hw_eegnet_001.md) | DRAFT | SPEC-HW |
 | NP-HW-FITOVER-001 | Fit-Over Goggle Assembly — Concept Specification (Deferred) | 2 | 2026-09-26 | [np_hw_fitover_001.md](./np_hw_fitover_001.md) | DRAFT | SPEC-HW |
 | NP-INFRA-001 | NeurOne Infrastructure Setup Guide | 8 | 2026-11-22 | [np_infra_001.md](./np_infra_001.md) | ACTIVE | APP |
-| NP-MAN-OPS-001 | NeurOne Operations Manual | 2 | 2026-11-27 | [np_man_ops_001.md](./np_man_ops_001.md) | DRAFT | APP |
+| NP-MAN-OPS-001 | NeurOne Operations Manual | 3 | 2026-11-27 | [np_man_ops_001.md](./np_man_ops_001.md) | DRAFT | APP |
 | NP-MOD-ID-001 | Module Identity, History Portability, and Fleet Characterisation Data Programme | 5 | 2026-11-26 | [np_mod_id_001.md](./np_mod_id_001.md) | DRAFT | SPEC-FW |
 | NP-OPT-PSF-001 | NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor | 2 | 2026-09-29 | [np_opt_psf_001.md](./np_opt_psf_001.md) | ACTIVE | SPEC-HW |
 | NP-PRIV-ANALYSIS-002 | Privacy Analysis and Repair | 2 | 2026-06-05 | [np_priv_analysis_002.md](./np_priv_analysis_002.md) | ACTIVE | PRIV |

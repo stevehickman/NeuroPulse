@@ -1,7 +1,7 @@
 # Vendored third-party files of the simulator page
 
 Everything the page (`simulator/index.html`) loads that NeurOne did not write is here, so the page asks no third
-party for anything (`OI-PRIV-44`, `REQ-SIMFW-29`, `NP-SIM-FW-001` §35). The SOUP record is `NP-SOUP-SIM-001`
+party for anything (`OI-PRIV-44`, `REQ-SIMFW-30`, `NP-SIM-FW-001` §35). The SOUP record is `NP-SOUP-SIM-001`
 (`docs/np_soup_sim_001.md`). These files are committed: no build, container or CI job fetches them, and none may.
 
 **Do not edit a file here.** To change a version, replace the files from the same source at the new version, update

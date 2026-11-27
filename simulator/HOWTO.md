@@ -56,7 +56,7 @@ The zone/protocol data (socket positions, named zones, and the full protocol lis
 
 ### Dependencies and how they are loaded
 
-Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-29`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
+Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-30`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
 
 | Library | Version | Where it is | Licence | Used for |
 |---------|---------|-------------|---------|---------|
@@ -679,6 +679,10 @@ npm install          # first time only — installs the ws package
 node index.js        # starts ws://localhost:9000
 ```
 
+The server checks every `SESSION_START` signature with the shared NPPS core, so it needs the same WebAssembly module as the page (`scripts/build-npps-wasm.sh`, §2). Without it the server starts, says so, and refuses every `SESSION_START`.
+
+The link is plain `ws://`, so everything on it travels in the clear: a known gap against `CLAUDE.md` §23, tracked as `OI-SIMFW-71`.
+
 Then open `simulator/index.html`. The **API** badge in the header turns green: **API: Connected**.
 
 If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
@@ -710,10 +714,10 @@ Identify your client by sending `CLIENT_HELLO` immediately after connecting:
 
 | Message type | Required fields | Description |
 |-------------|-----------------|-------------|
-| `SESSION_START` | `descriptor` object | Start a session. See §17.4 for descriptor format. |
+| `SESSION_START` | `descriptor` object, signed | Start a session. The descriptor must carry a valid signature; one without is refused, as the hub refuses it. Refused while a session runs. See §17.4. |
 | `SESSION_PAUSE` | _(none)_ | Toggle pause. Idempotent if already paused. |
 | `SESSION_STOP` | _(none)_ | Stop and reset to 0:00. |
-| `ZONE_CONFIG` | `zoneId`, `config` | Install or reconfigure a zone module. |
+| `ZONE_CONFIG` | `zoneId`, `config` | Install or reconfigure a zone module. Refused while a session runs (paused included); stop the session first. |
 | `ACCESSORY_CONFIG` | `name`, `visible` | Trigger an accessory state change. `name` is one of `goggles`, `vnsClip`, `hapticPad`, `intranasal`. For `intranasal`, toggles the Y-probe insertion / removal animation. See §17.7. |
 
 #### Simulator → App (display → controller)
@@ -743,16 +747,28 @@ Identify your client by sending `CLIENT_HELLO` immediately after connecting:
   "type": "SESSION_START",
   "descriptor": {
     "protocolId": "01-gamma-focus",
-    "signature":  "<base64-encoded Ed25519 signature — optional>"
+    "signature":  "<base64-encoded Ed25519 signature — required>"
   }
 }
 ```
 
-`protocolId` must match the slug of one of the protocol files in `protocols/predefined/*.npps` (the filename without `.npps`, e.g. `01-gamma-focus`, `clinical-08-pbm-parkinsons`) — see §11. If `signature` is present the server verifies it with the test public key (`simulator/server/keys/test-public.pem`) before forwarding; an invalid signature returns an `ERROR` message and the session does not start.
+`protocolId` must match the slug of one of the protocol files in `protocols/predefined/*.npps` (the filename without `.npps`, e.g. `01-gamma-focus`, `clinical-08-pbm-parkinsons`) — see §11.
+
+**The signature is required** (`CLAUDE.md` §4.2: the headset rejects an unsigned protocol; `NP-SIM-FW-001` `REQ-SIMFW-29`). The server verifies it with the shared NPPS core against the **test** public key (`simulator/server/keys/test-public.pem`) before forwarding. A refused `SESSION_START` returns an `ERROR` and the session does not start:
+
+| `code` | Why |
+|--------|-----|
+| `UNSIGNED` | No `signature`, or an empty one |
+| `INVALID_SIGNATURE` | Not 64 bytes of padded base64, or it does not verify (another key, or the descriptor changed after signing) |
+| `INVALID_DESCRIPTOR` | `descriptor` is missing, is not an object, or holds a value JSON cannot carry exactly (a non-finite number) |
+| `SESSION_ACTIVE` | A session is already running (paused included); send `SESSION_STOP` first |
+| `VERIFIER_UNAVAILABLE` | The NPPS core is not built (`scripts/build-npps-wasm.sh`) |
+
+**What is signed.** Not the JSON text you send, so key order and whitespace do not matter. The signed bytes are framed the way the hub frames an upload: a 4-byte little-endian length, then the blob. The blob is `NP-SIM-SESSION-START/1`, a zero byte, then the descriptor without `signature` as RFC 8785 canonical JSON (members sorted, no whitespace). `signedBytes()` in `simulator/server/session-auth.js` builds them. The descriptor names a protocol by slug: it is not the compiled protocol the hub verifies, which only the firmware-in-the-loop path carries (`NP-SIM-FW-001` §26).
 
 **Available protocol IDs:** every filename slug under `protocols/predefined/*.npps` except `00-zones`, `00-conditions`, and the `composite-*` files (see §11). Run `bun scripts/generate-simulator-data.ts` and check `Object.keys(PROTOCOLS)` in `simulator/js/protocols.generated.js` for the exact current list.
 
-Optional: include `zones` to reconfigure modules before the session starts:
+Optional: include `zones` to reconfigure modules before the session starts (they are signed with the rest of the descriptor):
 
 ```json
 {
@@ -767,19 +783,19 @@ Optional: include `zones` to reconfigure modules before the session starts:
 
 `zoneId` is a zone **name** from `protocols/predefined/00-zones.npps` (see §5.1 for the full list), not a legacy `ZM-nn` slot id.
 
-**Signing a descriptor with the test private key (Node.js):**
+**Signing a descriptor with the test private key (Node.js, from the repository root):**
 
 ```js
-const { sign } = require('crypto');
 const fs = require('fs');
+const { signDescriptorForTest } = require('./simulator/server/session-auth');
 const privateKey = fs.readFileSync('simulator/server/keys/test-private.pem', 'utf8');
 
-const payload   = { protocolId: '01-gamma-focus' };
-const signature = sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64');
-const descriptor = { ...payload, signature };
-
+// A simulator test aid: it signs through the shared NPPS core, with the TEST key.
+const descriptor = signDescriptorForTest({ protocolId: '01-gamma-focus' }, privateKey);
 ws.send(JSON.stringify({ type: 'SESSION_START', descriptor }));
 ```
+
+From Swift or C#, compute the same bytes (`signedBytes()` above) and sign them through the app's shared core (`CLAUDE.md` §22), never with a platform library. The examples in §17.7 take a descriptor already signed this way.
 
 ### 17.5 TELEMETRY snapshot format
 
@@ -857,18 +873,20 @@ Mid-animation reversal is supported: sending the opposite `visible` value while 
 **Minimal intranasal insertion sequence (Node.js):**
 
 ```js
+const fs = require('fs');
 const WebSocket = require('ws');
+const { signDescriptorForTest } = require('./simulator/server/session-auth');
+const privateKey = fs.readFileSync('simulator/server/keys/test-private.pem', 'utf8');
 const ws = new WebSocket('ws://localhost:9000');
 
 ws.on('open', () => {
   // Identify as controller
   ws.send(JSON.stringify({ type: 'CLIENT_HELLO', role: 'controller', version: '1.0.0' }));
 
-  // Start a session that includes PBM so the probe LEDs glow on arrival
-  ws.send(JSON.stringify({
-    type: 'SESSION_START',
-    descriptor: { protocolId: '02-alpha-calm' }
-  }));
+  // Start a session that includes PBM so the probe LEDs glow on arrival.
+  // The descriptor must be signed (§17.4); an unsigned one is refused.
+  const descriptor = signDescriptorForTest({ protocolId: '02-alpha-calm' }, privateKey);
+  ws.send(JSON.stringify({ type: 'SESSION_START', descriptor }));
 
   // Insert the intranasal probe 2 seconds into the session
   setTimeout(() => {
@@ -943,8 +961,8 @@ async Task Send(object payload) {
 // Identify
 await Send(new { type = "CLIENT_HELLO", role = "controller", version = "1.0.0" });
 
-// Start session
-await Send(new { type = "SESSION_START", descriptor = new { protocolId = "02-alpha-calm" } });
+// Start session: `signedDescriptor` is the descriptor with its signature (§17.4); an unsigned one is refused.
+await Send(new { type = "SESSION_START", descriptor = signedDescriptor });
 
 // Insert probe
 await Task.Delay(2000);
