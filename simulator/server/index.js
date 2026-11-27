@@ -29,6 +29,10 @@ const { FwBridge, BridgeError } = require('./fw-bridge');
 const FW_BIN = process.env.NP_SIM_FW_BIN || null;
 const SERVER_VERSION = require('../version.json').version;
 
+// REQ-SIMFW-27 (b): no client address in the log; version and protocol ID only with NP_SIM_DEBUG=1.
+const { logDetailEnabled, connectedLine, helloLine, sessionStartLine } = require('./log-lines');
+const LOG_DETAIL = logDetailEnabled(process.env);
+
 const TEST_PUBLIC_KEY = fs.readFileSync(
   path.join(__dirname, 'keys', 'test-public.pem'), 'utf8'
 );
@@ -48,13 +52,12 @@ if (FW_BIN) {
 }
 console.log(`[NP-SIM] Serve the repo root and open /simulator/ — badge should turn green.`);
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', (ws) => {
   ws.role    = 'controller';  // default; overridden by CLIENT_HELLO
   ws.isAlive = true;
   clients.add(ws);
 
-  const addr = req.socket.remoteAddress ?? 'unknown';
-  console.log(`[NP-SIM] Client connected from ${addr}  (${clients.size} total)`);
+  console.log(connectedLine(clients.size));
 
   send(ws, {
     type:         'CONNECTED',
@@ -109,7 +112,7 @@ function handleMessage(ws, msg) {
     case 'CLIENT_HELLO': {
       ws.role = msg.role === 'display' ? 'display' : 'controller';
       ws.clientVersion = msg.version ?? 'unknown';
-      console.log(`[NP-SIM] CLIENT_HELLO  role=${ws.role}  version=${ws.clientVersion}`);
+      console.log(helloLine(ws.role, ws.clientVersion, LOG_DETAIL));
       break;
     }
 
@@ -122,7 +125,7 @@ function handleMessage(ws, msg) {
         }
         console.log('[NP-SIM] SESSION_START signature verified ✓');
       }
-      console.log(`[NP-SIM] SESSION_START  protocol=${msg.descriptor?.protocolId ?? 'raw'}`);
+      console.log(sessionStartLine(msg.descriptor?.protocolId, LOG_DETAIL));
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
     }
