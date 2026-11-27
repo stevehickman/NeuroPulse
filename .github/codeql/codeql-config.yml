@@ -1,0 +1,11 @@
+# CodeQL configuration (NP-SW-CI-001 §5.6).
+#
+# simulator/vendor/ holds third-party files committed byte for byte from upstream (Three.js 0.164.1, two
+# fonts; OI-PRIV-44). Each file's SHA-256 is pinned (simulator/vendor/VENDOR.md, REQ-SIMFW-30 (d)), so a finding
+# there cannot be fixed in place, and every upstream update would raise the same findings again. The
+# first was js/insecure-randomness on Three.js's MathUtils.generateUUID, a scene-object id and not a secret
+# (PR #1103). Vendored code is reviewed through its SOUP record, NP-SOUP-SIM-001, not code scanning.
+# Exclude nothing else here without the same reasoning written beside it.
+name: NeurOne CodeQL configuration
+paths-ignore:
+  - simulator/vendor/**

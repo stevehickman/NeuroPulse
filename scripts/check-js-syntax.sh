@@ -46,6 +46,7 @@ np_mode_for() {
   case "$1" in
     simulator/js/*)     printf 'module\n' ;;
     simulator/server/*) printf 'commonjs\n' ;;
+    simulator/vendor/*) printf 'module\n' ;;   # vendored ES modules (OI-PRIV-44)
     *) np_die "unclassified file: $1 (add its directory to np_mode_for)" ;;
   esac
 }

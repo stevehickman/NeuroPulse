@@ -56,14 +56,21 @@ The zone/protocol data (socket positions, named zones, and the full protocol lis
 
 ### Dependencies and how they are loaded
 
-All external libraries are fetched automatically from CDN the first time you open the simulator. After the first load, the browser caches them and the simulator works offline.
+Every library and font the page uses is in the repository, in `simulator/vendor/`, and the page loads it from your own file server. **The page asks no third party for anything:** no CDN, no font service, on the first load or any other (`OI-PRIV-44`; `NP-SIM-FW-001` §35, `REQ-SIMFW-30`). It used to fetch Three.js from `cdn.jsdelivr.net` and the fonts from `fonts.googleapis.com`, which sent every viewer's network address, and the page's URL, to those services.
 
-| Library | Version | Source | Used for |
-|---------|---------|--------|---------|
-| **Three.js** | 0.164.1 | `cdn.jsdelivr.net` | 3D rendering engine |
-| **Three.js OrbitControls** | 0.164.1 | `cdn.jsdelivr.net` | Mouse/touch camera orbit |
-| **Inter** (font) | Variable | `fonts.googleapis.com` | UI text |
-| **JetBrains Mono** (font) | Variable | `fonts.googleapis.com` | Metrics and timer readouts |
+| Library | Version | Where it is | Licence | Used for |
+|---------|---------|-------------|---------|---------|
+| **Three.js** | 0.164.1 | `simulator/vendor/three/build/three.module.js` | MIT | 3D rendering engine |
+| **Three.js OrbitControls** | 0.164.1 | `simulator/vendor/three/examples/jsm/controls/OrbitControls.js` | MIT | Mouse/touch camera orbit |
+| **Inter** (font) | 4.001, variable | `simulator/vendor/fonts/Inter-*.woff2` | SIL OFL 1.1 | UI text |
+| **JetBrains Mono** (font) | 2.211, variable | `simulator/vendor/fonts/JetBrainsMono-*.woff2` | SIL OFL 1.1 | Metrics and timer readouts |
+
+Where each file came from, and its SHA-256, is in `simulator/vendor/VENDOR.md`; the SOUP record is `NP-SOUP-SIM-001`. **Do not edit a vendored file.** A version change replaces the files from the same source and updates `VENDOR.md`, the record and, for Three.js, the importmap in `index.html` together; `simulator/js/page-policy.test.mjs` fails if a file does not match its recorded hash.
+
+**The page's own policy.** `index.html` carries a Content-Security-Policy and a referrer policy as `<meta>` elements, so they apply under any static server. The CSP allows scripts, styles and fonts from the page's own origin, the inline importmap by its hash, the WebAssembly NPPS core, and connections to the page's origin and to `ws://localhost:9000` (§17) only; the referrer policy is `no-referrer`. Two consequences for anyone editing the page:
+
+- **Editing the importmap changes its hash.** Put the new SHA-256 of the importmap's text in the CSP's `script-src` (the test prints a mismatch).
+- **No inline script and no `style="…"` attribute.** The CSP refuses them. Use a class in `css/app.css`, or set the style from a module (`el.style.setProperty(…)`), which the CSP allows.
 
 All other code (helmet geometry, session engine, UI) is plain JavaScript ES modules shipped with the repository. No framework, no transpiler.
 
@@ -99,9 +106,9 @@ npx serve . --listen 8080
 
 **VS Code Live Server extension:** Right-click `simulator/index.html` → Open with Live Server, with the workspace opened at the repository root.
 
-### First-load internet requirement
+### No internet needed
 
-The protocol library is read from your own file server, never the network. The simulator needs an internet connection **only on the very first load** to fetch Three.js and the fonts from CDN. Once the browser caches them, the simulator runs fully offline. If you need guaranteed offline operation from the first load (e.g. an air-gapped environment), download the Three.js files from the CDN and update the importmap in `simulator/index.html` to use local paths.
+The simulator needs no internet connection, on the first load or any other: the protocol library, the libraries and the fonts are all served by your own file server. It runs in an air-gapped environment as it is.
 
 ---
 
@@ -155,6 +162,8 @@ relative to `index.html`. Point an `<iframe>` at `index.html`:
         style="border:none; border-radius:8px;">
 </iframe>
 ```
+
+Embedded this way the page still asks no third party for anything (§2), so a visitor to your site is not sent to Google or a CDN by it. The page cannot say from a `<meta>` element which sites may frame it; if that matters, have your server send a `Content-Security-Policy: frame-ancestors …` header for `simulator/`.
 
 For full-page use, the simulator's layout is responsive to the viewport size. Minimum recommended viewport: 1024 × 600 px.
 
