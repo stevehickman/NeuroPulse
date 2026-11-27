@@ -1,6 +1,6 @@
 # OI-PRIV-47: three deployment choices for the analytics read log
 
-**Status:** PARTLY ANSWERED 2026-11-27: Q2 is AWS as a working assumption (the user; no cloud or identity provider exists yet). Q1 and Q3 remain open. First put to the user in the session of 2026-11-26 · **From:** the session working `OI-PRIV-47` · **To:** the principal (or whoever the principal names to run the analytics stack)
+**Status:** PARTLY ANSWERED 2026-11-27 by the user (no cloud or identity provider exists yet): Q1 is Amazon Cognito behind `oauth2-proxy`, and Q2 is AWS, both as working assumptions. Q3 remains open. First put to the user in the session of 2026-11-26 · **From:** the session working `OI-PRIV-47` · **To:** the principal (or whoever the principal names to run the analytics stack)
 **GitHub issue:** [#970](https://github.com/stevehickman/NeuroPulse/issues/970)
 
 ## What is already decided
@@ -20,6 +20,8 @@ The proxy signs a person in before any PostHog page loads, and it records who th
 | C. A cloud zero-trust gateway (Cloudflare Access and similar) | The provider's edge signs the person in and can log the request | Little to run | Every page path passes through a third party, so the redaction would have to run there as well. That puts a sub-processor in the read path |
 
 **Recommendation: A**, whichever directory the company already uses. Once the proxy is built, the `who` field is that directory's account name.
+
+**Answer (the user, 2026-11-27): Amazon Cognito** (a user pool behind `oauth2-proxy`, self sign-up off, multi-factor sign-in required), recorded in `NP-ANALYTICS-001` §7.8.
 
 **Note (2026-11-27): the company has no identity provider either**, so option A has no directory to use. With AWS assumed, the proposal is an Amazon Cognito user pool with multi-factor sign-in required, behind `oauth2-proxy`. AWS IAM Identity Center is the alternative. It suits staff who also sign in to the AWS console, but it is less direct as an OIDC provider for a proxy. Whichever is chosen, `oauth2-proxy`'s own request log must be off: it writes the raw path, ID included, and the page record must come from the read-log module's redaction instead.
 
