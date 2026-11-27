@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-11-27  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -663,3 +663,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 12 | 2026-11-27 | NeurOne Software Engineering | **§6.2: a physical device goes through Caddy (the https profile) and no other way; the plain-HTTP App Transport Security option is removed, because PostHog is published on 127.0.0.1 only (OI-PRIV-50). §7.6: np_erase is admitted from the host name erase-relay only, which carries into the rebuilt stack (OI-ANALYTICS-03), checked by P11; the self-check runs with --use-aliases.** |
 | 13 | 2026-11-27 | NeurOne Software Engineering | **§7.1, §7.7, new §7.8: the retention script's ClickHouse user `np_retention` is built, and ClickHouse refuses to start without each script user's password; §7.8 specifies the read log's entry format and where each alert comes from, with the A8 heartbeat (`UC-221`) and A10's schedule (`UC-222`). Nothing is deployed (`OI-PRIV-47`).** |
 | 14 | 2026-11-27 | NeurOne Software Engineering | **§7.6 Known residues: ClickHouse's server log is bounded by size, not age (`np-privacy.xml` `<logger>` at `warning`, three archived files of 10 MB per log, `UC-223`, checked by `ci/test_posthog_infra.py` P13 with the mount); a failed query is still logged with its text; neither log is bounded by age (`OI-PRIV-46`).** |
+| 15 | 2026-11-27 | NeurOne Software Engineering | **§7.8: AWS and Amazon Cognito are the working assumptions for the read log (the user, 2026-11-27): S3 Object Lock in compliance mode in its own account, with A9 read from CloudTrail; the identity provider is Amazon Cognito behind `oauth2-proxy`, with self sign-up off and multi-factor sign-in required (NIST SP 800-63B); the alert channel stays open (`OI-PRIV-47`).** |
