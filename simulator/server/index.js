@@ -27,7 +27,11 @@ const { FwBridge, BridgeError } = require('./fw-bridge');
 const FW_BIN = process.env.NP_SIM_FW_BIN || null;
 const SERVER_VERSION = require('../version.json').version;
 
-// OI-PRIV-43, REQ-SIMFW-27: refuse what the hub refuses. A SESSION_START needs a valid signature (the shared
+// REQ-SIMFW-27 (b): no client address in the log; version and protocol ID only with NP_SIM_DEBUG=1.
+const { logDetailEnabled, connectedLine, helloLine, sessionStartLine } = require('./log-lines');
+const LOG_DETAIL = logDetailEnabled(process.env);
+
+// OI-PRIV-43, REQ-SIMFW-28: refuse what the hub refuses. A SESSION_START needs a valid signature (the shared
 // core's Ed25519 over framed canonical bytes, against the TEST key), and neither a second SESSION_START nor a
 // ZONE_CONFIG is taken while a session runs. The link itself is plain ws://: the CLAUDE.md §23 gap OI-SIMFW-71.
 const gate = new SessionGate(createVerifier());
@@ -50,13 +54,12 @@ if (FW_BIN) {
 }
 console.log(`[NP-SIM] Serve the repo root and open /simulator/ — badge should turn green.`);
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', (ws) => {
   ws.role    = 'controller';  // default; overridden by CLIENT_HELLO
   ws.isAlive = true;
   clients.add(ws);
 
-  const addr = req.socket.remoteAddress ?? 'unknown';
-  console.log(`[NP-SIM] Client connected from ${addr}  (${clients.size} total)`);
+  console.log(connectedLine(clients.size));
 
   send(ws, {
     type:         'CONNECTED',
@@ -113,7 +116,7 @@ function handleMessage(ws, msg) {
     case 'CLIENT_HELLO': {
       ws.role = msg.role === 'display' ? 'display' : 'controller';
       ws.clientVersion = msg.version ?? 'unknown';
-      console.log(`[NP-SIM] CLIENT_HELLO  role=${ws.role}  version=${ws.clientVersion}`);
+      console.log(helloLine(ws.role, ws.clientVersion, LOG_DETAIL));
       break;
     }
 
@@ -125,7 +128,7 @@ function handleMessage(ws, msg) {
         return;
       }
       console.log('[NP-SIM] SESSION_START signature verified against the TEST key ✓');
-      console.log(`[NP-SIM] SESSION_START  protocol=${msg.descriptor?.protocolId ?? 'raw'}`);
+      console.log(sessionStartLine(msg.descriptor?.protocolId, LOG_DETAIL));
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
     }

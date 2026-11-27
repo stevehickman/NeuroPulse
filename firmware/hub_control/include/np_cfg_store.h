@@ -86,7 +86,8 @@ typedef enum {
     NP_CFG_FILE_PAUSE_LIMIT,   /* the hardware owner's pause time limit — SWR-SS-05 */
     NP_CFG_FILE_PPX_CONFIG,    /* the detector's clinician settings — REQ-FWHUB-71 */
     NP_CFG_FILE_CARDIAC_SENS,  /* the cervical VNS cardiac cutoff's sensitivity — REQ-FWHUB-74 */
-    NP_CFG_FILE_MODULE_USAGE,  /* per-module running totals — NP-FW-NVRAM-001 §8.5, REQ-FWHUB-93 */
+    NP_CFG_FILE_MODULE_USAGE,  /* per-module running totals, tiles — NP-FW-NVRAM-001 §8.5, REQ-FWHUB-93 */
+    NP_CFG_FILE_MODULE_PORTS,  /* per-module running totals, accessory ports — NP-FW-NVRAM-001 §3.3.1.6, OI-NVRAM-23 */
     NP_CFG_FILE_COUNT
 } np_cfg_file_t;
 
@@ -214,13 +215,14 @@ np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
  */
 #define NP_CFG_REPLICA_MAX_PAYLOAD   256U
 
-/* The one exception to that limit: the per-module running-total table
- * (NP_CFG_FILE_MODULE_USAGE, np_module_usage.h), one fixed-size record of
- * every module's totals.  It is a single record because the totals must be
- * upserted, never appended: an appended row per change would be a per-session
- * history (NP-FW-NVRAM-001 §8.5).  Every other replicated file keeps the
- * 256-byte limit. */
-#define NP_CFG_REPLICA_TABLE_MAX_PAYLOAD 12288U  /* NP_MU_TABLE_BYTES: the table has one fixed length so a grown row still fits (NP-FW-NVRAM-001 §3.3.1.6); np_module_usage.c asserts it */
+/* The exceptions to that limit: the per-module running-total tables
+ * (NP_CFG_FILE_MODULE_USAGE for the tiles, NP_CFG_FILE_MODULE_PORTS for the
+ * accessory ports, np_module_usage.h), each one fixed-size record of every
+ * module's totals of its kind.  Each is a single record because the totals
+ * must be upserted, never appended: an appended row per change would be a
+ * per-session history (NP-FW-NVRAM-001 §8.5).  Every other replicated file
+ * keeps the 256-byte limit. */
+#define NP_CFG_REPLICA_TABLE_MAX_PAYLOAD 12288U  /* NP_MU_TILE_TABLE_BYTES, the longer table: each table has one fixed length so a grown row still fits (NP-FW-NVRAM-001 §3.3.1.6); np_module_usage.c asserts both fit */
 
 np_hub_status_t np_cfg_store_replicated_write(np_cfg_file_t file,
                                               const uint8_t *payload,

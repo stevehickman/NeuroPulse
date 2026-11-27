@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Tests for the device API's session gate (OI-PRIV-43, NP-SIM-FW-001 REQ-SIMFW-27). Run: node --test server/
+ * Tests for the device API's session gate (OI-PRIV-43, NP-SIM-FW-001 REQ-SIMFW-28). Run: node --test server/
  * They need the shared core as WebAssembly (scripts/build-npps-wasm.sh): the signature is the core's, and a
  * missing module is a failure here, not a skip.
  */
@@ -18,7 +18,7 @@ const sign = (d) => signDescriptorForTest(d, PRIVATE, { core });
 const DESCRIPTOR = { protocolId: '13-focus-prime',
   zones: [{ zoneId: 'Frontal Left', config: { installed: true, wavelengths: ['660nm', '1064nm'], frequency: 40 } }] };
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('a SESSION_START with no signature, an empty one or a malformed one is refused', () => {
   const gate = new SessionGate(verifier);
   for (const d of [{ protocolId: '01-gamma-focus' }, { protocolId: '01-gamma-focus', signature: '' },
@@ -33,7 +33,7 @@ test('a SESSION_START with no signature, an empty one or a malformed one is refu
   assert.strictEqual(gate.running, false, 'nothing refused starts a session');
 });
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('a signature from another key, or over a changed descriptor, is refused; a TEST-key signature is accepted', () => {
   const signed = sign(DESCRIPTOR);
   assert.deepStrictEqual(verifier.verify(signed), { ok: true });
@@ -55,7 +55,7 @@ test('a signature from another key, or over a changed descriptor, is refused; a 
   assert.match(v.message, /TEST key/, 'the refusal says the key is a test key');
 });
 
-// @verifies REQ-SIMFW-27#a
+// @verifies REQ-SIMFW-28#a
 test('without the shared core every SESSION_START is refused (fail closed)', () => {
   const none = createVerifier({ wasmPath: path.join(__dirname, 'no-such.wasm') });
   assert.strictEqual(none.available, false);
@@ -63,7 +63,7 @@ test('without the shared core every SESSION_START is refused (fail closed)', () 
   assert.strictEqual(new SessionGate(none).admitStart(signed).code, 'VERIFIER_UNAVAILABLE');
 });
 
-// @verifies REQ-SIMFW-27#b
+// @verifies REQ-SIMFW-28#b
 test('the signed bytes are framed and canonical: key order does not change them', () => {
   const reordered = { zones: [{ config: { frequency: 40, wavelengths: ['660nm', '1064nm'], installed: true }, zoneId: 'Frontal Left' }],
     protocolId: '13-focus-prime' };
@@ -83,7 +83,7 @@ test('the signed bytes are framed and canonical: key order does not change them'
   assert.throws(() => canonicalJson({ a: Infinity }));
 });
 
-// @verifies REQ-SIMFW-27#c
+// @verifies REQ-SIMFW-28#c
 test('a second SESSION_START and a ZONE_CONFIG are refused while a session runs, paused or not', () => {
   const gate = new SessionGate(verifier);
   assert.deepStrictEqual(gate.admitZoneConfig(), { ok: true }, 'zones change while nothing runs');

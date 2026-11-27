@@ -32,6 +32,7 @@
 #include "np_safety_spi.h"
 #include "np_session_log.h"
 #include "np_sw02_platform_hal.h"
+#include "np_module_registry.h"   /* np_mod_intranasal_lit_channels() */
 
 static int g_failures = 0;
 
@@ -163,6 +164,35 @@ static void test_a_fully_applied_command_still_drives(void)
     check(drive(2U, 20U) == NP_HUB_OK && !g_side_on[0] && g_side_on[1], "applied: 2 drives the right only");
 }
 
+/* @verifies REQ-FWHUB-93#j */
+static void test_the_driver_reports_which_of_its_four_channels_it_lit(void)
+{
+    reset();
+    check(np_mod_intranasal_lit_channels() == 0U, "channels: nothing is lit after init");
+    check(drive(0U, 20U) == NP_HUB_OK && np_mod_intranasal_lit_channels() == 0x0FU,
+          "channels: bilateral at both wavelengths lights all four (left 660, left 808, right 660, right 808)");
+
+    np_mod_intranasal_params_t p;
+    memset(&p, 0, sizeof p);
+    p.side = 2U; p.freq_code = 40U; p.duty = 20U; p.cur_660 = 60U; p.cur_808 = 0U;
+    check(np_mod_intranasal_control(SLOT, &p, (uint16_t)sizeof p) == NP_HUB_OK && np_mod_intranasal_lit_channels() == 0x07U,
+          "channels: a right-only command at 660 nm changes the right side only; the left keeps what it drove");
+    p.side = 1U; p.cur_660 = 60U; p.cur_808 = 70U; p.duty = 0U;
+    check(np_mod_intranasal_control(SLOT, &p, (uint16_t)sizeof p) == NP_HUB_OK && np_mod_intranasal_lit_channels() == 0x04U,
+          "channels: a duty of zero lights nothing on its side");
+
+    g_fail_on_call = g_set_calls + 2;
+    check(drive(0U, 20U) == NP_HUB_ERR_MOD_FAULT && np_mod_intranasal_lit_channels() == 0U,
+          "channels: a command that fails and stops both sides leaves nothing lit");
+    g_fail_on_call = 0;
+    (void)drive(0U, 20U);
+    (void)np_mod_intranasal_control(SLOT, NULL, 0U);
+    check(np_mod_intranasal_lit_channels() == 0U, "channels: a stop leaves nothing lit");
+    (void)drive(0U, 20U);
+    check(drive(0U, 0x40U) == NP_HUB_ERR_INVALID_ARG && np_mod_intranasal_lit_channels() == 0x0FU,
+          "channels: a refused command leaves the lit channels as they were");
+}
+
 /* The duty ceiling refuses; it does not clamp.  Duty 200 used to reach the emitters as 0x32, a pulse train nobody authored. */
 /* @verifies REQ-FWHUB-78#d,f */
 static void test_a_duty_above_the_ceiling_is_refused_and_starts_nothing(void)
@@ -251,6 +281,7 @@ int main(void)
     test_a_failing_single_side_command_leaves_nothing_emitting();
     test_a_failed_command_also_stops_a_running_one();
     test_a_fully_applied_command_still_drives();
+    test_the_driver_reports_which_of_its_four_channels_it_lit();
     test_a_duty_above_the_ceiling_is_refused_and_starts_nothing();
     test_a_refused_duty_leaves_a_running_command_as_it_was();
     test_an_unauthenticated_sleeve_is_refused_as_its_own_status();

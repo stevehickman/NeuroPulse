@@ -528,23 +528,24 @@ static void test_map3_rows_round_trip_and_a_damaged_header_is_refused_whole(void
     /* Map 3 is the per-module running-total record (NP-FW-NVRAM-001 §8.5); its
      * integrity is the store's envelope, so the codec's own refusal is of a header
      * it cannot read, and it refuses the record whole. */
-    static uint8_t rec[NP_MU_TABLE_BYTES];
+    static uint8_t rec[NP_MU_TILE_TABLE_BYTES];
     np_mu_row_t in[3];
     memset(in, 0, sizeof in);
     for (unsigned i = 0U; i < 3U; i++) {
         uint8_t uid[NP_MU_ID_LEN] = { 0xA5U, (uint8_t)i, 0, 0, 0, 0, 0, 0 };
         in[i].key = np_mu_key_uid(uid);
         in[i].sessions_present = i + 1U;
-        in[i].dose_accum = 1000U * (i + 1U);
+        in[i].ch_on_s[2] = 1000U * (i + 1U);            /* a per-channel total (OI-NVRAM-23) */
     }
-    np_mu_encode(in, 3U, rec);
+    np_mu_encode(NP_MU_TABLE_TILES, in, 3U, rec);
     np_mu_row_t out[NP_MU_MAX_ROWS];
     size_t n = 0U;
-    check(np_mu_decode(rec, out, NP_MU_MAX_ROWS, &n) && n == 3U && out[2].dose_accum == 3000U
+    check(np_mu_decode(NP_MU_TABLE_TILES, rec, out, NP_MU_MAX_ROWS, &n) && n == 3U && out[2].ch_on_s[2] == 3000U
           && out[1].sessions_present == 2U, "three module rows decode back, every total intact");
     rec[1] = 1U;                                        /* a row length no version has */
     n = 0U;
-    check(!np_mu_decode(rec, out, NP_MU_MAX_ROWS, &n) && n == 0U, "a damaged header is refused whole: nothing is misread");
+    check(!np_mu_decode(NP_MU_TABLE_TILES, rec, out, NP_MU_MAX_ROWS, &n) && n == 0U,
+          "a damaged header is refused whole: nothing is misread");
 }
 
 /* @verifies REQ-SIMFW-25#e */
