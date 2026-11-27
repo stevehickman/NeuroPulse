@@ -77,11 +77,11 @@ TABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_.][A-Za-z0-9_.]*$")
 ERASE_USER = "np_erase"
 
 # A8. The forwarder writes a heartbeat entry every HEARTBEAT_SECONDS whether or not anything was read, and A8 fires when the
-# bucket's newest entry is older than HEARTBEAT_SECONDS * HEARTBEAT_MISSED. NOT DERIVED: UC-220 (OI-PRIV-47). A8 is routed
+# bucket's newest entry is older than HEARTBEAT_SECONDS * HEARTBEAT_MISSED. NOT DERIVED: UC-221 (OI-PRIV-47). A8 is routed
 # immediately, so the interval bounds how long a stopped forwarder silences every other alert; nothing sets the figure.
 HEARTBEAT_SECONDS = 300
 HEARTBEAT_MISSED = 3
-# A10. The drift checks run once a day. NOT DERIVED: UC-221 (OI-PRIV-47). The bound is derived (A10 is routed within the week, so
+# A10. The drift checks run once a day. NOT DERIVED: UC-222 (OI-PRIV-47). The bound is derived (A10 is routed within the week, so
 # the checks must run at least weekly, or a drift could go a whole routing period unseen); the daily figure is not.
 A10_CHECK_INTERVAL_SECONDS = 24 * 3600
 A10_MAX_INTERVAL_SECONDS = 7 * 24 * 3600

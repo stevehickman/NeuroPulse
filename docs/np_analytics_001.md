@@ -535,9 +535,9 @@ The analytics store holds each installation's event timeline under its pseudonym
 |---|---|---|
 | A1, A2, A3, A5, A6, A7 | One entry: an identity not on the approved list; `posthog` with origin `other`; outcome `refused`; kind `access_change`; kind `single_installation` from anyone but `np_erase`; kind `export` | Rule built |
 | A4 | PostHog's own request log showing a page the proxy did not record | No: needs the proxy |
-| A8 | No entry for `HEARTBEAT_SECONDS` × `HEARTBEAT_MISSED` (300 s × 3), or a gap in `seq`. The forwarder writes a heartbeat every 300 s whether or not anyone read anything | Rule built; the figures are `UC-220` |
+| A8 | No entry for `HEARTBEAT_SECONDS` × `HEARTBEAT_MISSED` (300 s × 3), or a gap in `seq`. The forwarder writes a heartbeat every 300 s whether or not anyone read anything | Rule built; the figures are `UC-221` |
 | A9 | The cloud provider's audit trail for the bucket | No: needs the cloud provider |
-| A10 | `apply_project_settings.py --check` or `apply_event_retention.py --check` not exiting 0 (exit 2, unreadable, counts), or the checks not run in the last 7 days. They run once a day | Rule built; the 7-day bound follows from A10's within-the-week routing, the daily schedule is `UC-221` |
+| A10 | `apply_project_settings.py --check` or `apply_event_retention.py --check` not exiting 0 (exit 2, unreadable, counts), or the checks not run in the last 7 days. They run once a day | Rule built; the 7-day bound follows from A10's within-the-week routing, the daily schedule is `UC-222` |
 | A11 | The erasure relay's `failed` counter rising, or resetting (a restart loses the counts in between, so a reset is raised too) | Rule built; the relay still prints its counters only at shutdown (§7.6), so it must expose them while it runs |
 
 Routing is as §7.7 decides: every alert goes to the Privacy Lead; A1, A2, A4, A8, A9 and A11 at once, the rest within the week; the CEO is copied on A9 and on any alert whose `who` is one of the Privacy Lead's own identities.
