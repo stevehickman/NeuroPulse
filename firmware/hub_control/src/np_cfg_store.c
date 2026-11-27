@@ -89,13 +89,18 @@ static const np_cfg_file_desc_t CFG_FILES[NP_CFG_FILE_COUNT] = {
      * changes it, so REPLICATED costs nothing and one lost entry does not silently turn a setting back to its default.  It
      * bounds no emission (REQ-LFS-01): the cutoff is the safety MCU's. */
     /* REQ-FWHUB-93, NP-FW-NVRAM-001 §8.5: Map 3, the per-module running totals (sessions present and the time present,
-     * sessions used and the time used, faults per code, mate cycles, dose, throttles, fault flags, detail_lost).  Nothing re-answers them, and a total that went backwards
-     * after a torn write would understate a module's wear, so REPLICATED.  One fixed-size record, rewritten once per
-     * session end: upserted, never appended (an appended row per session would be a per-session history).  It bounds
-     * no emission (REQ-LFS-01). */
+     * sessions used and the time used, faults per code, mate cycles, throttles, on-time and sessions per emitter channel,
+     * fault flags, detail_lost).  Nothing re-answers them, and a total that went backwards
+     * after a torn write would understate a module's wear, so REPLICATED.  One fixed-size record per key kind (the tiles
+     * here; the accessory ports below, OI-NVRAM-23), each rewritten once per session end: upserted, never appended (an
+     * appended row per session would be a per-session history).  Neither bounds an emission (REQ-LFS-01).  No dose:
+     * delivered dose is UHDR and may not be written to Config (NP-FW-NVRAM-001 D-3). */
     [NP_CFG_FILE_MODULE_USAGE] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/modusage.rec",
                              NP_CFG_REPLICA_DIR_B "/modusage.rec" } },
+    [NP_CFG_FILE_MODULE_PORTS] = { NP_CFG_POLICY_REPLICATED,
+                           { NP_CFG_REPLICA_DIR_A "/modports.rec",
+                             NP_CFG_REPLICA_DIR_B "/modports.rec" } },
     [NP_CFG_FILE_CARDIAC_SENS] = { NP_CFG_POLICY_REPLICATED,
                            { NP_CFG_REPLICA_DIR_A "/cardsens.rec",
                              NP_CFG_REPLICA_DIR_B "/cardsens.rec" } },
@@ -519,12 +524,13 @@ np_hub_status_t np_cfg_store_replace(np_cfg_file_t file, const uint8_t *buf,
 static uint8_t s_env[2][NP_CFG_REPLICA_MAX];
 static uint8_t s_wenv[NP_CFG_REPLICA_MAX];
 
-/* The largest payload `file` may hold: 256 bytes, except the module usage
- * table (np_cfg_store.h). */
+/* The largest payload `file` may hold: 256 bytes, except the two module usage
+ * tables (np_cfg_store.h). */
 static size_t replica_max_payload(np_cfg_file_t file)
 {
-    return (file == NP_CFG_FILE_MODULE_USAGE) ? (size_t)NP_CFG_REPLICA_TABLE_MAX_PAYLOAD
-                                              : (size_t)NP_CFG_REPLICA_MAX_PAYLOAD;
+    return (file == NP_CFG_FILE_MODULE_USAGE || file == NP_CFG_FILE_MODULE_PORTS)
+               ? (size_t)NP_CFG_REPLICA_TABLE_MAX_PAYLOAD
+               : (size_t)NP_CFG_REPLICA_MAX_PAYLOAD;
 }
 
 /* Returns true and the generation if copy `env` is a valid envelope carrying

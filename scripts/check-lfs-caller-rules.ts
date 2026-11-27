@@ -181,11 +181,10 @@ const REPLICATED_API_USES: Record<string, Record<string, ReplicatedUse>> = {
     np_mu_slot_off: { kind: "write", why: "stops a slot's drive-time count" },
     np_mu_mark_present: { kind: "write", why: "counts a module present this session" },
     np_mu_add_used: { kind: "write", why: "adds the session's drive time" },
-    np_mu_add_dose: { kind: "write", why: "adds the session's metered dose" },
+    np_mu_add_channel_used: { kind: "write", why: "adds one drive channel's on-time and session count (OI-NVRAM-23)" },
     np_mu_note_throttle: { kind: "write", why: "counts a throttle" },
     np_mu_key_uid: { kind: "write", why: "pure: builds a row key from the caller's UID; reads no record" },
     np_mu_key_port: { kind: "write", why: "pure: builds a row key from the caller's slot and type; reads no record" },
-    np_mu_dose_mJ_cm2: { kind: "write", why: "pure: converts the caller's own session dose; reads no record" },
     // Consumables (NP_CFG_FILE_CONSUMABLES), OI-ACC-08.
     np_cons_on_session_end: { kind: "write", why: "counts the session against each consumable; returns nothing" },
     // Pause limit (NP_CFG_FILE_PAUSE_LIMIT), SWR-SS-05.
@@ -689,12 +688,12 @@ if (process.argv.includes("--self-test")) {
   expect("R8 rejects an owner's extern object read by a limit consumer",
     edit({ [GOV]: "int g(void) { return (int)np_mu_totals_ro[0]; }\n" }), 1, "uses np_mu_totals_ro");
   expect("R8 allows the listed writer: the session runner commits Map 3's totals",
-    edit({ [RUNNER]: consumerBody(RUNNER, "    (void)np_mu_session_end(1000);\n    (void)np_mu_add_dose(0, 5);\n") }), 0, "OK");
+    edit({ [RUNNER]: consumerBody(RUNNER, "    (void)np_mu_session_end(1000);\n    (void)np_mu_add_channel_used(0, 0, 5);\n") }), 0, "OK");
   expect("R8 allows a limit consumer to write a REPLICATED record through the store",
     edit({ [RUNNER]: consumerBody(RUNNER, "    (void)np_cfg_store_replicated_write(NP_CFG_FILE_MODULE_USAGE, 0, 0);\n") }), 0, "OK");
   expect("R8 holds a writer to the consumer it is listed for (the runner's writes do not license the governor's)",
-    edit({ [GOV]: "#include \"np_module_usage.h\"\nvoid g(void) { (void)np_mu_add_dose(0, 5); }\n" }), 1,
-    `R8 ${GOV}:2: an emission-limit consumer uses np_mu_add_dose`);
+    edit({ [GOV]: "#include \"np_module_usage.h\"\nvoid g(void) { (void)np_mu_add_channel_used(0, 0, 5); }\n" }), 1,
+    `R8 ${GOV}:2: an emission-limit consumer uses np_mu_add_channel_used`);
   expect("R8 rejects np_cfg_store_replicated_read() in a limit consumer",
     edit({ [GOV]: "int g(void) { return np_cfg_store_replicated_read(NP_CFG_FILE_MODULE_USAGE, 0, 0); }\n" }), 1,
     "reads a REPLICATED record (np_cfg_store_replicated_read)");

@@ -142,6 +142,14 @@ np_hub_status_t np_mod_pbm_socket_disable_channel(uint16_t socket_id, uint8_t ch
     return NP_HUB_OK;
 }
 
+/* The channels the driver lights per socket, before latches (REQ-FWHUB-93 (j)). */
+static uint8_t g_lit[NP_HEXMAP_MAX_SOCKETS];
+
+uint8_t np_mod_pbm_socket_lit_channels(uint16_t socket_id)
+{
+    return (uint8_t)(g_lit[socket_id] & (uint8_t)~g_latched[socket_id]);
+}
+
 static float    g_ntc_c = 30.0f;
 static bool     g_ntc_fail;
 static unsigned g_ntc_reads;
@@ -211,6 +219,7 @@ static void fresh(void)
     np_log_session_start(&g_rec);        /* session 1: a UHDR file is open */
     np_pst_session_reset();
     memset(g_latched, 0, sizeof g_latched);
+    memset(g_lit, 0, sizeof g_lit);
     g_disable_calls = 0U;
     g_ntc_c = 30.0f; g_ntc_fail = false; g_ntc_reads = 0U;
     g_pd1 = 1000U; g_pd2 = 750U; g_pd_fail = false;
@@ -359,6 +368,36 @@ static void test_stopped_socket_not_ticked(void)
     np_pst_dose_poll(11U * NP_PBM_DOSE_TICK_MS);
     (void)np_pst_get_record(8U, &r);
     check(r.dose_J_cm2[0] > d, "stop: a re-drive in the same session keeps accumulating");
+}
+
+/* @verifies REQ-FWHUB-93#j */
+static void test_each_channel_counts_the_ticks_it_was_lit(void)
+{
+    fresh();
+    (void)np_pst_track(12U, NP_MOD_PBM_SMART);
+    g_lit[12] = NP_PBM_CH_A_EN | NP_PBM_CH_C_EN;          /* 660 and 1064 nm lit, 808 nm dark */
+    ticks(4U);
+    uint32_t idx = NP_PST_MAX_TRACKED;
+    for (uint32_t i = 0U; i < NP_PST_MAX_TRACKED; i++) {
+        uint16_t s; uint32_t on;
+        if (np_pst_usage(i, &s, &on) && s == 12U) { idx = i; }
+    }
+    uint32_t a = 0U, b = 1U, c = 0U, total = 0U;
+    uint16_t sock = 0U;
+    check(idx < NP_PST_MAX_TRACKED && np_pst_usage(idx, &sock, &total) &&
+          np_pst_channel_usage(idx, 0U, &a) && np_pst_channel_usage(idx, 1U, &b) && np_pst_channel_usage(idx, 2U, &c) &&
+          a == 4U * NP_PBM_DOSE_TICK_MS && b == 0U && c == 4U * NP_PBM_DOSE_TICK_MS && total == a,
+          "channels: each lit channel counts the ticks it was lit; a dark one counts none");
+
+    g_pd1 = 65535U; g_pd2 = 1U;                           /* 660 nm reaches its limit on the next tick */
+    np_pst_dose_poll(5U * NP_PBM_DOSE_TICK_MS);
+    np_pst_dose_poll(6U * NP_PBM_DOSE_TICK_MS);
+    (void)np_pst_channel_usage(idx, 0U, &a);
+    check(g_latched[12] & NP_PBM_CH_A_EN, "channels: the limit latches 660 nm");
+    check(a == 5U * NP_PBM_DOSE_TICK_MS,
+          "channels: the tick that latches a channel counts it, and the ticks after it do not");
+    check(!np_pst_channel_usage(idx, 3U, &a) && !np_pst_channel_usage(NP_PST_MAX_TRACKED, 0U, &a),
+          "channels: a wavelength past the three, or an entry past the pool, is refused");
 }
 
 /* @verifies REQ-FWHUB-46 */
@@ -597,6 +636,7 @@ int main(void)
     test_dose_limit_latches_each_channel();
     test_thermal_throttle();
     test_stopped_socket_not_ticked();
+    test_each_channel_counts_the_ticks_it_was_lit();
     test_no_socket_driven_unmetered();
     test_counts_do_not_saturate_at_16_bits();
     test_session_counts_shdr();

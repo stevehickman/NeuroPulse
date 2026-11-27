@@ -32,9 +32,17 @@
 typedef struct {
     bool    active;
     bool    authenticated;
+    uint8_t lit;            /* channels driven now, INS_LIT_SIDE() */
 } np_mod_ins_state_t;
 
 static np_mod_ins_state_t s_state;
+
+/* The channels driven now (np_mod_intranasal_lit_channels(), REQ-FWHUB-93 (j)):
+ * bit 2 × side + wavelength, side 0 = left, wavelength 0 = 660 nm.  In
+ * s_state, so init() clears it with the rest. */
+#define INS_LIT_SIDE(side, cur_660, cur_808, duty)                              \
+    ((uint8_t)(((((cur_660) != 0U && (duty) != 0U) ? 1U : 0U) |                \
+                (((cur_808) != 0U && (duty) != 0U) ? 2U : 0U)) << (2U * (side))))
 
 /* True once the authentication failure of the probe now seated has been logged.
  * Kept outside s_state because init() clears s_state and does not end the
@@ -106,6 +114,7 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
             s_state.active = false;
             np_safety_spi_request_disable(NP_SAFETY_EN_INTRANASAL);
         }
+        s_state.lit = 0U;
         return NP_HUB_OK;
     }
 
@@ -143,10 +152,18 @@ np_hub_status_t np_mod_intranasal_control(uint8_t slot, const void *params, uint
         np_mod_ins_hal_pwm_stop(0U); /* left */
         np_mod_ins_hal_pwm_stop(1U); /* right */
         s_state.active = false;
+        s_state.lit    = 0U;
         np_safety_spi_request_disable(NP_SAFETY_EN_INTRANASAL);
         return NP_HUB_ERR_MOD_FAULT;
     }
 
+    /* A side this command wrote takes its new wavelengths; a side it did not write keeps what it was driving. */
+    if (p->side == 0U || p->side == 1U) {
+        s_state.lit = (uint8_t)((s_state.lit & 0x0CU) | INS_LIT_SIDE(0U, p->cur_660, p->cur_808, duty));
+    }
+    if (p->side == 0U || p->side == 2U) {
+        s_state.lit = (uint8_t)((s_state.lit & 0x03U) | INS_LIT_SIDE(1U, p->cur_660, p->cur_808, duty));
+    }
     s_state.active = true;
     np_safety_spi_request_enable(NP_SAFETY_EN_INTRANASAL);
     return NP_HUB_OK;
@@ -171,6 +188,11 @@ np_hub_status_t np_mod_intranasal_telemetry(uint8_t slot, np_telem_record_t *out
         p->dose_J_cm2[side] = (float)(pd_660 + pd_808) * 0.001f; /* placeholder K */
     }
     return NP_HUB_OK;
+}
+
+uint8_t np_mod_intranasal_lit_channels(void)
+{
+    return s_state.lit;
 }
 
 /* ── Shutdown ────────────────────────────────────────────────────────────────── */

@@ -167,6 +167,13 @@ bool np_pst_get_record(uint16_t socket_id, np_pst_socket_record_t *out);
  * entry or an index past the pool.  Runner context, at session end. */
 bool np_pst_usage(uint32_t index, uint16_t *socket_id, uint32_t *on_ms);
 
+/* Of that drive time, how long wavelength `wl` (0 = 660, 1 = 808, 2 = 1064 nm)
+ * was lit, as milliseconds: the dose ticks in which the socket drove that
+ * channel (np_mod_pbm_socket_lit_channels()), for the per-channel running
+ * totals (REQ-FWHUB-93 (j)).  False for an unused entry, an index past the
+ * pool or a wavelength past the three.  Runner context, at session end. */
+bool np_pst_channel_usage(uint32_t index, uint8_t wl, uint32_t *on_ms);
+
 /* ── Idle side (task_module_detect, under the session lease) ─────────────── */
 
 /* Ask for a pass over every socket.  Pending from boot. */

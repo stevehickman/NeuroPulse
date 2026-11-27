@@ -65,7 +65,7 @@ LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 LOG_MAX_FILES = 3
 LOG_DRIVERS_BOUNDED = ("local", "json-file")
 # P11 ceilings for ClickHouse's server log, per log file (clickhouse-server.log and .err.log): the figures np-privacy.xml
-# uses, with no derivation (UC-220). Lowering one is free; raising one is a register change.
+# uses, with no derivation (UC-221). Lowering one is free; raising one is a register change.
 CH_LOG_MAX_SIZE_BYTES = 10 * 1024 * 1024
 CH_LOG_MAX_COUNT = 3
 # Poco's level names from `warning` down: anything here keeps no information, debug or trace line, and so no query text
@@ -187,12 +187,12 @@ def clickhouse_logger_problems(text):
     if size is None or size <= 0:
         out.append(f"P11 <logger><size> is {lg.findtext('size')!r}, not a size bound")
     elif size > CH_LOG_MAX_SIZE_BYTES:
-        out.append(f"P11 <logger><size> {lg.findtext('size').strip()} is over the {CH_LOG_MAX_SIZE_BYTES // 1024 ** 2}M ceiling (UC-220)")
+        out.append(f"P11 <logger><size> {lg.findtext('size').strip()} is over the {CH_LOG_MAX_SIZE_BYTES // 1024 ** 2}M ceiling (UC-221)")
     count = (lg.findtext("count") or "").strip()
     if not count.isdigit() or int(count) < 1:
         out.append(f"P11 <logger><count> is {lg.findtext('count')!r}, not a file count")
     elif int(count) > CH_LOG_MAX_COUNT:
-        out.append(f"P11 <logger><count> {count} is over the ceiling of {CH_LOG_MAX_COUNT} (UC-220)")
+        out.append(f"P11 <logger><count> {count} is over the ceiling of {CH_LOG_MAX_COUNT} (UC-221)")
     if (lg.findtext("use_syslog") or "").strip().lower() in ("1", "true", "yes"):
         out.append("P11 <logger><use_syslog> is on: syslog takes the log where no bound here reaches")
     levels = lg.find("levels")

@@ -310,6 +310,21 @@ static void process_stops(uint32_t now_ms)
 }
 
 /*
+ * REQ-FWHUB-93 (j): the emitter channels an accessory port is driving now, in np_module_usage.h's port numbering.
+ * The intranasal probe's driver says which of its four it lit.  The 1170 nm unit is counted as one channel (UC-220: no hardware document gives its count), driven whenever the
+ * slot is.  Every other accessory counts no channel: it is not an emitter, or (the goggles) what its zone bits drive
+ * is not yet known (NP-FW-HUB-001 OI-FWHUB-35; NP-FW-NVRAM-001 OI-NVRAM-31), and a channel map is not invented here.
+ */
+static uint8_t port_lit_channels(np_hub_mod_type_t type)
+{
+    switch (type) {
+    case NP_MOD_INTRANASAL: return np_mod_intranasal_lit_channels();
+    case NP_MOD_PBM_1170NM: return 0x01U;
+    default:                return 0U;
+    }
+}
+
+/*
  * dispatch_tracked — dispatch command `idx` and keep the slot tracker in step with what the module now does (a
  * drive accepted: this command drives the slot; a stop accepted: nothing does).  The one place a slot command is
  * dispatched, by the run loop and by a resume alike, so a resume re-dispatches exactly what a pause found running.
@@ -321,7 +336,7 @@ static bool dispatch_tracked(uint16_t idx, uint32_t now_ms, bool *accepted)
     if (*accepted && cmd->target_kind == NP_PROTO_TARGET_SLOT) {
         if (cmd->params_len > 0U) {
             np_slot_track_started(&s_ctx.slots, cmd->slot_id, idx);
-            np_mu_slot_on(cmd->slot_id, cmd->mod_type, now_ms);    /* REQ-FWHUB-93: drive time starts */
+            np_mu_slot_on(cmd->slot_id, cmd->mod_type, port_lit_channels(cmd->mod_type), now_ms);   /* REQ-FWHUB-93 */
         } else {
             np_slot_track_stopped(&s_ctx.slots, cmd->slot_id);
             np_mu_slot_off(cmd->slot_id, now_ms);
@@ -358,11 +373,13 @@ static void mark_fitted_modules(void)
 
 /*
  * REQ-FWHUB-93: close the session's totals.  Each tile the dose meter tracked
- * adds the time it was driven, its metered dose (mJ/cm², summed over its
- * wavelengths) and one throttle if its thermal throttle tripped, keyed by the
- * UID in its socket now; then every open accessory interval closes at
- * `total_ms` and the table is written once.  Nothing here reaches the SHDR log
- * (np_module_usage.h).
+ * adds the time it was driven, the time each of its channels was lit (one
+ * session for each channel lit at all) and one throttle if its thermal
+ * throttle tripped, keyed by the UID in its socket now; then every open
+ * accessory interval closes at `total_ms` and the tables are written once.
+ * Nothing here reaches the SHDR log (np_module_usage.h).  No dose: delivered
+ * dose is UHDR and stays in the UHDR session file's socket records (F2); Config
+ * may not hold it (NP-FW-NVRAM-001 D-3, OI-NVRAM-23).
  */
 static void commit_module_usage(uint32_t total_ms)
 {
@@ -376,11 +393,13 @@ static void commit_module_usage(uint32_t total_ms)
         }
         const np_mu_key_t k = np_mu_key_uid(uid.b);
         if (on_ms > 0U) { np_mu_add_used(&k, on_ms); }
+        for (uint8_t w = 0U; w < NP_MU_TILE_CH; w++) {
+            uint32_t ch_ms;
+            if (np_pst_channel_usage(i, w, &ch_ms) && ch_ms > 0U) { np_mu_add_channel_used(&k, w, ch_ms); }
+        }
         np_pst_socket_record_t rec;
-        if (np_pst_get_record(socket_id, &rec)) {
-            const uint32_t dose = np_mu_dose_mJ_cm2(rec.dose_J_cm2, sizeof rec.dose_J_cm2 / sizeof rec.dose_J_cm2[0]);
-            if (dose > 0U) { np_mu_add_dose(&k, dose); }
-            if ((rec.flags & NP_PST_FLAG_THROTTLED) != 0U) { np_mu_note_throttle(&k); }
+        if (np_pst_get_record(socket_id, &rec) && (rec.flags & NP_PST_FLAG_THROTTLED) != 0U) {
+            np_mu_note_throttle(&k);
         }
     }
     (void)np_mu_session_end(total_ms);
