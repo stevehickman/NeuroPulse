@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** 12
+**Revision:** 13
 **Date:** 2026-11-27  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -654,3 +654,4 @@ Revisions before the first row below were not recorded in a table in this docume
 | 10 | 2026-11-25 | NeurOne Software Engineering | **New §7.7: the analytics access policy decided on OI-PRIV-47, with its alerts. Analytics Lead accounts approved by the CEO; separate ClickHouse users; every read recorded (PostHog through a sign-in proxy); a minimised log in write-once storage owned by the Privacy Lead, kept 12 months (CNIL 2021-122, UK NCSC); quarterly review; review records kept apart for at most 3 years. §7.6: the erasure relay's 202 for queued, decided on OI-PRIV-48 and built in both halves; the relay answers from its queue and the store and deletes in batches.** |
 | 11 | 2026-11-25 | NeurOne Software Engineering | **§7.6 Known residues: container logs are bounded by size, not age (P10, `UC-211`); ClickHouse's own server log is unbounded (`OI-PRIV-46` (2)).** |
 | 12 | 2026-11-27 | NeurOne Software Engineering | **§6.2: a physical device goes through Caddy (the https profile) and no other way; the plain-HTTP App Transport Security option is removed, because PostHog is published on 127.0.0.1 only (OI-PRIV-50). §7.6: np_erase is admitted from the host name erase-relay only, which carries into the rebuilt stack (OI-ANALYTICS-03), checked by P11; the self-check runs with --use-aliases.** |
+| 13 | 2026-11-27 | NeurOne Software Engineering | **§7.1, §7.7, new §7.8: the retention script's ClickHouse user `np_retention` is built, and ClickHouse refuses to start without each script user's password; §7.8 specifies the read log's entry format and where each alert comes from, with the A8 heartbeat (`UC-221`) and A10's schedule (`UC-222`). Nothing is deployed (`OI-PRIV-47`).** |
