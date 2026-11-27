@@ -41,7 +41,7 @@ The ClickHouse user may delete from the events tables and read their distinct_id
 whoever holds this user's password list the pseudonymous IDs the store holds (OI-PRIV-48).
 
 NOT YET EXERCISED AGAINST A REAL POSTHOG STACK (OI-ANALYTICS-01 (2)): the table name (`posthog.sharded_events`), the grant and the
-mutation must be checked against the version in POSTHOG_VERSION before this is relied on. `--self-check` does it against a live
+mutation must be checked against the PostHog commit pinned in posthog-pin.json before this is relied on. `--self-check` does it against a live
 stack: it writes a test event under a throwaway ID, erases it through this code and reads it back.
 
 Configuration is from the environment: CLICKHOUSE_URL (http://clickhouse:8123), ERASE_CLICKHOUSE_USER, ERASE_CLICKHOUSE_PASSWORD,

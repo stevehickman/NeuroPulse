@@ -42,31 +42,36 @@ PostHog replaces the need for a third-party analytics vendor, eliminating the DP
 
 ## 2. Architecture
 
+The stack is **PostHog's own hobby deployment at one pinned commit**, with NeurOne's controls layered on top (`OI-ANALYTICS-03`, §7.3). Three compose files in `infra/posthog`, applied in order (`COMPOSE_FILE` in `.env`):
+
+| File | What it is | Edited by |
+|------|------------|-----------|
+| `docker-compose.hobby.yml` (+ `docker-compose.base.yml`, `.env.services`, `compose/`) | PostHog's files at the pinned commit, byte for byte | `pin_posthog.py` only |
+| `docker-compose.pin.yml`, `posthog-pin.json` | every image PostHog versions or builds, by digest, and the record of the pin | `pin_posthog.py` only |
+| `docker-compose.neurone.yml` | NeurOne's controls: networks, ports, log bounds, privacy switches, Caddy, the erasure relay, ClickHouse's NeurOne config and users | by hand |
+
 ```
-iOS App
-  │  PostHog iOS SDK (explicit events only, no autocapture)
-  │  SDK posts to: http://localhost:8000/capture  (or HTTPS in production)
-  ▼
-┌─────────────────────────────────────────────────────┐
-│  PostHog web server  (Django/Gunicorn, port 8000)   │
-│  PostHog plugin server  ← NP property denylist runs │
-│  PostHog Celery worker  ← GDPR erasure tasks here   │
-│  Kafka  ─→  ClickHouse  (analytics event store)     │
-│  PostgreSQL  (metadata: projects, flags, cohorts)    │
-│  Redis  (cache, task queue)                          │
-│  ZooKeeper  (ClickHouse coordination)                │
-└─────────────────────────────────────────────────────┘
+App  ──HTTPS (or http://localhost:8000 on this machine)──▶  Caddy (NeurOne's; the only entrance; strips the client address)
+                                                              │ /capture/, /batch, /e, /i/v0  ──▶  capture (Rust)  ──▶  Redpanda (Kafka API)
+                                                              │ /np/erase                    ──▶  erasure relay ──▶  ClickHouse
+                                                              │ everything else (UI, API)    ──▶  web (Django)
+                                                              │ PostHog's other endpoints    ──▶  404
+   analytics-internal (no route out):  web · worker · plugins and the Node ingestion services ─▶ ClickHouse 26.9 (PostHog's build)
+                                       Postgres · Redis · Valkey · ZooKeeper · SeaweedFS · Temporal · the personhog services · …
 ```
 
-**What is and isn't in this stack:**
+At the commit pinned on 2026-11-27 the hobby file defines 48 services; NeurOne adds the erasure relay. **What is and isn't in this stack:**
 
 | Component | Present | Reason |
 |-----------|---------|--------|
-| MinIO (session recording storage) | No | Session recording is disabled; OBJECT_STORAGE_ENABLED=false |
-| GeoIP database (MaxMind) | No | DISABLE_MMDB=true |
-| PostHog telemetry to posthog.com | No | CAPTURE_INTERNAL_METRICS=false |
-| Caddy HTTPS proxy | Optional | Activated with `--profile https`; required for physical devices |
-| ClickHouse replication | No | Single-node; ZooKeeper still required for PostHog schema compatibility |
+| Session recordings | Refused at the proxy | `/s` is not routed (`ci/test_posthog_infra.py` P14); the project setting is the second layer (§3.4). PostHog's replay services still run: `OBJECT_STORAGE_ENABLED` no longer stops recording on this layout |
+| GeoIP database (MaxMind) | No | `DISABLE_MMDB=true` on every app and Node service, and the database is never downloaded (`share/` stays empty) |
+| PostHog telemetry to posthog.com | No | `OPT_OUT_CAPTURE=true`; and no service but Caddy has a route out (P5) |
+| LLM, OpenTelemetry, object-storage, live-event, webhook, survey, remote-config and flag endpoints | Refused at the proxy | 404 (P14); a feature that needs one is a decision, not a routing detail |
+| Caddy HTTPS proxy | Always | The capture service is reachable only through it |
+| ClickHouse replication | No | Single node; ZooKeeper still required for PostHog's schema |
+
+**Known gap on this layout (re-checked under `OI-ANALYTICS-03` (4)).** PostHog's layout connects to Postgres as `posthog:posthog` and to ClickHouse through PostHog's own `users.xml`, whose `default` user has an empty password and is admitted from any address. Neither port is published, and only containers on `analytics-internal` reach them, but every container there can. The old layout's `POSTGRES_PASSWORD` and `CLICKHOUSE_PASSWORD` gated the equivalent users; nothing on this layout reads them, so `.env.example` no longer asks for them.
 
 ---
 
@@ -76,31 +81,28 @@ iOS App
 
 ```bash
 cd infra/posthog
-cp .env.example .env
-
-# Generate SECRET_KEY
-python3 -c "import secrets; print(secrets.token_hex(32))"
-# → paste into .env as SECRET_KEY=
-
-# Generate POSTGRES_PASSWORD and CLICKHOUSE_PASSWORD (use different values)
-python3 -c "import secrets; print(secrets.token_hex(16))"
+cp .env.example .env && chmod 600 .env
+# Fill in every empty value; .env.example says how to generate each.
 ```
 
 ### 3.2 Start the stack
 
 ```bash
 cd infra/posthog
-docker compose up -d
+python3 pin_posthog.py --check        # the pin holds (offline)
+python3 pin_posthog.py --fetch-tree   # PostHog's mounted config files, at the pinned commit (./posthog)
+docker compose up -d                  # COMPOSE_FILE in .env names the three files
 
 # Watch for PostHog to finish migrating the database and start serving
-docker compose logs -f posthog
-# Ready when you see: "Application startup complete" or similar
-# First start takes 2-5 minutes (database migrations)
+docker compose logs -f web
+# First start takes several minutes (database migrations)
 ```
+
+**Never run PostHog's `bin/deploy-hobby` or `bin/upgrade-hobby` here.** They report the install to PostHog, download a GeoIP database and move the stack to whatever `master` is that day.
 
 ### 3.3 Create the organization and project
 
-1. Open `http://localhost:8000`
+1. Open `http://localhost:8000` (Caddy's plain-HTTP site, on this machine only)
 2. Complete the PostHog signup flow (creates the first admin user)
 3. Create an organization named **"NeurOne"**
 4. Create a project named **"NeurOne App"**
@@ -284,18 +286,16 @@ The iOS Simulator runs on the Mac and shares its network stack. `http://localhos
 
 ### 6.2 Physical device testing on local network
 
-A physical device reaches the stack through Caddy, the `https` compose profile, and no other way. PostHog's own port is published on `127.0.0.1` only (`docker-compose.yml`, checked by `ci/test_posthog_infra.py` P4), so that no client can skip Caddy's TLS: `http://<your Mac's LAN IP>:8000` does not answer from another device, and an App Transport Security exception for plain HTTP has nothing to reach. **Do not republish PostHog's port on the LAN to make plain HTTP work** (`OI-PRIV-50`); `.env.example` suggests no such address (P12).
+A physical device reaches the stack through Caddy's TLS site and no other way. Caddy's plain-HTTP port is published on `127.0.0.1` only (`docker-compose.neurone.yml`, checked by `ci/test_posthog_infra.py` P4), so that no client can skip Caddy's TLS: `http://<your Mac's LAN IP>:8000` does not answer from another device, and an App Transport Security exception for plain HTTP has nothing to reach. **Do not republish PostHog's port on the LAN to make plain HTTP work** (`OI-PRIV-50`); `.env.example` suggests no such address (P12).
 
 ```bash
-# Start with HTTPS profile, naming the Mac's LAN IP so Caddy issues its certificate for it
-POSTHOG_HOST=192.168.x.x docker compose --profile https up -d
-
-# In .env, so PostHog's links match what the device reaches:
-#   SITE_URL=https://192.168.x.x
-#   IS_BEHIND_PROXY=true
+# In .env, name the Mac's LAN IP so Caddy issues its certificate for it and PostHog's links match:
+#   POSTHOG_HOST=192.168.x.x
+#   DOMAIN=192.168.x.x
+docker compose up -d
 
 # Install Caddy's CA into the Mac Keychain
-docker exec $(docker compose ps -q caddy) caddy trust
+docker exec $(docker compose ps -q proxy) caddy trust
 
 # Then in Keychain Access: find "Caddy Local Authority" → Get Info → Trust → Always Trust
 
@@ -315,14 +315,10 @@ For T2 clinical cloud (NP-PRIV-REM-001 STEP-19 — EU data residency):
 3. Ensure ports 80 and 443 are open inbound
 4. Update `.env`:
    ```
-   SITE_URL=https://analytics.yourdomain.example
-   IS_BEHIND_PROXY=true
+   DOMAIN=analytics.yourdomain.example
    POSTHOG_HOST=analytics.yourdomain.example
    ```
-5. Start with HTTPS:
-   ```bash
-   docker compose --profile https up -d
-   ```
+5. Start: `docker compose up -d`
 6. Caddy obtains and auto-renews the Let's Encrypt certificate
 
 **EU-specific:** All Docker volumes store data on the instance's local disk. Confirm with your cloud provider that local disks in the chosen region are indeed EU-resident (they are for the major providers in their EU regions, but verify for your specific instance type and any backup policies).
@@ -367,19 +363,30 @@ curl -X DELETE \
 
 The `delete_events=true` flag ensures ClickHouse event records are also queued for deletion (processed asynchronously by the Celery worker).
 
-### 7.3 Upgrading PostHog
+### 7.3 Upgrading PostHog: the pin-by-commit rule (`OI-ANALYTICS-03`, the principal, 2026-11-26)
 
-1. Review the PostHog release notes: https://github.com/PostHog/posthog/releases
-2. Update `POSTHOG_VERSION` in `.env` to the new release tag
-3. Pull and restart:
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
-4. PostHog runs database migrations automatically on startup
-5. Monitor logs: `docker compose logs -f posthog`
+PostHog publishes **no versioned self-hosted releases**: its hobby deployment follows `master`, and the `release-x.y.z` tags this section used to name stopped. The version of this stack is therefore **one PostHog commit**, recorded in `infra/posthog/posthog-pin.json`.
 
-**Pinning versions:** always pin to a specific release tag (e.g. `release-1.43.0`) rather than `latest` once any data exists. Unpinned latest can introduce breaking schema migrations without warning.
+**The rule.**
+
+1. **The whole stack is pinned to one commit.** PostHog's compose files (`docker-compose.hobby.yml`, `docker-compose.base.yml`), `.env.services` and the scripts PostHog's installer writes into `compose/` are that commit's, byte for byte. NeurOne never edits them; its changes live in `docker-compose.neurone.yml`.
+2. **ClickHouse, and every other image whose version PostHog's compose sets, is taken from that same commit's file, never chosen on its own**, because PostHog's queries and migrations target the ClickHouse it names (`ghcr.io/posthog/clickhouse-posthog:26.9.5.2-posthog-c73aad4ad67d` at the current pin). Each is recorded by the digest its tag named when the pin was made.
+3. **Images PostHog builds itself and floats on `master` or `latest`** (the Django app, the Node services and the Rust services: capture, feature flags, personhog and the rest) are pinned by digest to the build the floating tag named when the commit was chosen. PostHog rebuilds an image only when its own code changes, so no commit has a full set of builds of its own; each build's `org.opencontainers.image.revision` must be the pinned commit or an ancestor of it, and `pin_posthog.py` refuses the pin otherwise (the principal's option A, 2026-11-26: `docs/human-input/oi-analytics-03-pin-mechanism.md`).
+4. **An image PostHog leaves unversioned** (its proxy's `caddy`) is not PostHog's choice to inherit: NeurOne names it in `docker-compose.neurone.yml` (`caddy:2.8-alpine`, which replaces PostHog's proxy).
+5. **A minimum-version guard sits on top of the pin, never in place of it.** `clickhouse_version_guard.py` asks `SELECT version()` and refuses a ClickHouse older than **24.10**, the release that extended `SQL SECURITY DEFINER` to parameterized views (ClickHouse changelog, PR #69984), which the erasure relay's narrow design needs (`OI-ANALYTICS-03` (5), `OI-PRIV-48`). The erasure relay runs it before it starts. It catches a store that is not the pinned one (an image override, an edited file, a store run elsewhere), which the pin alone cannot see.
+
+`python3 pin_posthog.py --check` verifies 1–3 offline (the vendored files unedited, every service pinned, every PostHog-built image's revision checked); `ci/test_posthog_infra.py` P2 and `ci/test_posthog_pin.py` run it in CI (`REQ-SW03-41`).
+
+**Upgrading is a deliberate move of the whole stack to a newer commit.** Never `docker compose pull` on a floating tag, never edit an image line, never run PostHog's `bin/upgrade-hobby`.
+
+1. Choose the commit: normally PostHog's current `master` head (`git ls-remote https://github.com/PostHog/posthog refs/heads/master`). Read what changed in its compose files and in `docker/clickhouse/` since the current pin.
+2. `python3 pin_posthog.py --commit <40-hex SHA>`. It refuses if a PostHog-built image's current build is newer than the commit (choose a newer commit), if PostHog's installer writes different scripts into `compose/`, or if any image cannot be resolved. It prints every image that moved.
+3. `python3 ci/test_posthog_infra.py` and `python3 pin_posthog.py --check`. **A service PostHog has added fails P5 and P10** until it is listed in `docker-compose.neurone.yml` with the bounded logging and the internal network, so nothing joins the stack unreviewed; a new public endpoint in PostHog's proxy is a P14 decision (serve it or refuse it), not a detail.
+4. `python3 pin_posthog.py --fetch-tree`, then `docker compose up -d`. PostHog migrates on start.
+5. **Re-run the checks that an upgrade can silently undo**, against the running stack, in the procedure of `NP-MAN-OPS-001` §4: the version guard (the erasure relay's log), the retention TTL (`apply_event_retention.py --check`; an upgrade that recreates the events table drops it, §7.1), the project settings (`apply_project_settings.py --check`, §3.4), and the erasure relay's self-check (§7.6; an upgrade that renames the events table leaves the relay deleting nothing). Record the commit moved from and to, and each result.
+6. Commit the changed files (`posthog-pin.json`, `docker-compose.pin.yml`, the vendored files) in one change that names both commits.
+
+**Not yet run against a live stack.** No step above has run on Docker: the pin was resolved from the registries and checked offline; the stack has been rendered, not started. That PostHog's services start with no route out (no `analytics-external`), that the NeurOne ClickHouse files still do what they say on PostHog's `config.xml` and `users.xml`, and every control in `infra/posthog`, are re-checked under `OI-ANALYTICS-03` (4).
 
 ### 7.4 Backups
 
@@ -437,7 +444,7 @@ What the relay does (`OI-PRIV-48`, decided by the principal 2026-11-24, GitHub #
 
 **Order of release.** The app treats `202` as "keep the ID and go on to the next" and drops an ID only on `200` (`REQ-SW03-19` (b), built 2026-11-24). An app released before that drops on any `2xx`, so a `202` sent to it would drop an ID the store still holds. **Do not deploy this relay where such an app is still in use.**
 
-**Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose --profile https run --rm --use-aliases erase-relay python /app/erase_relay.py --self-check`. Without `--use-aliases`, `docker compose run` does not give its container the service name, and ClickHouse refuses `np_erase` from it (`OI-PRIV-50`). It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for `POSTHOG_VERSION`. A PostHog upgrade can rename the table, so repeat it after §7.3.
+**Before relying on it** (`OI-ANALYTICS-01` (2)): the full procedure, with the retention and proxy checks around it and the record to keep, is `NP-MAN-OPS-001` §4. The relay's part is: on the real stack, with `ERASE_CHECK_CLICKHOUSE_USER` and `_PASSWORD` set to a user that may insert and select, run `docker compose run --rm --use-aliases erase-relay python /app/erase_relay.py --self-check`. Without `--use-aliases`, `docker compose run` does not give its container the service name, and ClickHouse refuses `np_erase` from it (`OI-PRIV-50`). It writes a probe event under a throwaway ID, erases it through the relay's own code and reads it back; exit 0 means the table name, the grant and the mutation are right for the pinned PostHog commit (§7.3). A PostHog upgrade can rename the table, so repeat it after §7.3.
 
 **Known residues.** ClickHouse's `system.mutations` keeps the text of a finished mutation, so a batch's erased IDs can remain in that system table; it holds no event data, but it is the list the feature exists to shorten. Whether and how long it is kept is not verified. Replicas, backups (§7.4) and Kafka logs (24 hours) are not touched by the relay. An event still in Kafka when a batch runs is written afterwards; the next ask for that ID finds it and queues it again, but an ID the app has already dropped is not asked about again, so such an event stays until the TTL. **Container logs** are bounded by size, not by age (since 2026-11-25, `OI-PRIV-57`): every service in `docker-compose.yml` uses Docker's `local` driver with at most three files of 10 MB (`UC-211`, checked by `ci/test_posthog_infra.py` P10), so a quiet service can keep a line longer than the 30 days of `NP-APP-TELEMETRY-001` §5. The erasure relay writes no ID to its log (`REQ-SW03-22`), and Caddy's logs keep no address and no request header. **ClickHouse's own server log**, on the `clickhouse_log` volume, is bounded by size, not by age (since Rev 14, `OI-PRIV-46` (2)): the stock image logs at `trace`, which records every query's text, in ten files of 1000M per log; `clickhouse/np-privacy.xml` overrides that with a `<logger>` at `warning` (and `errorlog_level` `warning`), at most three archived files of 10 MB per log (`UC-223`, checked by `ci/test_posthog_infra.py` P13, which also checks that every ClickHouse server in the compose file mounts the override). ClickHouse's logger has no age option, so a quiet server can keep a line longer than 30 days, and **a failed query is logged at `error` with its text**, so a failed erase batch can leave its IDs there until the files rotate. **Neither log is yet bounded by age** (`OI-PRIV-46`): that waits on measuring each service's output rate or on a host setting that bounds age.
 
@@ -492,7 +499,7 @@ The analytics store holds each installation's event timeline under its pseudonym
 
 **Deferred until a baseline exists.** Three triggers need a threshold: (B1) rows returned by one person in a day well above their measured normal; (B2) access at an unusual time or from a new device or location, where the identity provider's own signal is preferred; (B3) a burst of `429` answers from the erasure relay (`OI-PRIV-48`). Their values are set from the measured log at the first quarterly review after the log is running, not chosen beforehand, so each rests on a measurement (`CLAUDE.md` §19).
 
-**To build** (`OI-PRIV-47`; what is built is in §7.8): the sign-in proxy and the identity provider behind it, recording each page's type so A6 and A7 can be seen; the log forwarder, its heartbeat (A8) and the locked bucket; a ClickHouse user per remaining script and per operator; alerts A1 to A11 wired to a channel, including the schedule A10 runs on and counters the erasure relay exposes while it runs (today it prints them only at shutdown) for A11; and a check, against the pinned `POSTHOG_VERSION`, of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
+**To build** (`OI-PRIV-47`; what is built is in §7.8): the sign-in proxy and the identity provider behind it, recording each page's type so A6 and A7 can be seen; the log forwarder, its heartbeat (A8) and the locked bucket; a ClickHouse user per remaining script and per operator; alerts A1 to A11 wired to a channel, including the schedule A10 runs on and counters the erasure relay exposes while it runs (today it prints them only at shutdown) for A11; and a check, against the pinned PostHog commit (§7.3), of whether PostHog records page views itself (as far as is known, self-hosted PostHog records changes, not views).
 
 ### 7.8 The read log's entry format and alert rules (`OI-PRIV-47`; built as a module, not deployed)
 
@@ -615,10 +622,12 @@ docker compose exec clickhouse clickhouse-client \
 | `docs/np_priv_analysis_002.md` (NP-PRIV-ANALYSIS-002) | AnalyticsGate.reset() wired to consent withdrawal — applies equally to PostHog SDK |
 | `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics vendor DPA) — self-hosting eliminates the third-party DPA requirement |
 | `docs/np_priv_notice_001.md` (NP-PRIV-NOTICE-001) | §3 (app analytics disclosure) — references self-hosted analytics; no third-party name needed |
-| `infra/posthog/docker-compose.yml` | Deployment configuration |
+| `infra/posthog/docker-compose.neurone.yml` | NeurOne's controls over PostHog's hobby compose file (§2, §7.3) |
+| `infra/posthog/pin_posthog.py`, `posthog-pin.json`, `docker-compose.pin.yml` | The pin to one PostHog commit and its check (§7.3) |
+| `infra/posthog/clickhouse_version_guard.py` | The ClickHouse minimum-version guard (§7.3) |
 | `infra/posthog/.env.example` | Environment variable reference |
 | `infra/posthog/clickhouse/np-privacy.xml` | ClickHouse system log TTLs |
-| `infra/posthog/caddy/Caddyfile` | HTTPS termination configuration |
+| `infra/posthog/caddy/Caddyfile` | The stack's only entrance: TLS, address stripping, which endpoints are served |
 
 ---
 
@@ -632,7 +641,7 @@ The following must be completed to close AUDIT-01 (analytics vendor not selected
 - [ ] Verify denylist enforcement (§4.4) using a test event from the simulator
 - [ ] Integrate PostHog iOS SDK with `AnalyticsGate` — SDK init only post-consent
 - [ ] Verify `AnalyticsGate.reset()` calls `PostHogSDK.shared.optOut()` on consent withdrawal
-- [ ] Pin `POSTHOG_VERSION` to a specific release in `.env`
+- [x] Pin the stack to one PostHog commit (§7.3; `posthog-pin.json`)
 - [ ] Update `PrivacyInfo.xcprivacy` — PostHog SDK will have required entries; self-hosting means no third-party domain disclosure needed for data *transmission* (only the SDK binary's API usage declarations)
 - [ ] Update `docs/np_app_telemetry_001.md` to record PostHog as the selected analytics platform
 

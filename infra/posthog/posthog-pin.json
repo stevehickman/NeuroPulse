@@ -1,0 +1,513 @@
+{
+  "commit": "b70ceb9c3d423a66e11546a422d9623de69ade6a",
+  "commit_date": "2026-11-27T02:43:11+00:00",
+  "upstream": "https://github.com/PostHog/posthog",
+  "vendored": {
+    "docker-compose.hobby.yml": "13ca2e9cc09c54340a37802d7e61f513935dbeae2d95636a24d02ff7ba8a413c",
+    "docker-compose.base.yml": "c1cc3d2f11c527f8baac33ef9ec14275778d77c82f269de8cfcd78178ad5f1dd",
+    ".env.services": "444b1e108fe93c538d85e061229ebf973baca4a0937d7cd865a2e86a3f0fa711",
+    "compose/start": "fec589dc88d042a8cd644dac423d89ae663e510b890f23fa238dd5759a83c343",
+    "compose/wait": "29fb8510b6be805a3b30789b4c9d270a2fc53ce4af5215181a2f85002dad606d",
+    "compose/temporal-django-worker": "39cf440b659fb827a4ef61c799e60f291a0f30e6bcd35b5613364a70b52930f8"
+  },
+  "image_vars": {
+    "REGISTRY_URL": "posthog/posthog",
+    "POSTHOG_APP_TAG": "latest",
+    "DOCKER_REGISTRY_PREFIX": ""
+  },
+  "services": {
+    "asyncmigrationscheck": {
+      "compose_image": "$REGISTRY_URL:$POSTHOG_APP_TAG",
+      "ref": "posthog/posthog:latest",
+      "registry": "docker.io",
+      "repository": "posthog/posthog",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:40a98423dd59111ca3eaa7a3bd86231b19db8a5930c48309b5a58114e4b311a9",
+      "revision": "b70ceb9c3d423a66e11546a422d9623de69ade6a",
+      "revision_is_ancestor": true
+    },
+    "browserless": {
+      "compose_image": "ghcr.io/browserless/chromium:v2.51.2",
+      "ref": "ghcr.io/browserless/chromium:v2.51.2",
+      "registry": "ghcr.io",
+      "repository": "browserless/chromium",
+      "tag": "v2.51.2",
+      "kind": "versioned",
+      "digest": "sha256:79a37927bdd235c8f5a299a8846c37e946c3505dff2562ece3922d4562d016a3"
+    },
+    "capture": {
+      "compose_image": "ghcr.io/posthog/posthog/capture:master",
+      "ref": "ghcr.io/posthog/posthog/capture:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/capture",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:42e5fbb14bda110c801b49d074bb8bf19b55e9f52c57abf3d44ca72505e8a08f",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "capture-ai": {
+      "compose_image": "ghcr.io/posthog/posthog/capture:master",
+      "ref": "ghcr.io/posthog/posthog/capture:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/capture",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:42e5fbb14bda110c801b49d074bb8bf19b55e9f52c57abf3d44ca72505e8a08f",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "capture-logs": {
+      "compose_image": "ghcr.io/posthog/posthog/capture-logs:master",
+      "ref": "ghcr.io/posthog/posthog/capture-logs:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/capture-logs",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:8f2c8e286b86e59632901ac80d3b685ba4a45af2374a500ac7c0cf896e150784",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "clickhouse": {
+      "compose_image": "${CLICKHOUSE_SERVER_IMAGE:-ghcr.io/posthog/clickhouse-posthog:26.9.5.2-posthog-c73aad4ad67d}",
+      "ref": "ghcr.io/posthog/clickhouse-posthog:26.9.5.2-posthog-c73aad4ad67d",
+      "registry": "ghcr.io",
+      "repository": "posthog/clickhouse-posthog",
+      "tag": "26.9.5.2-posthog-c73aad4ad67d",
+      "kind": "versioned",
+      "digest": "sha256:feac30bb98c5e66f70c88ecfa2669018ac96d251c1ac54960177500970543138"
+    },
+    "cyclotron-node-migrate": {
+      "compose_image": "ghcr.io/posthog/posthog/sqlx-migrate:master",
+      "ref": "ghcr.io/posthog/posthog/sqlx-migrate:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/sqlx-migrate",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:da5ee66d61de3d93752932da598a1d1ccf49a6409d2eb2b7d9ffe682712d9802",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "cymbal": {
+      "compose_image": "ghcr.io/posthog/posthog/cymbal:master",
+      "ref": "ghcr.io/posthog/posthog/cymbal:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/cymbal",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:db613cc3e69ea2ec2dc6442b5f19f30b4a1f55cacfb0f5debf703484dd316f07",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "cymbal-resolution": {
+      "compose_image": "ghcr.io/posthog/posthog/cymbal:master",
+      "ref": "ghcr.io/posthog/posthog/cymbal:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/cymbal",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:db613cc3e69ea2ec2dc6442b5f19f30b4a1f55cacfb0f5debf703484dd316f07",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "db": {
+      "compose_image": "${DOCKER_REGISTRY_PREFIX:-}postgres:15.12-alpine",
+      "ref": "postgres:15.12-alpine",
+      "registry": "docker.io",
+      "repository": "library/postgres",
+      "tag": "15.12-alpine",
+      "kind": "versioned",
+      "digest": "sha256:ef9d1517df69c4d27dbb9ddcec14f431a2442628603f4e9daa429b92ae6c3cd1"
+    },
+    "etcd": {
+      "compose_image": "quay.io/coreos/etcd:v3.6.8",
+      "ref": "quay.io/coreos/etcd:v3.6.8",
+      "registry": "quay.io",
+      "repository": "coreos/etcd",
+      "tag": "v3.6.8",
+      "kind": "versioned",
+      "digest": "sha256:b88bf32c663e2599bd3742ded6cd9106431288528c0d2c9425fb03f348f59419"
+    },
+    "feature-flags": {
+      "compose_image": "ghcr.io/posthog/posthog/feature-flags:master",
+      "ref": "ghcr.io/posthog/posthog/feature-flags:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/feature-flags",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:4586b42a05123c1771977842ab49cb94d25917852205947f3fbbc42bddad0aa4",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "hypercache-server": {
+      "compose_image": "ghcr.io/posthog/posthog/hypercache-server:master",
+      "ref": "ghcr.io/posthog/posthog/hypercache-server:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/hypercache-server",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:2a17f8eb2dc00f26831fc26e9aa661c042dc205c4733487601f7879e449ead6e",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "ingestion-error-tracking": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "ingestion-general": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "ingestion-logs": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "ingestion-sessionreplay": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "ingestion-traces": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "kafka": {
+      "compose_image": "docker.io/redpandadata/redpanda:v25.1.9",
+      "ref": "docker.io/redpandadata/redpanda:v25.1.9",
+      "registry": "docker.io",
+      "repository": "redpandadata/redpanda",
+      "tag": "v25.1.9",
+      "kind": "versioned",
+      "digest": "sha256:8f7e9e4c1422baaa1a5e2a6c6c668cfe05442cb3cb476542c7dff61725e6fe31"
+    },
+    "kafka-init": {
+      "compose_image": "docker.io/redpandadata/redpanda:v25.1.9",
+      "ref": "docker.io/redpandadata/redpanda:v25.1.9",
+      "registry": "docker.io",
+      "repository": "redpandadata/redpanda",
+      "tag": "v25.1.9",
+      "kind": "versioned",
+      "digest": "sha256:8f7e9e4c1422baaa1a5e2a6c6c668cfe05442cb3cb476542c7dff61725e6fe31"
+    },
+    "livestream": {
+      "compose_image": "ghcr.io/posthog/posthog/livestream:master",
+      "ref": "ghcr.io/posthog/posthog/livestream:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/livestream",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:eac9a9b0d6360e26f8fc61ddc3bf80087515a123c5cbae0bf74488eaa581c644",
+      "revision": "fb73e314913e79efd10f7291669ab9ac19a05bbc",
+      "revision_is_ancestor": true
+    },
+    "objectstorage": {
+      "compose_image": "chrislusf/seaweedfs:4.29",
+      "ref": "chrislusf/seaweedfs:4.29",
+      "registry": "docker.io",
+      "repository": "chrislusf/seaweedfs",
+      "tag": "4.29",
+      "kind": "versioned",
+      "digest": "sha256:d47c7ee99fcb951351d7194915f4e3a5ea604a8e8871183d713907dec4fb9bf5"
+    },
+    "personhog-changelog-relay": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-changelog-relay:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-changelog-relay:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-changelog-relay",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:3cb2d09c479f30da19a7e51dcd8821e4243e7fe6c264b7c59b6bb17195bb4959",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-etcd-init": {
+      "compose_image": "quay.io/coreos/etcd:v3.6.8",
+      "ref": "quay.io/coreos/etcd:v3.6.8",
+      "registry": "quay.io",
+      "repository": "coreos/etcd",
+      "tag": "v3.6.8",
+      "kind": "versioned",
+      "digest": "sha256:b88bf32c663e2599bd3742ded6cd9106431288528c0d2c9425fb03f348f59419"
+    },
+    "personhog-identity": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-identity:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-identity:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-identity",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:31dc54bb8e2400b899671a2fc5da0a4427000b339d976970168c7ea3de226900",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-leader": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-leader:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-leader:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-leader",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:1e96ebd75e6cd935d3266801539cdd7d8c20a034b952e38b0efe0a5953f998ec",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-publisher": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-publisher:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-publisher:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-publisher",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:f5c02d6fc5b67db2720bf769f05090cd949bcd1be57e08ba7115e326f1d451b1",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-replica": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-replica:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-replica:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-replica",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:3fa600894475bbd07fa1797d81bbc90438e676c63e3871d5e41ff9002311a099",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-router": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-router:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-router:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-router",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:81f908f1cf3ecbd75bb66366caa485b3999f99ba6e10c769e83ad6829bba3486",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-router-leader": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-router:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-router:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-router",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:81f908f1cf3ecbd75bb66366caa485b3999f99ba6e10c769e83ad6829bba3486",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "personhog-tables-ready": {
+      "compose_image": "${DOCKER_REGISTRY_PREFIX:-}postgres:15.12-alpine",
+      "ref": "postgres:15.12-alpine",
+      "registry": "docker.io",
+      "repository": "library/postgres",
+      "tag": "15.12-alpine",
+      "kind": "versioned",
+      "digest": "sha256:ef9d1517df69c4d27dbb9ddcec14f431a2442628603f4e9daa429b92ae6c3cd1"
+    },
+    "personhog-writer": {
+      "compose_image": "ghcr.io/posthog/posthog/personhog-writer:master",
+      "ref": "ghcr.io/posthog/posthog/personhog-writer:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/personhog-writer",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:2a11ad6d698f08dbe3a0c58f18cecdc5083d9774f040e5122ab7f469b299a89b",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "plugins": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "property-defs-ai": {
+      "compose_image": "ghcr.io/posthog/posthog/property-defs-rs:master",
+      "ref": "ghcr.io/posthog/posthog/property-defs-rs:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/property-defs-rs",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:d3a56a3c4ca3486673a47783645aad31c11075b91f4e754a142a137c3b45138b",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "property-defs-rs": {
+      "compose_image": "ghcr.io/posthog/posthog/property-defs-rs:master",
+      "ref": "ghcr.io/posthog/posthog/property-defs-rs:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/property-defs-rs",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:d3a56a3c4ca3486673a47783645aad31c11075b91f4e754a142a137c3b45138b",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "proxy": {
+      "compose_image": "caddy",
+      "ref": "caddy",
+      "registry": "docker.io",
+      "repository": "library/caddy",
+      "tag": "",
+      "kind": "unversioned"
+    },
+    "recording-api": {
+      "compose_image": "${NODE_IMAGES_REGISTRY_URL:-ghcr.io/posthog/posthog-node}:${POSTHOG_NODE_TAG:-latest}",
+      "ref": "ghcr.io/posthog/posthog-node:latest",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog-node",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:ed0084b0561abea39e358b3ee40d824331adda6d80674ae57f02925558e0cb6d",
+      "revision": "83423f61cb77cea91a25456525454c0aec93fe40",
+      "revision_is_ancestor": true
+    },
+    "redis7": {
+      "compose_image": "redis:7.2-alpine",
+      "ref": "redis:7.2-alpine",
+      "registry": "docker.io",
+      "repository": "library/redis",
+      "tag": "7.2-alpine",
+      "kind": "versioned",
+      "digest": "sha256:2f66de68111e64c3927859f158f8e666066dae2b97d9f82770a6f37a5aa1c335"
+    },
+    "replay-capture": {
+      "compose_image": "ghcr.io/posthog/posthog/capture:master",
+      "ref": "ghcr.io/posthog/posthog/capture:master",
+      "registry": "ghcr.io",
+      "repository": "posthog/posthog/capture",
+      "tag": "master",
+      "kind": "posthog-built",
+      "digest": "sha256:42e5fbb14bda110c801b49d074bb8bf19b55e9f52c57abf3d44ca72505e8a08f",
+      "revision": "a49d480853e9586722300e8f37a584cec543242d",
+      "revision_is_ancestor": true
+    },
+    "seaweedfs": {
+      "compose_image": "chrislusf/seaweedfs:4.29",
+      "ref": "chrislusf/seaweedfs:4.29",
+      "registry": "docker.io",
+      "repository": "chrislusf/seaweedfs",
+      "tag": "4.29",
+      "kind": "versioned",
+      "digest": "sha256:d47c7ee99fcb951351d7194915f4e3a5ea604a8e8871183d713907dec4fb9bf5"
+    },
+    "temporal": {
+      "compose_image": "temporalio/auto-setup:1.26.2",
+      "ref": "temporalio/auto-setup:1.26.2",
+      "registry": "docker.io",
+      "repository": "temporalio/auto-setup",
+      "tag": "1.26.2",
+      "kind": "versioned",
+      "digest": "sha256:e9245820522233ec6a59ad69c6512ae4450705ee02bf6894fc61ba13b238c1c0"
+    },
+    "temporal-admin-tools": {
+      "compose_image": "temporalio/admin-tools:1.26.2",
+      "ref": "temporalio/admin-tools:1.26.2",
+      "registry": "docker.io",
+      "repository": "temporalio/admin-tools",
+      "tag": "1.26.2",
+      "kind": "versioned",
+      "digest": "sha256:37e2e33dbd7b86a12fa1daecf48f5b42544956ae503a83bd45460587f25591f2"
+    },
+    "temporal-django-worker": {
+      "compose_image": "$REGISTRY_URL:$POSTHOG_APP_TAG",
+      "ref": "posthog/posthog:latest",
+      "registry": "docker.io",
+      "repository": "posthog/posthog",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:40a98423dd59111ca3eaa7a3bd86231b19db8a5930c48309b5a58114e4b311a9",
+      "revision": "b70ceb9c3d423a66e11546a422d9623de69ade6a",
+      "revision_is_ancestor": true
+    },
+    "temporal-ui": {
+      "compose_image": "temporalio/ui:2.47.2",
+      "ref": "temporalio/ui:2.47.2",
+      "registry": "docker.io",
+      "repository": "temporalio/ui",
+      "tag": "2.47.2",
+      "kind": "versioned",
+      "digest": "sha256:2081da2b305d9c311a5d13dc6b98173c5aff2072a74000a7b79ef47a97210c0e"
+    },
+    "valkey": {
+      "compose_image": "valkey/valkey:8.1-alpine",
+      "ref": "valkey/valkey:8.1-alpine",
+      "registry": "docker.io",
+      "repository": "valkey/valkey",
+      "tag": "8.1-alpine",
+      "kind": "versioned",
+      "digest": "sha256:9971099af41c36e887aabdfe22b80c0fe45df949163dfc9cb434febc57cfc3fc"
+    },
+    "web": {
+      "compose_image": "$REGISTRY_URL:$POSTHOG_APP_TAG",
+      "ref": "posthog/posthog:latest",
+      "registry": "docker.io",
+      "repository": "posthog/posthog",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:40a98423dd59111ca3eaa7a3bd86231b19db8a5930c48309b5a58114e4b311a9",
+      "revision": "b70ceb9c3d423a66e11546a422d9623de69ade6a",
+      "revision_is_ancestor": true
+    },
+    "worker": {
+      "compose_image": "$REGISTRY_URL:$POSTHOG_APP_TAG",
+      "ref": "posthog/posthog:latest",
+      "registry": "docker.io",
+      "repository": "posthog/posthog",
+      "tag": "latest",
+      "kind": "posthog-built",
+      "digest": "sha256:40a98423dd59111ca3eaa7a3bd86231b19db8a5930c48309b5a58114e4b311a9",
+      "revision": "b70ceb9c3d423a66e11546a422d9623de69ade6a",
+      "revision_is_ancestor": true
+    },
+    "zookeeper": {
+      "compose_image": "zookeeper:3.7.0",
+      "ref": "zookeeper:3.7.0",
+      "registry": "docker.io",
+      "repository": "library/zookeeper",
+      "tag": "3.7.0",
+      "kind": "versioned",
+      "digest": "sha256:341cf7411329fd5a3ea37640073e7b8f063175168c0f0d99179e9606e035a80c"
+    }
+  }
+}

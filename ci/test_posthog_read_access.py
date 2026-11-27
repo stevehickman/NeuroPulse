@@ -18,7 +18,7 @@ Run: python3 ci/test_posthog_read_access.py [--self-test]
 CI-Kind: gate
 CI-Self-Test: python3 ci/test_posthog_read_access.py --self-test
 CI-Scans: the ClickHouse user files and the compose file's ClickHouse service, for each script's grants and required passwords; the read-log module's format, redaction and alert routing
-CI-Scan-Paths: infra/posthog/clickhouse infra/posthog/docker-compose.yml infra/posthog/read_log.py
+CI-Scan-Paths: infra/posthog/clickhouse infra/posthog/docker-compose.neurone.yml infra/posthog/read_log.py
 CI-Self-Test-Reads-Tree: the user-file mutants are copies of the real files broken in one way, and the read-log mutants patch the real module the suite imports
 """
 import importlib.util
@@ -52,13 +52,14 @@ AN_ID = "0190c3a2-7d4e-7b1a-9c55-2f6e8a1b3c4d"
 
 def read_files():
     return ({p.name: p.read_text() for p in sorted((INFRA / "clickhouse").glob("*-user.xml"))},
-            (INFRA / "docker-compose.yml").read_text())
+            (INFRA / "docker-compose.neurone.yml").read_text())
 
 
 def clickhouse_service(compose: str) -> str:
-    """The text of the compose file's `clickhouse:` service block."""
-    found = re.search(r"^  clickhouse:\n(.*?)(?=^  \S|\Z)", compose, re.M | re.S)
-    return found.group(1) if found else ""
+    """The text of the compose file's `clickhouse:` service block (NeurOne's layer, docker-compose.neurone.yml, where the
+    ClickHouse user files and their passwords are added to PostHog's service; OI-ANALYTICS-03), at whatever indentation."""
+    found = re.search(r"^( +)clickhouse:\n(.*?)(?=^\1\S|\Z)", compose, re.M | re.S)
+    return found.group(2) if found else ""
 
 
 def user_problems(user_files: dict, compose: str) -> list:

@@ -10,7 +10,7 @@
   to run as `posthog`.
 
   The password comes from the container's environment (RETENTION_CLICKHOUSE_PASSWORD, set in .env, required by the compose file
-  so the user never exists with an empty password). The table name must match the script's tables option and POSTHOG_VERSION's
+  so the user never exists with an empty password). The table name must match the script's tables option and the pinned PostHog commit's
   schema. NOT YET EXERCISED AGAINST A REAL STACK (OI-ANALYTICS-01 (2)): whether MODIFY TTL, which by default also materialises the
   TTL on existing parts, needs any grant beyond ALTER MODIFY TTL on ClickHouse 23.12 is to be confirmed by NP-MAN-OPS-001 §4.
 -->

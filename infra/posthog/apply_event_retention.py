@@ -28,7 +28,7 @@ Exit codes: 0 every table is as required; 1 a table differs (named on stderr); 2
 password, PostHog's own user named, a refused request, an unreachable host, an answer with no TTL to read). Anything that cannot be read counts as not met.
 
 NOT YET EXERCISED AGAINST A REAL POSTHOG STACK (OI-ANALYTICS-01 (2)): the table name (posthog.sharded_events) is the single-node
-self-host's and must be checked against POSTHOG_VERSION; a PostHog upgrade that recreates the table drops the TTL, so run --check
+self-host's and must be checked against the PostHog commit pinned in posthog-pin.json; a PostHog upgrade that recreates the table drops the TTL, so run --check
 after every upgrade. The password is read from the environment only and is never printed.
 """
 import argparse
